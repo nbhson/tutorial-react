@@ -26,6 +26,7 @@ export default function App() {
     <Layout header={<h2>Header</h2>} sidebar={<nav>Menu</nav>}>
       <Card>
         <p>Nội dung qua children.</p>
+        <p>Nội dung 2 qua children.</p>
       </Card>
     </Layout>
   );
