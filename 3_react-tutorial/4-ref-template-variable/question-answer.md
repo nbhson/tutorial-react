@@ -146,6 +146,22 @@
 
 ---
 
+## 13. Ref trong thực tế dùng cho việc nào? (Usecase + quy tắc nhận diện)
+
+**Hỏi:** Học `useRef` xong vẫn không biết khi nào dùng thật?
+
+**Đáp:** 5 usecase gặp hàng ngày:
+1. **Focus/select/scroll DOM** — mở modal focus ô đầu, chat cuộn xuống tin mới, nút "lên đầu trang".
+2. **Gọi API thư viện ngoài** — `videoRef.play()`, `chartRef.update()`, `mapRef.flyTo()` (video.js, ECharts, Leaflet).
+3. **Giữ giá trị không cần render** — id `setInterval` để cleanup, đếm submit chống double-submit, giá trị trước để so sánh.
+4. **Đo kích thước/vị trí** — `getBoundingClientRect()` đặt tooltip/dropdown, `ResizeObserver` vẽ responsive (ref giữ observer + state giữ con số).
+5. **`useImperativeHandle`** (hiếm) — cha gọi 1–2 hành động của con (`formRef.submit()`) mà vẫn giấu DOM thật.
+
+**Quy tắc nhận diện:** việc đó dùng state cũng xong thì dùng state; chỉ chạm ref khi "đổi mà không muốn render"
+hoặc "React không có API cho việc này".
+
+---
+
 ## Reference
 
 - `README.md` + `example.tsx` trong cùng thư mục (DAY 4)

@@ -3,119 +3,249 @@
 > Nguồn: https://react.dev/reference/react/useDeferredValue — https://react.dev/reference/react/useTransition
 
 ## Mục tiêu
-- Giữ input/search **phản hồi tức thì** ngay cả khi phía sau là render danh sách nặng.
-- Dùng `useTransition` đánh dấu update ít ưu tiên (giữ UI cũ + `isPending`).
-- Dùng `useDeferredValue` trì hoãn giá trị dẫn đến render nặng (filter/sort/search).
+
+### 1. Giữ input/search phản hồi tức thì ngay cả khi phía sau là render danh sách nặng
+
+**Vì sao:** mỗi phím gõ `setQuery` → filter 50k phần tử → render cả list. Làm đồng bộ thì keypress bị block, gõ delay, UX tệ (INP cao). Người dùng tha thứ list cập nhật chậm 200ms nhưng không tha thứ ô input đơ.
+
+**Cơ chế scheduling:** React chia update thành urgent (nhập chữ — tức thì) và non-urgent (lọc/render list — chờ được). Input đọc giá trị gốc (urgent, vẽ ngay); list đọc bản trễ (non-urgent, vẽ khi rảnh). Main bận thì React hoãn render list, ưu tiên sự kiện gõ mới; list bắt kịp dần, không mất phím nào.
+
+```tsx
+// ✅ ĐÚNG: input đọc query gốc (nhạy), list đọc deferred (trễ) — gõ không lag
+const [query, setQuery] = useState('');
+const deferred = useDeferredValue(query); // bản trễ cho render nặng
+<input value={query} onChange={(e) => setQuery(e.target.value)} /> {/* urgent */}
+<ul>{items.filter((i) => i.includes(deferred)).slice(0, 50).map((r) => <li key={r}>{r}</li>)}</ul>
+```
+
+**Usecase thực tế:** search 20k nhân viên, filter table 50k đơn, tab chuyển view phức tạp, sort lớn. Quy tắc nhận diện: "render nặng theo input" (mỗi phím gây render > 50ms) → deferred/transition. Render nhẹ (< 50ms) → đừng thêm, phí hoãn.
+
+### 2. Dùng `useTransition` đánh dấu update ít ưu tiên (giữ UI cũ + `isPending`)
+
+**Vì sao:** đổi tab/wizard/query nặng mà làm đồng bộ thì UI trắng/chớp giữa chừng. `startTransition(() => setState(...))` bảo React "giữ màn hình cũ, render mới ở nền, xong mới đổi". `isPending` cho badge nhẹ ("Đang lọc…") mà không chặn thao tác.
+
+### 3. Dùng `useDeferredValue` trì hoãn giá trị cho render nặng (filter/sort/search)
+
+**Vì sao:** đơn giản hơn transition — không bọc `setState`, chỉ "đọc nơi khác": input `setQuery` thẳng, list đọc `deferred`. Một dòng là có scheduling, không cần restructure update.
 
 ## Tổng quan
-Khi gõ ô tìm kiếm, mỗi phím kích hoạt `setQuery` → filter 50.000 phần tử → render lại cả list. Nếu làm "ngay mà không suy nghĩ", keypress bị block, gõ bị delay — UX tệ. Hai hook sinh đôi trong React 18+ giải quyết bằng **ưu tiên tác vụ** (scheduling): React chia update thành *urgent* (nhập chữ — phải tức thì) và *non-urgent* (lọc/render list — có thể chờ). `useTransition` quấn `setState` vào `startTransition` để "hạ độ ưu tiên"; `useDeferredValue` đơn giản hơn: tạo **bản sao trễ** của một giá trị dùng riêng cho render nặng — giá trị gốc vẫn cập nhật ngay (input nhạy), bản trễ cập nhật khi main thread rảnh. Áp dụng cho: filter/search to, tab chuyển đổi view phức tạp, sort lớn, bất kỳ "render nặng theo input".
+
+Khi gõ ô tìm kiếm, mỗi phím kích hoạt `setQuery` → filter 50.000 phần tử → render lại cả list. Nếu làm "ngay mà không suy nghĩ", keypress bị block, gõ bị delay — UX tệ. Hai hook sinh đôi trong React 18+ giải quyết bằng **ưu tiên tác vụ** (scheduling): React chia update thành *urgent* (nhập chữ — phải tức thì) và *non-urgent* (lọc/render list — có thể chờ).
+
+`useTransition` quấn `setState` vào `startTransition` để "hạ độ ưu tiên"; `useDeferredValue` tạo **bản sao trễ** của giá trị dùng riêng cho render nặng — gốc cập nhật ngay (input nhạy), bản trễ cập nhật khi rảnh. Áp dụng cho: filter/search to, tab chuyển view phức tạp, sort lớn, bất kỳ "render nặng theo input". Không thay virtualization (deferred lo *khi* render, virtual lo *bao nhiêu* node) — list khổng lồ dùng cả hai + memo.
 
 ## Khái niệm cốt lõi
-- **Concurrency (tính đồng thời trong React)**: render không còn "in sync" tuyệt đối — React có thể render update non-urgent *rồi hủy giữa chừng* nếu urgent xuất hiện, giữ màn hình cũ hoàn hảo tới khi sẵn sàng.
-- **`useTransition`** trả `[isPending, startTransition]`: bọc `setState` bên trong để React coi nó low-priority. `isPending = true` lúc rendering pending — dùng cho spinner/qu'é: UI cũ vẫn hiển thị, không chớp trắng.
-- **`useDeferredValue(value)`**: trả một "lazy twin" của `value` — khởi đầu giữ giá trị cũ, sau đó "bắt kịp" khi event xong; render *đọc nó* (list) là render non-urgent, còn render đọc `value` gốc (input) là urgent. Không cần bọc `setState`.
-- **Kết hợp với `memo`/Compiler**: render deferred vẫn là render (dù trì hoãn) — `memo`/compiler giúp phần list ít thay đổi bỏ qua; tổ hợp đúng: deferred xử lý *khi nào*, memo xử lý *ai được re-render*.
-- Phân biệt với **debounce**: debounce trì hoãn update tới khi ngưng gõ (cảm giác "imo 1–2s"); deferred không hoãn *vĩnh viễn* — nó giữ input responsive và bắt kịp dần, không đánh mất lần gõ cuối (thường được ưa hơn cho search).
-- **Tại sao deferred "đợi" được**: React duy trì *hai phiên bản giá trị* — bản khẩn cho UI nhạy cảm (input) và bản trễ cho phần render đắt. Khi main thread bận (đang vẽ list cũ), React hoãn công việc deferred, ưu tiên sự kiện người dùng mới; render deferred chỉ chạy giữa các lần idle.
-- **`startTransition` bên trong thư viện**: các lib như React Router (điều hướng), TanStack Table (sort/filter) đã tự quấn transition — bạn thấy mượt mà không cần đụng tay; hiểu cơ chế để khi cần tinh chỉnh (tắt transition, đo) biết đường làm.
-- **Multi-deferred**: một màn hình có thể dùng nhiều `useDeferredValue` (query + filter cùng lúc) — miễn mỗi phần render đọc đúng biến trễ của mình.
+
+### 1. Concurrency — render non-urgent hủy giữa chừng được, UI cũ giữ nguyên
+
+**Vì sao:** trước đây render là đồng bộ không hủy. Nay React có thể render list mới dở dang, thấy phím gõ mới (urgent) thì bỏ bản dở, giữ màn hình cũ hoàn hảo tới khi bản mới sẵn sàng. Không chớp trắng, không nửa vời.
+
+### 2. `useTransition` — `[isPending, startTransition]`, bọc setState thành low-priority
+
+`startTransition(() => setTab('reports'))` — React giữ tab cũ + `isPending: true` lúc đang render nền. Dùng `isPending` cho spinner nhẹ/opacity, không early-return trắng (pending là báo hiệu, không phải loading ban đầu).
+
+```tsx
+// ✅ ĐÚNG: giữ UI cũ + badge nhẹ, không chặn thao tác
+const [isPending, startTransition] = useTransition();
+<button onClick={() => startTransition(() => setTab('reports'))}>Báo cáo</button>
+{isPending && <p>Đang chuyển…</p>} {/* báo nhẹ, tab cũ vẫn bấm được */}
+```
+
+**Sai thì sao:**
+
+```tsx
+// ❌ SAI: pending mà early-return trắng — mất ý nghĩa giữ UI cũ
+if (isPending) return <p>Đang tải…</p>; // chớp trắng mỗi lần chuyển
+// ✅ ĐÚNG: phủ mờ list cũ, giữ thao tác
+<div style={{ opacity: isPending ? 0.6 : 1 }}><List /></div>
+```
+
+### 3. `useDeferredValue(value)` — "lazy twin", gốc nhạy, trễ cho nặng
+
+Khởi đầu giữ giá trị cũ, bắt kịp khi rảnh. Render đọc `value` gốc là urgent; render đọc `deferred` là non-urgent. Không cần bọc setState — chỉ cần đọc đúng biến ở đúng nơi. React 19 thêm `useDeferredValue(value, initialValue)` cho lần đầu.
+
+```tsx
+// ❌ SAI: input đọc deferred — gõ trễ, ngược đời
+<input value={deferred} onChange={(e) => setQuery(e.target.value)} />
+// ✅ ĐÚNG: input gốc, list trễ
+<input value={query} onChange={(e) => setQuery(e.target.value)} />
+<ul>{locTheo(deferred)}</ul>
+```
+
+### 4. Kết hợp memo/Compiler — deferred lo *khi*, memo lo *ai*
+
+Deferred vẫn render (dù trễ) — list 1.000 Row mà không memo thì mỗi lần bắt kịp vẫn vẽ 1.000. Tổ hợp đúng: deferred hoãn thời điểm + memo bỏ phần không đổi + virtual giảm node. Ba lớp cộng hưởng, không thay nhau.
+
+### 5. Khác debounce — deferred không đợi dừng gõ, không mất phím cuối
+
+Debounce đợi ngưng 300ms mới chạy (cảm giác "imo", mất cập nhật giữa). Deferred lọc theo tốc độ sẵn sàng, bắt kịp dần. Debounce còn cần khi giới hạn request server (chống spam API); deferred không thay việc đó — có thể dùng kèm (deferred cho render, debounce cho network).
+
+### 6. Hai phiên bản giá trị — bản khẩn cho input, bản trễ cho list
+
+Main bận (đang vẽ list cũ) thì React hoãn deferred, ưu tiên sự kiện mới. Render deferred chỉ chạy lúc idle. Hiểu để không hoảng khi thấy list chậm hơn input 1–2 nhịp — đó là thiết kế, không phải bug.
+
+### 7. Lib đã bọc transition sẵn; multi-deferred cho nhiều giá trị
+
+Router (điều hướng), TanStack Table (sort/filter) đã quấn transition — thấy mượt mà không cần đụng. Một màn hình nhiều `useDeferredValue` được (query + filter cùng lúc), miễn mỗi phần đọc đúng biến trễ của mình.
 
 ## Luồng hoạt động / Cách áp dụng
-1. Xác định "render nặng theo input": filter/sort list lớn, large recharts, template.
-2. Với controlled input đơn giản → `useDeferredValue(query)` cho danh sách; giữ `setQuery` trực tiếp cho input.
-3. Với update có cấu trúc hơn (đổi tab, count query) → `startTransition(() => setState(...))` + đọc `isPending` hiển thị nhẹ.
-4. Kết hợp `useMemo` cho kết quả tính (filter) theo deferred value.
-5. Đo: Healthcheck — gõ phím nhanh: input không delay; DevTools Profiler thể hiện lượt render non-urgent tách rời.
+
+### Bước 1. Xác định "render nặng theo input"
+
+Filter/sort list lớn, recharts lớn, template nặng. Đo: gõ nhanh mà input delay → đích thị cần. Render nhẹ thì thôi.
+
+### Bước 2. Input đơn giản → `useDeferredValue(query)` cho list, `setQuery` thẳng cho input
+
+Một dòng, không restructure. List đọc deferred, input đọc gốc.
+
+### Bước 3. Update cấu trúc (đổi tab/query) → `startTransition` + `isPending` nhẹ
+
+Bọc setState lớn, badge "Đang…" font nhẹ, giữ thao tác. Không early-return trắng.
+
+### Bước 4. `useMemo` kết quả theo deferred value
+
+`useMemo(() => filter(items, deferred), [items, deferred])` — không tính lại khi query đổi mà deferred chưa bắt kịp. Compiler tự làm nếu tuân rules, nhưng giữ tường minh khi filter đắt.
+
+### Bước 5. Đo: gõ nhanh input không delay; Profiler thấy 2 khối tách (urgent nhỏ, non-urgent lớn)
+
+Gộp thành một là đọc sai biến (list đọc gốc thay vì trễ). Đo INP trên Lighthouse, không chỉ cảm giác.
 
 ## Ví dụ chi tiết
+
+Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn):
+
 ```tsx
+// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
 import { useDeferredValue, useMemo, useState, useTransition } from 'react';
 
 export function FilterDemo({ items }: { items: string[] }) {
-  const [query, setQuery] = useState('');        // value gốc — "sự thật" của input
-  const [isPending, startTransition] = useTransition(); // guard update nền
-  const deferred = useDeferredValue(query);      // bản "trễ" cho phần render nặng
+  const [query, setQuery] = useState(''); // value gốc — "sự thật" của input, cập nhật tức thì (urgent)
+  const [isPending, startTransition] = useTransition(); // guard update nền — cho badge nhẹ, giữ UI cũ
+  const deferred = useDeferredValue(query); // bản "trễ" cho render nặng — list đọc cái này (non-urgent)
 
-  // kết quả lọc dựa trên deferred, không phải query gốc
+  // kết quả lọc dựa trên deferred, KHÔNG phải query gốc — đây là mấu chốt scheduling
   const result = useMemo(
-    // so sánh lowercase để tìm không phân biệt hoa thường
+    // so lowercase để tìm không phân biệt hoa thường
     () => items.filter((i) => i.toLowerCase().includes(deferred.toLowerCase())),
-    [items, deferred],                            // deps: items + giá trị trễ
+    [items, deferred], // deps: items + giá trị trễ — query gốc đổi mà deferred chưa kịp thì không tính lại thừa
   );
 
   return (
     <div>
       <input
-        value={query}                             // input luôn phản hồi tức thì
+        value={query} // input LUÔN đọc gốc → phản hồi tức thì, gõ không lag
         placeholder="Tìm kiếm…"
+        // bọc setQuery trong transition để có isPending; với deferred đơn thuần có thể set thẳng,
+        // giữ transition ở đây để micro-feedback "Đang lọc…" mà vẫn giữ UI cũ
         onChange={(e) => startTransition(() => setQuery(e.target.value))}
       />
-      {/* pending: báo nhẹ "đang lọc" cho tác vụ nền */}
+      {/* pending: báo nhẹ "đang lọc" cho tác vụ nền — KHÔNG early-return trắng */}
       {isPending && <p>Đang lọc…</p>}
-      <p>{result.length} kết quả</p>              {/* đếm theo kết quả trễ */}
+      <p>{result.length} kết quả</p> {/* đếm theo kết quả trễ — chậm hơn input 1 nhịp là đúng */}
       <ul>{result.slice(0, 50).map((r) => <li key={r}>{r}</li>)}</ul>
-      {/* chỉ hiện 50 dòng — việc filter 100k phần tử vẫn đắt, chỗ này là render */}
+      {/* chỉ hiện 50 dòng: filter 100k vẫn đắt ở khâu tính, render 50 thì nhẹ */}
+      {/* list thực sự lớn: kết hợp thêm virtualize (bài 2) — deferred không thay virtualization */}
     </div>
   );
 }
 ```
 
 ## Giải thích từng phần
-- `query` gốc dùng cho `input` — mỗi phím gõ, React cập nhật ô input **ngay** (urgent) → không lag gõ.
-- `deferred` bắt chước `query` nhưng "trễ": — list render **đọc deferred** nên nó là render non-urgent; React vẽ nó vào lúc rảnh, trong khi đó vẫn giữ UI cũ.
-- `startTransition` quanh `setQuery` đánh dấu luôn hành vi "thấp" — với `useDeferredValue` *có thể bỏ* `useTransition`, nhưng giữ để có `isPending` cho micro-feedback (spinner/đang lọc).
-- `useMemo` theo `deferred` đảm bảo không tính filter lại mỗi khi `query` đổi mà kết quả tương đương; nếu items đổi -> invoke lại đúng do deps.
-- `result.slice(0, 50)` — giới hạn render; với list thực sự lớn kết hợp thêm virtualize (bài 2) — deferred không thay cho virtualization, chúng cộng hưởng.
+
+### `query` gốc cho input — urgent, không lag gõ
+
+Mỗi phím React cập nhật ô input ngay, không chờ filter xong. Đảo lại (input đọc deferred) là gõ chậm — lỗi ngược đời phổ biến nhất.
+
+### `deferred` cho list — non-urgent, vẽ khi rảnh
+
+List đọc deferred nên React hoãn khi main bận, giữ UI cũ tới khi sẵn sàng. `startTransition` quanh `setQuery` là tùy chọn khi đã có deferred — giữ để có `isPending` feedback, bỏ cũng không sai.
+
+### `useMemo` theo deferred — không lọc thừa
+
+Query đổi 5 phím mà deferred mới bắt kịp 2 lần thì chỉ lọc 2 lần, không phải 5. Không memo là mỗi render (kể cả defer chưa đổi) lọc lại 100k — phí.
+
+### `slice(0, 50)` — giới hạn render; deferred + memo + virtual là full combo
+
+Deferred hoãn, memo bớt tính, slice/virtual bớt node. Thiếu một lớp là một chiều vẫn yếu: deferred không giảm node, virtual không giảm lag gõ.
 
 ## So sánh (nếu có)
-- **`useDeferredValue` vs `useTransition`**: deferred — không đụng tay `setState`, chỉ "lọc nơi đọc" (đơn giản, gọn với list/search); transition — bọc nguyên cây update, cho `isPending` tổng (phù hợp tab/filter/wizard "đổi cả view"). Chọn: chỉ 1 list nặng theo input → deferred; đổi cả trang/query nặng → transition (hoặc cả hai).
-- **vs debounce**: debounce hoãn toàn bộ — gõ dừng 300ms mới lọc; deferred không "đợi dừng", vẫn lọc theo tốc độ sẵn sàng, không mất lần gõ cuối. Debounce còn hữu ích khi *server* bị spam request; deferred có thể dùng kèm nhưng không thay thế cho việc giới hạn network.
-- **vs `React.memo`**: hai mặt: deferred quyết định *khi* render, memo quyết định *có bớt phần nào không*. Kết hợp thay vì "or".
+
+### `useDeferredValue` vs `useTransition`
+
+Deferred: không đụng setState, "lọc nơi đọc", gọn cho 1 list theo input. Transition: bọc nguyên update, `isPending` tổng, hợp đổi cả view (tab/wizard/route). Một list nặng → deferred; đổi view/query nặng → transition; cần cả badge + list → cả hai như ví dụ.
+
+### vs debounce
+
+Debounce hoãn toàn bộ tới khi dừng (300ms) — server đỡ spam nhưng UX "imo". Deferred lọc theo sẵn sàng, không mất phím. Debounce vẫn cần cho network (giới hạn request); deferred cho render. Dùng kèm khi search gọi API: deferred mượt input, debounce giảm request.
+
+### vs `memo`
+
+Deferred quyết định *khi* render; memo quyết định *bớt phần nào*. Kết hợp, không "or".
 
 ## Lỗi thường gặp / Chống chỉ định
-- **Dùng `deferred` cho input chính** (rồi render input bằng deferred) → ô input cập nhật trễ, ngược đời: gõ chậm. Fix: input đọc value gốc; phần nặng đọc deferred.
-- **Quên `useMemo` quanh filter** → mỗi render (kể cả defer) lọc lại từ đầu list 100k — hàm thừa. Fix: useMemo deps `[items, deferred]`; hoặc compiler tự làm.
-- **Đặt `isPending` làm trạng thái "chặn render"** → pending chỉ là báo hiệu, đừng early-return (sẽ gây chớp trắng thay vì giữ UI cũ).
-- **Tưởng deferred = debounce cho network** → vẫn gửi request mỗi lần filter được tính lại. Fix: kết hợp debounce/`startTransition` ở tầng query, hoặc stale-while-revalidate.
-- **Chống chỉ định**: render nhẹ (< 50ms) — thêm hoãn không cần; tránh dùng cho trường hợp phải phản hồi tức thì tuyệt đối như nhập mật khẩu/OTP hay auto-save từng ký tự — lúc đó gõ xong rồi mới kịp xử lý sẽ gây mất chữ/cảm giác lag.
+
+### 1. Deferred cho input chính → ô nhập trễ
+
+Input đọc gốc, nặng đọc trễ. Đảo là ngược đời — fix bằng cách kiểm tra mỗi `value={...}` đang đọc biến nào.
+
+### 2. Quên `useMemo` quanh filter → lọc lại 100k mỗi render
+
+`useMemo` deps `[items, deferred]`; hoặc tin Compiler nếu tuân rules. Đo Performance trước/sau để thấy filter thừa.
+
+### 3. `isPending` early-return trắng → mất giữ UI cũ
+
+Pending chỉ điều khiển opacity/badge/`aria-live`, không thay skeleton trắng. Early-return là biến concurrent thànhSync, phí cả hook.
+
+### 4. Tưởng deferred giảm request server → vẫn spam
+
+Deferred chỉ hoãn render client. Muốn giảm network thì debounce ở tầng query + `staleTime`/dedupe. Kết hợp cả hai cho search API.
+
+### 5. Chống chỉ định: render nhẹ, OTP/mật khẩu/auto-save từng ký tự
+
+< 50ms thì hoãn vô ích. OTP/mật khẩu cần tức thì tuyệt đối — trễ là mất chữ/lag cảm giác. Auto-save từng ký tự mà trễ là lưu thiếu.
 
 ## Câu hỏi thường gặp
-- **Deferred khác debounce thế nào?** Debounce chờ ngưng gõ rồi mới chạy (có độ trễ cố định); deferred giữ input nhạy và cập nhật list khi rảnh, không mất lần gõ cuối.
-- **Khi nào dùng transition, khi nào deferred?** Một giá trị gây render nặng → deferred; một update làm đổi cả view/query/route → transition (có `isPending`).
-- **Có cần kết hợp cả hai không?** Thường có — `useTransition` cho `setState` lớn, `useDeferredValue` cho giá trị lọc/hiển thị; hoặc chỉ một trong hai là đủ.
-- **`isPending` dùng làm gì?** Báo nhẹ rằng update nền đang chạy (giữ UI cũ), không phải để chặn render hay thay thế loading state ban đầu.
-- **Có thay thế virtualization không?** Không — deferred chỉ hoãn thời điểm render, không giảm số DOM nodes; list khổng lồ vẫn cần virtualization.
+
+### Deferred khác debounce?
+
+Debounce đợi dừng mới chạy (trễ cố định); deferred giữ nhạy + bắt kịp khi rảnh, không mất phím. Một cái giảm request, một cái mượt render — khác việc.
+
+### Khi nào transition, khi nào deferred?
+
+Một giá trị gây nặng → deferred. Một update đổi cả view/query/route → transition. Cần cả hai như ví dụ thì dùng cả hai.
+
+### Có cần cả hai?
+
+Thường có cho case vừa list vừa view (transition cho setState lớn, deferred cho giá trị lọc). Một trong hai đủ cho case đơn.
+
+### `isPending` để làm gì?
+
+Báo nhẹ nền đang chạy (giữ UI cũ), không chặn render, không thay loading đầu. Bật `aria-live` để screen reader cũng biết.
+
+### Thay virtualization?
+
+Không — deferred hoãn thời điểm, virtual giảm node. List khổng lồ cần cả hai.
 
 ## Ghi chú 2026
-- React 19 ổn định concurrent rendering; `useDeferredValue`/`useTransition` là API chuẩn cho ưu tiên tác vụ.
-- React Router v7 tự quấn transition cho điều hướng, giúp chuyển route không đơ khi page nặng.
-- Kết hợp React Compiler: ít render dư hơn, nhưng deferred vẫn hữu ích cho tác vụ filter/sort thật sự nặng.
+
+- **React 19 concurrent chuẩn:** deferred/transition là API ưu tiên tác vụ chính thức, Router v7 tự quấn cho điều hướng (chuyển route nặng không đơ).
+- **Compiler + deferred chia việc:** Compiler bớt render dư, deferred bớt block gõ — filter/sort thật nặng vẫn cần deferred dù đã Compiler.
 
 ## Best practices / Mẹo
-- Nguyên tắc chung: **input urgent, output deferred** — một điểm cắm tiêu chuẩn cho search/filter.
-- Kết hợp `isPending` với một chỉ báo nhỏ ("Đang lọc…") font nhẹ, không chặn thao tác.
-- Đo bằng Profiler: quan sát 2 khối render tách — urgent nhỏ (input), non-urgent lớn (list); nếu thấy chúng "gộp", kiểm tra bạn có đọc deferred ở đúng nơi.
-- Với list khổng lồ + deferred + memo + virtualization = công thức full (filter mượt, DOM ít).
-- Trong React 19 + Compiler, deps tự ổn định hơn; vẫn giữ `useMemo` khi filter thật đắt để rõ ý đồ.
-- Khi deferred không cải thiện (render vẫn đơ), thủ phạm thường là render *phần khác* đắt — dùng Profiler tìm "wide render" (cha render kéo con), sửa cấu trúc trước.
-- Đừng mô phỏng "đang lọc" bằng cách chặn input; `isPending` chỉ nên điều khiển độ mờ/opacity của list cũ, giữ mọi thao tác khác hoạt động.
-- Dùng `useDeferredValue(value, initialValue)` (React 19) để đặt giá trị khởi tạo cho lần render đầu.
-- Không dùng cho update sync bắt buộc như nhập OTP/mật khẩu — cần phản hồi tức thì tuyệt đối.
-- Nếu `isPending` kéo dài bất thường, kiểm tra state update vòng lặp làm deferred không bắt kịp.
-- Đo cải thiện bằng **INP** (Interaction to Next Paint) trên Lighthouse/Performance, không chỉ cảm giác.
-- Giữ danh sách kết quả trong `useMemo` theo deferred để không tính lại ngoài ý muốn.
-- Bọc `startTransition` cho đổi tab/route nội bộ để UI cũ không bị thay chớp nhoáng.
-- Với danh sách rất lớn, kết hợp deferred + `memo` row + virtualization.
-- Thông báo trạng thái `isPending` qua `aria-live` để screen reader biết đang xử lý.
-- Tránh đẩy `isPending` vào global store — sẽ re-render toàn app thay vì chỉ vùng cần.
-- Đo trước khi thêm: nhiều màn hình render nhẹ không cần đến concurrency.
-- Dùng `useTransition` cho điều hướng nội bộ (tab/wizard) không đổi URL.
-- Giữ `query` gốc cho input và chỉ dùng deferred để lọc — đừng trộn lẫn hai biến.
+
+### Input urgent, output deferred — cắm chuẩn cho search/filter
+
+`isPending` badge nhẹ không chặn. Profiler phải thấy 2 khối tách; gộp là đọc sai biến. List khổng lồ: deferred + memo row + virtual. Compiler giảm việc nhưng filter đắt vẫn giữ `useMemo` rõ ý đồ. `isPending` chỉ opacity/badge, không chặn input. `useDeferredValue(v, init)` cho lần đầu. OTP/mật khẩu không deferred. `isPending` lâu bất thường → loop khiến deferred không bắt kịp. INP là thước, không phải cảm giác. `aria-live` cho pending. Không đẩy pending vào global store (vẽ cả app). Nhẹ thì đừng thêm. Tab/wizard nội bộ bọc transition. Gốc cho input, trễ cho lọc — không trộn.
 
 ## Bài tập nhỏ
-Tạo ô search filter 20.000 string + hiện kết quả. (1) Đo không tối ưu: trực tiếp setQuery → filter → render — ghi nhận delay/gõ lag. (2) Thêm `useDeferredValue` cho filter. (3) Thêm `useTransition` + `isPending` badge. (4) So sánh với version dùng debounce 300ms. Ghi chú 3 cảm nhận: delay phím, độ giật list, độ "imo" khi đổi kết quả. Đề xuất tổ hợp bạn giữ nguyên.
+
+1. Search 20.000 string, đo bản thô (setQuery → filter → render): ghi delay phím, giật list.
+2. Thêm `useDeferredValue` cho filter — đo lại, so delay phím.
+3. Thêm `useTransition` + badge — đo lại, so cảm giác "imo".
+4. So với debounce 300ms — ghi 3 cảm nhận (delay phím, giật list, độ trễ kết quả) và chọn tổ hợp giữ lại + lý do.
 
 ## Reference
+
 - [useDeferredValue](https://react.dev/reference/react/useDeferredValue)
 - [useTransition](https://react.dev/reference/react/useTransition)
 - [React docs — concurrency scheduling](https://react.dev/learn/render-and-commit)

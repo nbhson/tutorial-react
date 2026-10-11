@@ -134,6 +134,24 @@ function Card({ children }: { children: ReactNode }) {
 
 ---
 
+## 11. Children/slot trong thực tế dùng cho việc nào? (Usecase + quy tắc nhận diện)
+
+**Hỏi:** Khi nào thì thiết kế component nhận `children` thay vì props thường?
+
+**Đáp:** 5 usecase chuẩn:
+1. **Layout** — `SidebarLayout`, `DashboardShell`: khung cố định, mỗi trang đổ `children` khác nhau vào (không thì copy khung khắp nơi).
+2. **Card/Modal/Panel** — `Card` bọc nội dung bất kỳ; `Modal` nhận `children` làm body + slot `footer` riêng cho nút. Team UI xây 1 lần, cả app dùng.
+3. **Provider/guard bọc** — `<RequireAuth><AdminPage/></RequireAuth>`, `<Suspense>` — children là "phần được bảo vệ / cung cấp context".
+4. **Compound component** — `Tabs` + `Tabs.List`/`Tabs.Panel`: cha quản state, con khai báo qua children, API đọc như HTML.
+5. **Thay HOC** — `<LoadingBoundary fallback={...}>{content}</LoadingBoundary>` rõ hơn `withLoading(Component)` bọc ngoài khó type.
+
+**Quy tắc nhận diện:** thấy mình copy 1 khung/bọc đi bọc lại nhiều chỗ, hoặc component cần nhận "cả mảng JSX"
+thay vì 1–2 chuỗi — đó là chỗ cho children/slot.
+
+**Gặp nhau với ref:** modal/trigger đo DOM — `children` là nội dung modal, `ref` là node để focus khi mở + đo vị trí đặt popup (nối DAY 4).
+
+---
+
 ## Reference
 
 - `README.md` + `example.tsx` trong cùng thư mục (DAY 5)

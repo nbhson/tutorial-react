@@ -3,119 +3,357 @@
 > Nguồn: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API — https://vite.dev/guide/features.html#web-workers
 
 ## Mục tiêu
-- Đẩy tính toán nặng (mã hóa, parse CSV/Excel, xử lý ảnh, hash, sort 100k phần tử) ra khỏi main thread.
-- Giữ UI mượt: thao tác nặng không block scroll, click, input.
-- Tận dụng cú pháp tạo worker của Vite + dọn dẹp tài nguyên đúng cách.
 
-## Tổng quan
-JavaScript chạy đơn luồng trên **main thread** — nơi React cũng render. Một vòng lặp nặng 500ms sẽ đóng băng toàn bộ trang (jank, click chết, animation giật). **Web Worker** là thread phụ chạy song song: main thread gửi dữ liệu qua `postMessage`, worker tính toán và gửi kết quả về qua `onmessage`; UI không bao giờ bị block. Áp dụng khi: tác vụ > ~16ms (một frame) và lặp lại, xử lý dữ liệu lớn phía client, hoặc tác vụ nền (polling, sinh hash) cần chạy kể cả khi tab khác đang bận.
+### 1. Đẩy tính toán nặng (mã hóa, parse CSV/Excel, xử lý ảnh, hash, sort 100k phần tử) ra khỏi main thread
 
-## Khái niệm cốt lõi
-- **Main ↔ Worker qua message**: chỉ giao tiếp được qua `postMessage` (sao chép cấu trúc — **structured clone**) và event `message`. Dữ liệu đi qua là *bản sao*, không phải tham chiếu — sửa trong worker không đổi dữ liệu gốc.
-- **Transferable objects**: `ArrayBuffer`, `MessagePort`, `OffscreenCanvas` có thể **chuyển quyền sở hữu** thay vì clone: đưa `transfer: [buffer]` trong `postMessage` → không tốn thời gian copy (quan trọng với ảnh/dữ liệu MB). Sau khi transfer, buffer ở phía gửi bị "detached" (không dùng được nữa).
-- **Vite worker**: `new Worker(new URL('./calc.worker.ts', import.meta.url), { type: 'module' })` — Vite biên dịch tệp đó thành bundle riêng và nạp như ES module; có cả import syntax `import CalcWorker from './calc.worker?worker'` nếu muốn dạng class.
-- **Worker không có DOM**: không truy cập `document`, `window`; muốn đổi DOM phải gửi kết quả về main thread.
-- **Comlink**: thư viện bọc message tốn công thành proxy — gọi hàm trong worker như async function (`import * as calc from './calc'; await calc.sum(xs)`), giảm ~80% boilerplate.
-- **Thread pool nâng cao**: với tác vụ chunk lớn (hash, codec), một worker đơn có thể là nút thắt — cân nhắc **pool**: nhiều worker, main thread chia dữ liệu thành từng phần và gom kết quả (`Promise.all`). Đổi lại phức tạp hơn: quản lý lifecycle, thứ tự kết quả, backpressure.
-- **Error handling**: lỗi trong worker *không* tự lan ra main thread — phải tự `postMessage({ type: 'error', message })` hoặc lắng nghe `worker.onerror`; ở front màn hình, đừng để lỗi im lặng.
+**Vì sao:** JavaScript chạy đơn luồng trên main thread — nơi React render, xử lý click, scroll, animation. Một vòng lặp 500ms (sort 100k dòng, parse CSV 5MB, hash file) đóng băng toàn bộ trang: scroll giật, nút bấm không phản hồi, animation đứng hình. Đo bằng Performance tab sẽ thấy một "long task" đỏ chót. Web Worker là thread phụ chạy song song, gánh phần nặng để main thread rảnh đón input.
 
-## Luồng hoạt động / Cách áp dụng
-1. Viết tệp worker: `self.onmessage = (e) => { …; self.postMessage(result) }`.
-2. Trong component/hook: `new Worker(new URL('./x.worker.ts', import.meta.url), { type: 'module' })`.
-3. Đăng ký `worker.onmessage` để nhận kết quả; gửi input bằng `worker.postMessage(data)`.
-4. Dọn dẹp: `worker.terminate()` trong cleanup của `useEffect` (hoặc `onUnmount`), tránh worker tồn tại vô chủ.
-5. Dữ liệu lớn → `transfer: [buffer]` và sửa `copyWithin`/`slice` phù hợp với "detach".
+**Cơ chế:** main thread gửi dữ liệu qua `worker.postMessage(data)`, worker tính trong thread riêng rồi `postMessage(kết quả)` về. Hai thread không chia sẻ bộ nhớ (trừ `SharedArrayBuffer` đặc biệt), chỉ trao đổi bản sao qua structured clone. Nhờ vậy vòng lặp triệu phần tử trong worker không ảnh hưởng một frame nào của UI.
 
-## Ví dụ chi tiết
+**Code minh họa (comment tiếng Việt):**
+
 ```ts
 // calc.worker.ts — chạy ở thread riêng, không có DOM
 self.onmessage = (e: MessageEvent<number[]>) => {
-  // e.data là bản clone của mảng gửi từ main thread
-  const sum = e.data.reduce((a, b) => a + b, 0); // tính toán nặng giả định
-  self.postMessage(sum); // gửi kết quả về main thread
+  // e.data là BẢN SAO của mảng gửi từ main thread (structured clone)
+  const sum = e.data.reduce((a, b) => a + b, 0); // vòng lặp nặng nằm ở thread phụ
+  self.postMessage(sum); // gửi kết quả về — main thread vẫn mượt trong lúc tính
+};
+```
+
+**Sai thì sao:**
+
+```ts
+// ❌ SAI: tính trực tiếp trên main thread — UI đơ 500ms
+function Sai({ values }: { values: number[] }) {
+  const sum = values.reduce((a, b) => a + b, 0); // block render, scroll, click
+  return <p>{sum}</p>;
+}
+
+// ✅ ĐÚNG: đẩy vào worker — UI phản hồi ngay, kết quả về sau
+// (xem WorkerDemo đầy đủ ở mục Ví dụ chi tiết)
+```
+
+**Usecase thực tế + quy tắc nhận diện:** preview ảnh trước upload (resize 10 ảnh 4K), parse file Excel 20k dòng ở client, mã hóa AES trước khi gửi, đếm số nguyên tố, highlight code lớn. Quy tắc: tác vụ > ~16ms (một frame) và lặp lại, hoặc xử lý dữ liệu MB ở client, hoặc tác vụ nền (hash, polling) → worker. Tác vụ < vài chục ms (sort 100 phần tử) → chạy thẳng, chi phí tạo thread lớn hơn lợi ích.
+
+### 2. Giữ UI mượt: thao tác nặng không block scroll, click, input
+
+**Vì sao:** mượt không phải "tính nhanh hơn" mà là "không chặn input". Worker không làm CPU nhanh hơn, nó chỉ chuyển chỗ tính sang thread khác để main thread giữ 60fps. User kéo scroll trong lúc worker tính 1 triệu phần tử vẫn thấy danh sách trôi đều — đó là thành công.
+
+**Cách đo:** mở Performance tab, bấm "Chạy" rồi kéo scroll. Không worker: long task đỏ > 200ms, FPS rớt. Có worker: main thread chỉ có task nhỏ (postMessage + setState), phần nặng nằm ở dòng "Worker" riêng.
+
+### 3. Tận dụng cú pháp tạo worker của Vite + dọn dẹp tài nguyên đúng cách
+
+**Vì sao:** tạo worker thủ công bằng `new Worker('/worker.js')` dễ sai đường dẫn sau build (hash, base path). Cú pháp `new Worker(new URL('./calc.worker.ts', import.meta.url), { type: 'module' })` để Vite biên dịch worker thành bundle riêng, hash đúng, hỗ trợ `import` ES module và TypeScript. Dọn dẹp (`terminate`) tránh thread treo vô chủ mỗi lần effect chạy lại — leak lặng lẽ mà DevTools khó thấy.
+
+## Tổng quan
+
+JavaScript chạy đơn luồng trên **main thread** — nơi React cũng render. Một vòng lặp nặng 500ms sẽ đóng băng toàn bộ trang (jank, click chết, animation giật). **Web Worker** là thread phụ chạy song song: main thread gửi dữ liệu qua `postMessage`, worker tính toán và gửi kết quả về qua `onmessage`; UI không bao giờ bị block.
+
+Luồng cụ thể: component gọi `new Worker(...)` trong `useEffect`, đăng ký `worker.onmessage = (e) => setSum(e.data)` để nhận kết quả, gửi input bằng `worker.postMessage(values)`. Khi `values` đổi, effect cleanup gọi `worker.terminate()` dọn thread cũ rồi tạo thread mới. State `sum` ban đầu `null` hiện "…", khi worker trả về thì `setSum` kích re-render.
+
+Áp dụng khi: tác vụ > ~16ms (một frame) và lặp lại, xử lý dữ liệu lớn phía client, hoặc tác vụ nền (polling, sinh hash) cần chạy kể cả khi tab khác đang bận. Không áp dụng cho tác vụ nhỏ (tổng mảng 1000 số), logic cần DOM (`document`, `window`), hay hàm cần closure/function (structured clone không truyền được function).
+
+## Khái niệm cốt lõi
+
+### 1. Main ↔ Worker qua message — structured clone là bản sao, không phải tham chiếu
+
+**Vì sao:** hai thread không chia sẻ bộ nhớ nên không thể truyền reference. Mọi dữ liệu qua `postMessage` đều được structured clone: object, mảng, Date, Map/Set, Blob, ArrayBuffer đều sao chép sâu. Sửa trong worker không đổi dữ liệu gốc ở main — đây vừa là an toàn vừa là chi phí (clone 50MB tốn hàng trăm ms trên main thread).
+
+**Cơ chế:** `worker.postMessage(values)` serialize ở phía gửi, deserialize ở phía nhận. Nhận ở worker qua `self.onmessage`, trả về qua `self.postMessage(result)`, nhận ở main qua `worker.onmessage`. Lỗi trong worker không tự lan ra main — phải tự `postMessage({ type: 'error' })` hoặc nghe `worker.onerror`.
+
+**Code minh họa:**
+
+```ts
+// ✅ ĐÚNG: protocol object { type, payload } — worker làm được nhiều việc, dễ log
+self.onmessage = (e: MessageEvent<{ type: string; payload: number[] }>) => {
+  if (e.data.type === 'sum') { // phân loại tác vụ bằng field type
+    const sum = e.data.payload.reduce((a, b) => a + b, 0);
+    self.postMessage({ type: 'sum:done', value: sum });
+  }
+};
+```
+
+**Sai thì sao:**
+
+```ts
+// ❌ SAI: truyền function qua postMessage — structured clone ném DataCloneError
+worker.postMessage({ fn: () => 1 }); // DataCloneError: () => 1 could not be cloned
+
+// ✅ ĐÚNG: chỉ truyền plain data (object, mảng, string, số)
+worker.postMessage({ type: 'sum', payload: [1, 2, 3] });
+```
+
+### 2. Transferable objects — chuyển quyền sở hữu thay vì copy
+
+**Vì sao:** clone ảnh 20MB mỗi lần gửi khiến main thread vẫn giật dù đã dùng worker — lợi ích mất một nửa. Transferables (`ArrayBuffer`, `MessagePort`, `OffscreenCanvas`, `ImageBitmap`) cho phép chuyển quyền sở hữu: không copy byte nào, phía gửi bị "detached" (không dùng được nữa) nhưng tốc độ gần như tức thì.
+
+**Cơ chế:** `worker.postMessage(buffer, [buffer])` — tham số thứ hai là danh sách transfer. Sau lệnh này, `buffer.byteLength` ở phía gửi thành 0. Worker nhận được buffer gốc và xử lý trực tiếp. Với ảnh dùng `OffscreenCanvas` + `transferControlToOffscreen()` để vẽ hoàn toàn trong worker.
+
+```ts
+// ✅ ĐÚNG: ảnh lớn dùng transfer — không copy MB dữ liệu trên main thread
+const buffer = await file.arrayBuffer(); // đọc file thành ArrayBuffer
+worker.postMessage({ type: 'hash', buf: buffer }, [buffer]); // chuyển quyền, không clone
+// Lưu ý: sau dòng này buffer ở main đã detached — không đọc tiếp được
+```
+
+### 3. Vite worker — `new Worker(new URL(...), { type: 'module' })`
+
+**Vì sao:** đường dẫn string thuần (`new Worker('/calc.js')`) vỡ sau build vì Vite hash tên file và đổi base. Cú pháp `new URL(..., import.meta.url)` để Vite phát hiện lúc build, biên dịch worker thành chunk riêng, viết lại URL đúng. `{ type: 'module' }` cho phép worker dùng `import`/`export` chuẩn thay vì script cổ điển.
+
+**Hai cú pháp:**
+
+```ts
+// Cách 1 (khuyên dùng): URL + type module — rõ ràng, type-safe
+const w = new Worker(new URL('./calc.worker.ts', import.meta.url), { type: 'module' });
+
+// Cách 2: query ?worker — trả class, new không cần URL
+import CalcWorker from './calc.worker?worker';
+const w2 = new CalcWorker();
+```
+
+### 4. Worker không có DOM — muốn đổi UI phải gửi về main
+
+**Vì sao:** worker chạy trong scope riêng không có `document`, `window`, `localStorage` đầy đủ. Cố chạm DOM sẽ ném `document is not defined`. Thiết kế đúng là worker thuần tính toán, main thuần render.
+
+```ts
+// ❌ SAI trong worker: chạm DOM — lỗi ngay
+self.onmessage = () => { document.querySelector('p')!.textContent = 'x'; };
+// ✅ ĐÚNG: worker chỉ tính, gửi về main render
+self.onmessage = (e) => { self.postMessage(e.data.reduce((a: number, b: number) => a + b, 0)); };
+```
+
+### 5. Comlink — gọi hàm worker như async function
+
+**Vì sao:** `postMessage` thủ công với 10 hàm sẽ thành rừng `if (type === ...)` hai phía. Comlink bọc message thành proxy: `await calc.sum(xs)` ở main tự chuyển thành message, chờ worker trả về. Giảm ~80% boilerplate khi worker có nhiều entrypoint.
+
+```ts
+// worker: expose object hàm
+import { expose } from 'comlink';
+expose({ sum: (xs: number[]) => xs.reduce((a, b) => a + b, 0) });
+// main: gọi như hàm async bình thường
+import { wrap } from 'comlink';
+const calc = wrap<any>(worker);
+const tong = await calc.sum([1, 2, 3]); // thực chất là postMessage + chờ reply
+```
+
+### 6. Thread pool — khi một worker thành nút thắt
+
+**Vì sao:** hash 1GB bằng một worker vẫn mất hàng giây. Chia thành 4 phần cho 4 worker chạy song song (`Promise.all`) gần như chia thời gian cho số core. Đổi lại phức tạp: chia dữ liệu, gom kết quả đúng thứ tự, backpressure khi worker quá tải, lifecycle 4 thread.
+
+**Quy tắc:** dùng `navigator.hardwareConcurrency` để chọn số worker (thường 4–8). Một worker + protocol `{ type }` đủ cho vài tác vụ; pool chỉ khi dữ liệu chia được (chunk hash, tile ảnh, shard sort).
+
+### 7. Error handling — lỗi worker không tự lan ra main
+
+Lỗi throw trong worker không reject promise ở main, không hiện React ErrorBoundary. Phải tự `postMessage({ type: 'error', message })` hoặc `worker.onerror = (e) => ...` ở main để hiện "Tính lỗi — Thử lại" thay vì treo "…" vô âm tín. Production luôn `set worker.onerror` + retry 1 lần.
+
+## Luồng hoạt động / Cách áp dụng
+
+### Bước 1. Viết tệp worker: `self.onmessage = (e) => { …; self.postMessage(result) }`
+
+File `calc.worker.ts` cạnh component. Không import thư viện khổng lồ (chart lib) vào worker — bundle worker nặng thì tải worker cũng chậm. Dùng protocol `{ type, payload }` ngay từ đầu để sau thêm tác vụ không phải sửa contract.
+
+### Bước 2. Trong component/hook: `new Worker(new URL(...), { type: 'module' })` trong `useEffect`
+
+Luôn tạo trong `useEffect`/hook, không tạo trong render (mỗi render một thread mới). Với SSR, chỉ tạo sau mount vì `Worker` không tồn tại trên server.
+
+### Bước 3. Đăng ký `onmessage` nhận kết quả; `postMessage` gửi input
+
+Gán `onmessage` trước `postMessage` để không sót reply về sớm. Với tác vụ dài, worker bắn thêm `{ type: 'progress', value }` để UI hiện progress bar.
+
+### Bước 4. Dọn dẹp: `worker.terminate()` trong cleanup
+
+Bắt buộc `return () => worker.terminate()`. Hoặc giữ một worker persistent bằng `useRef` (tạo một lần, dùng nhiều lần) thay vì tạo mới mỗi khi `values` đổi — tùy tần suất đổi.
+
+### Bước 5. Dữ liệu lớn → `transfer` + xử lý "detach"
+
+Đọc `File`/`Blob` bằng `arrayBuffer()` rồi transfer. Sau transfer không dùng buffer cũ nữa. Với pixel dùng `OffscreenCanvas` để không bao giờ copy ảnh qua main.
+
+## Ví dụ chi tiết
+
+Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn). Lưu ý `example.tsx` chỉ chứa phía React; khối `calc.worker.ts` là file bạn-cần-tạo cạnh nó (đã thể hiện trong README gốc và giữ nguyên ở đây):
+
+```ts
+// calc.worker.ts — chạy ở thread riêng, không có DOM
+// File này cần tạo cạnh example.tsx (ví dụ: ./calc.worker.ts)
+self.onmessage = (e: MessageEvent<number[]>) => {
+  // e.data là bản clone của mảng gửi từ main thread (structured clone)
+  // Sửa mảng này không ảnh hưởng mảng gốc ở main — an toàn nhưng tốn copy
+  const sum = e.data.reduce((a, b) => a + b, 0); // tính toán nặng giả định (demo thay bằng đếm nguyên tố/hash)
+  self.postMessage(sum); // gửi kết quả về main thread qua event message
 };
 ```
 
 ```tsx
-// WorkerDemo: nhận tổng nhưng UI không bị đơ khi worker chạy
+// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
 import { useEffect, useState } from 'react';
 
 export function WorkerDemo({ values }: { values: number[] }) {
-  const [sum, setSum] = useState<number | null>(null); // kết quả từ worker
+  // sum là kết quả từ worker; null nghĩa là "chưa về" → hiện "…"
+  const [sum, setSum] = useState<number | null>(null);
 
   useEffect(() => {
-    // Vite hiểu cú pháp này: bundle riêng cho worker, type module
+    // Vite hiểu cú pháp này: biên dịch calc.worker.ts thành bundle riêng, nạp như ES module
+    // Vì sao trong effect: Worker chỉ tồn tại ở browser — tạo sau mount, an toàn SSR
     const worker = new Worker(
       new URL('./calc.worker.ts', import.meta.url),
-      { type: 'module' },
+      { type: 'module' }, // cho phép worker dùng import/export chuẩn
     );
-    // nhận kết quả: chạy lại render với giá trị mới
+    // nhận kết quả: worker postMessage về → setSum → React re-render với giá trị mới
     worker.onmessage = (e: MessageEvent<number>) => setSum(e.data);
-    worker.postMessage(values); // gửi dữ liệu đi tính
-    return () => worker.terminate(); // dừng worker khi unmount
-  }, [values]); // chỉ tạo lại worker khi mảng values thay đổi
+    worker.postMessage(values); // gửi dữ liệu đi tính (structured clone sang thread phụ)
+    return () => worker.terminate(); // dọn thread khi unmount/values đổi — thiếu là leak
+  }, [values]); // chỉ tạo lại worker khi mảng values thay đổi (tham chiếu mới)
 
   return <p>Tổng (tính trong Worker): {sum ?? '…'}</p>;
 }
 ```
 
+Nếu thiếu file worker, bổ sung `calc.worker.ts` như khối đầu — không thể chỉ có `example.tsx` mà thiếu nó vì `new URL('./calc.worker.ts')` sẽ 404 lúc runtime.
+
 ## Giải thích từng phần
-- `useEffect` + `[values]` là "nơi sinh worker": mỗi lần `values` đổi, effect chạy lại, tạo worker mới, gửi dữ liệu mới; worker cũ bị terminate.
-- `worker.onmessage` gọi `setSum` → React re-render khi kết quả về; state `sum` ban đầu `null` hiển thị "…".
-- `type: 'module'` cho phép worker dùng `import` chuẩn — Vite bundling chính xác theo dependency.
-- `worker.terminate()` ở cleanup là bắt buộc: nếu thiếu, worker (và thread của nó) sẽ treo vô thời hạn mỗi lần effect chạy lại — leak bộ nhớ lặng lẽ.
-- Toàn bộ flow nằm ở *nền*: dù `sum` xử lý 1 triệu phần tử, main thread vẫn phản ứng click/input vì vòng lặp nằm trong thread worker.
+
+### `useEffect` + `[values]` — "nơi sinh worker"
+
+Mỗi lần `values` đổi tham chiếu, effect cleanup terminate worker cũ rồi tạo worker mới và gửi dữ liệu mới. Vì sao trong effect mà không trong render: render có thể chạy nhiều lần (StrictMode double-invoke, concurrent), tạo thread trong render sẽ sinh hàng loạt thread vô chủ. Effect đảm bảo 1 effect = 1 worker, cleanup rõ ràng. **Sai thì sao:** tạo trong render → mỗi render một thread, memory tăng vọt. Fix luôn tạo trong effect/hook.
+
+### `worker.onmessage` gọi `setSum` — cầu nối worker → React
+
+Worker không setState trực tiếp được; nó chỉ post message. `onmessage` ở main là nơi duy nhất biến message thành state React. `sum` ban đầu `null` hiện "…" để user biết đang tính, không tưởng trang chết.
+
+### `type: 'module'` — worker dùng import chuẩn
+
+Không có option này worker chạy dạng classic script, `import` sẽ lỗi cú pháp. Vite bundle worker như module nên dependency (`import {x} from './util'`) được resolve đúng. Giữ worker import nhẹ để bundle worker tải nhanh.
+
+### `worker.terminate()` — bắt buộc, không phải tùy chọn
+
+Thread worker sống độc lập với React: unmount component không tự giết thread. Thiếu cleanup, mỗi lần `values` đổi là một thread mới chồng lên thread cũ — CPU và RAM tăng lặng lẽ, Performance tab thấy nhiều dòng Worker treo. Với worker dùng lâu (pool, singleton), giữ trong `useRef` và terminate ở unmount cuối.
+
+### Toàn bộ flow ở nền — main thread rảnh
+
+Dù tính 1 triệu phần tử, vòng lặp nằm ở thread worker nên main vẫn xử lý click/input/scroll ở 60fps. Bằng chứng: Performance tab không còn long task đỏ ở main, thay vào đó là activity ở track Worker.
 
 ## So sánh (nếu có)
-- **Main thread tính trực tiếp vs Web Worker**: trực tiếp đơn giản nhưng block UI trên tác vụ lớn; worker phức tạp hơn một chút (message, dọn dẹp) nhưng UI tách bạch hoàn toàn. Nguyên tắc *"message passing giống cái giá: đắt hơn, nhưng không bao giờ treo alt-tab/scroll"*.
-- **Web Worker vs Service Worker**: Worker = tính toán song song cho trang đang mở; Service Worker = proxy mạng/cache chạy nền ngay cả khi tab đóng (bài PWA). Hai loại khác nhiệm vụ, không thay thế nhau.
-- **`postMessage` thủ công vs Comlink**: thủ công cho phép tinh chỉnh tối đa và performance; Comlink cho code ngắn như async function — chọn Comlink khi có nhiều hàm/table nhiều tham số, chọn tay khi hot-path cần gọn (dùng `transfer`).
+
+### Main thread trực tiếp vs Web Worker
+
+Trực tiếp: đơn giản (một hàm, không message, không cleanup), nhưng block UI trên tác vụ lớn — nguyên tắc "message passing có giá nhưng không bao giờ treo scroll". Worker: thêm ~15 dòng (tạo, message, terminate) nhưng UI tách bạch hoàn toàn. Chọn trực tiếp cho tác vụ < vài chục ms; worker cho tác vụ lớn/lặp lại.
+
+### Web Worker vs Service Worker
+
+Worker = tính toán song song cho trang đang mở (có DOM mở mới sống). Service Worker = proxy mạng/cache chạy nền ngay cả khi tab đóng (offline, push). Hai loại khác nhiệm vụ, không thay thế nhau — bài PWA dùng Service Worker, bài này dùng Web Worker.
+
+### postMessage thủ công vs Comlink
+
+Thủ công: tinh chỉnh tối đa (transfer, progress, protocol), performance cao nhất, nhưng boilerplate theo số hàm. Comlink: code như async function, gọn khi nhiều hàm, nhưng khó can thiệp transfer/progress tinh vi và thêm dependency. Chọn Comlink khi ≥ 3 hàm chia sẻ; chọn tay cho hot-path cần gọn.
 
 ## Lỗi thường gặp / Chống chỉ định
-- **Quên `terminate`** → worker mới chồng lên worker cũ mỗi lần effect chạy, thread tiêu tốn tài nguyên. Fix: luôn return cleanup; hoặc tạo 1 worker duy nhất với `useRef` (persistent) thay vì tạo lại.
-- **Worker chạm DOM** → lỗi "document is not defined". Fix: worker chỉ tính toán & trả kết quả; mọi thao tác UI ở main thread.
-- **Gửi dữ liệu lớn bằng clone thay vì `transfer`** → UI vẫn giật vì chi phí copy MB dữ liệu nằm trên main thread. Fix: dùng `postMessage(data, [buffer])`.
-- **Chạy tác vụ quá nhỏ trong worker** — chi phí tạo thread + clone message > lợi ích (đo bằng performance.now). Chống chỉ định: sort 100 phần tử, tính tổng mảng 1000 số — chạy thẳng cho nhanh.
-- **Lạm dụng "một worker trên một hàm"** → quá nhiều thread. Fix: gom nhóm tác vụ vào một worker, phân loại bằng `type`/`action` field trong message.
+
+### 1. Quên `terminate` → thread chồng thread
+
+```tsx
+// ❌ SAI: không cleanup — mỗi lần values đổi là một thread mới treo
+useEffect(() => {
+  const w = new Worker(new URL('./calc.worker.ts', import.meta.url), { type: 'module' });
+  w.postMessage(values);
+}, [values]);
+
+// ✅ ĐÚNG: cleanup terminate + gán onmessage trước post
+useEffect(() => {
+  const w = new Worker(new URL('./calc.worker.ts', import.meta.url), { type: 'module' });
+  w.onmessage = (e) => setSum(e.data);
+  w.postMessage(values);
+  return () => w.terminate();
+}, [values]);
+```
+
+### 2. Worker chạm DOM → `document is not defined`
+
+```ts
+// ❌ SAI trong worker
+self.onmessage = () => { document.body.innerHTML = 'x'; };
+// ✅ ĐÚNG: worker trả data, main render
+self.onmessage = (e) => self.postMessage(tinh(e.data));
+```
+
+### 3. Clone dữ liệu lớn thay vì transfer → vẫn giật
+
+```ts
+// ❌ SAI: clone 50MB — main vẫn tốn copy
+worker.postMessage(bigArray);
+// ✅ ĐÚNG: transfer buffer — không copy
+worker.postMessage({ buf }, [buf]);
+```
+
+### 4. Tác vụ quá nhỏ mà cũng worker — chậm hơn
+
+Đo `performance.now()`: tạo worker + clone message tốn ~5–20ms. Sort 100 phần tử tốn 0.1ms — đưa vào worker là lỗ. Ngưỡng thực dụng: > 16ms và lặp lại mới xứng đáng.
+
+### 5. Một worker một hàm → quá nhiều thread
+
+Gom vào một worker với `{ type }` phân loại. Pool nhiều worker chỉ khi chia được dữ liệu song song.
 
 ## Câu hỏi thường gặp
-- **Khi nào KHÔNG nên dùng worker?** Khi tác vụ dưới vài chục ms hoặc chỉ clone dữ liệu nhỏ — chi phí tạo thread/message lớn hơn lợi ích.
-- **Worker có truy cập DOM không?** Không. Worker chỉ tính toán; mọi thao tác DOM/React phải ở main thread sau khi nhận kết quả qua `onmessage`.
-- **Gửi buffer/ảnh lớn thế nào cho nhanh?** Dùng `postMessage(data, [buffer])` để **transfer** quyền sở hữu (không copy); với ảnh xét `OffscreenCanvas` + `ImageBitmap` transferable.
-- **Nhiều loại tác vụ thì một worker hay nhiều?** Một worker với protocol `{ type, payload }` gọn cho vài tác vụ; worker pool khi cần song song hóa dữ liệu lớn.
-- **Worker có dùng được thư viện npm không?** Có — Vite bundle worker như module; nhưng hạn chế import lib nặng để worker tải nhanh.
+
+### Khi nào KHÔNG nên dùng worker?
+
+Tác vụ dưới vài chục ms, logic cần DOM, cần closure/function, hoặc data quá nhỏ mà chi phí clone lớn hơn lợi ích. Đo `performance.now()` trước/sau để quyết định bằng số, không bằng cảm giác.
+
+### Worker có truy cập DOM không?
+
+Không. Mọi thao tác DOM/React ở main sau `onmessage`. Muốn vẽ pixel trong worker dùng `OffscreenCanvas` transfer, rồi hiện kết quả qua main.
+
+### Gửi buffer/ảnh lớn thế nào cho nhanh?
+
+`postMessage(data, [buffer])` để transfer quyền sở hữu; ảnh xét `OffscreenCanvas` + `ImageBitmap`. Sau transfer buffer cũ detached — thiết kế để không đọc tiếp.
+
+### Một worker hay nhiều?
+
+Một worker + protocol `{ type, payload }` cho vài tác vụ. Pool (`hardwareConcurrency` worker + `Promise.all`) khi cần song song hóa dữ liệu lớn có thể chia shard.
+
+### Worker có dùng được thư viện npm không?
+
+Có — Vite bundle worker như module nên `import` được. Nhưng giữ import nhẹ; lib nặng làm bundle worker to, tải worker chậm, mất nửa lợi ích.
 
 ## Ghi chú 2026
-- Vite 7 hỗ trợ `new Worker(new URL(...), { type: 'module' })` và query `?worker&inline` cho worker nhỏ.
-- Comlink 4.x vẫn là cách gọn nhất để gọi hàm worker như async; kết hợp TypeScript để giữ type xuyên thread.
-- Có thể dùng `SharedArrayBuffer` (cần COOP/COEP) cho giao tiếp zero-copy khi thực sự cần hiệu năng cao.
+
+- **Vite 7 hỗ trợ `new Worker(new URL(...), { type: 'module' })` và `?worker&inline`:** worker nhỏ có thể inline base64 vào bundle chính để đỡ một request; worker lớn giữ file riêng để cache. Chọn theo kích thước worker bundle.
+
+- **Comlink 4.x + TypeScript giữ type xuyên thread:** `wrap<typeof api>(worker)` cho autocomplete và check type ở main dù hàm chạy ở worker. Kết hợp `expose` phía worker để contract rõ ràng.
+
+- **`SharedArrayBuffer` zero-copy (cần COOP/COEP):** hai thread đọc/ghi chung một vùng nhớ với `Atomics`, không clone không transfer. Mạnh nhất nhưng đòi hỏi header bảo mật (`Cross-Origin-Opener-Policy/Embedder-Policy`) và code đồng bộ cẩn thận — chỉ khi thực sự cần hiệu năng cao (audio, game, WASM).
 
 ## Best practices / Mẹo
-- Dùng Comlink + `expose` trong worker nếu code có nhiều entrypoints chia sẻ.
-- Giữ worker file **không import module khổng lồ** (chart lib) — chúng làm bundle worker nặng và tải chậm.
-- Kết hợp **Web Worker + TanStack Query**: tác vụ nặng (ví dụ hash file trước khi upload) chạy trong worker, kết quả `setQueryData` vào cache.
-- Kiểm tra bằng React DevTools Profiler / Performance tab: tác vụ chuyển từ "main thread long task" (đỏ) sang time trong worker.
-- Với ảnh lớn, xét `OffscreenCanvas` + `transfer` để xử lý pixel không bao giờ làm giật scroll.
-- Thống nhất **message protocol**: gửi object `{ type: 'sum', payload }` thay vì dữ liệu trần — worker trở thành trung tâm nhiều tác vụ, dễ mở rộng và log.
-- Set `worker.onerror` trong production: báo lỗi worker (và retry 1 lần) thay vì kết quả "treo vô âm tín".
-- Dùng `useWorker` custom hook tách biệt (như ví dụ): mỗi mount/param tạo worker đúng vòng đời, test bằng mock worker trong Vitest.
-- Trả về **tiến độ** cho tác vụ dài (`postMessage({ type: 'progress', value })`) để UI hiện progress bar.
-- Đo "main thread busy" trước/sau bằng `PerformanceObserver` longtask để chứng minh worker có tác dụng.
-- Dùng `navigator.hardwareConcurrency` để chọn số worker trong pool phù hợp thiết bị.
-- Với WASM nặng, compile trong worker (`WebAssembly.instantiateStreaming`) để không block UI.
-- Chuẩn hoá cleanup: gỡ mọi listener gắn lên worker, không chỉ gọi `terminate()`.
-- Việc chia nhỏ được thì gửi nhiều phần cho worker pool rồi gom bằng `Promise.all`.
-- Không truyền closure/function qua `postMessage` (structured clone không hỗ trợ) — chỉ truyền plain data.
-- Ghi log trong worker bằng `{ type: 'log' }` gửi về main thread để debug tập trung.
-- Với file lớn, đọc `File`/`Blob` trong worker bằng `arrayBuffer()` thay vì trên main thread.
-- Luôn đo `performance.now()` trước/sau khi chuyển tác vụ vào worker để có số liệu.
-- Tránh tạo worker trong render — luôn tạo trong `useEffect`/hook để gắn đúng vòng đời.
-- Với SSR, chỉ tạo worker sau khi mount (`useEffect`) vì `Worker` không tồn tại trên server.
+
+### Dùng Comlink + expose khi nhiều entrypoint; giữ worker import nhẹ
+
+Worker có 3+ hàm thì Comlink gọn hơn rừng `if type`. Dù dùng gì, không import chart lib vào worker — bundle worker phải nhỏ để tải nhanh.
+
+### Kết hợp Worker + TanStack Query: hash trong worker, setQueryData vào cache
+
+Ví dụ hash file trước upload chạy trong worker, xong `queryClient.setQueryData(['file', id], hash)` — UI đọc cache như bình thường, không biết hash chạy ở đâu.
+
+### Thống nhất message protocol + worker.onerror + progress
+
+Gửi `{ type, payload }` thay vì data trần để worker mở rộng được. Luôn `worker.onerror` để báo lỗi thay vì treo. Tác vụ dài bắn `{ type: 'progress' }` để hiện progress bar.
+
+### Tách `useWorker` hook riêng; đo longtask trước/sau; không tạo worker trong render
+
+Hook riêng giúp mỗi mount/param đúng vòng đời và test được bằng mock worker trong Vitest. Đo `PerformanceObserver('longtask')` để chứng minh worker có tác dụng bằng số. Luôn tạo trong effect, chỉ tạo sau mount để an toàn SSR.
+
+### Pool theo hardwareConcurrency; WASM compile trong worker; log về main
+
+Chia shard cho pool rồi `Promise.all` gom. WASM nặng `instantiateStreaming` trong worker để không block. Log trong worker gửi `{ type: 'log' }` về main để debug tập trung thay vì mở hai console.
 
 ## Bài tập nhỏ
-Cải `WorkerDemo`: thay reduce thành hàm "đếm số nguyên tố nhỏ hơn N" chạy ~500ms trong worker; thêm nút "Chạy lại" tăng N dần. Vừa thực hiện vừa kéo scroll một danh sách dài — ghi nhận scroll mượt. Đo bằng Performance: không xuất hiện long task > 100ms. Sau đó chuyển sang Comlink để gọi hàm như async và so sánh độ dài code.
+
+1. Đổi `calc.worker.ts` thành đếm số nguyên tố nhỏ hơn N (~500ms): vòng lặp kiểm tra từng số, `postMessage` kết quả.
+2. Thêm nút "Chạy lại" tăng N dần (100k → 200k → 500k). Vừa chạy vừa kéo scroll một danh sách dài — ghi nhận scroll vẫn mượt.
+3. Mở Performance tab record lúc chạy: xác nhận không có long task > 100ms ở main, phần nặng nằm ở track Worker.
+4. Chuyển sang Comlink (`expose`/`wrap`) để gọi `countPrimes(N)` như async, so sánh số dòng với bản `postMessage` thủ công. Đo `performance.now()` cả hai để thấy overhead Comlink không đáng kể.
 
 ## Reference
+
 - [Web Workers (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
 - [Vite — Web Workers](https://vite.dev/guide/features.html#web-workers)
 - [Comlink](https://github.com/GoogleChromeLabs/comlink)
