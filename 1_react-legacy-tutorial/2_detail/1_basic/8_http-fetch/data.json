@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "Geeks for Geeks", "email": "contact@geeks.vn" },
+  { "id": 2, "name": "Nguyen Van A", "email": "a@example.com" },
+  { "id": 3, "name": "Tran Thi B", "email": "b@example.com" }
+]
