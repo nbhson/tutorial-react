@@ -1,4 +1,4 @@
-# Q5: React cập nhật giao diện kiểu gì mà không vẽ lại cả trang?
+# Q5: Em nghe nói React có Virtual DOM — nó là gì, cập nhật giao diện kiểu gì mà không vẽ lại cả trang?
 
 ## Câu hỏi
 
@@ -68,6 +68,32 @@ function Counter() {
 - **Câu trả lời đúng**: **Không hẳn**, với "so sánh thuần" 1 lần. Object JS rẻ hơn DOM mutation (reflow/paint đắt), nên React chọn **giới hạn số lần sửa DOM thật** (chỉ patch phần khác), thay vì "sờ DOM trực tiếp" (như trước đây, hay như template engine).
 - **Không phải "virtualization" (hiding offscreen list items)** — đừng nhầm Virtual DOM (object model) với list virtualization (render chỉ phần visible trong viewport).
 - **React Compiler (1.0)** giảm **số lần render thừa** (auto-memo), không thay reconciliation — diff vẫn chạy khi đã render.
+
+**Tại sao "thắng" dù thêm bước trung gian?**
+
+```
+Direct DOM (jQuery):
+  click → setClass + setText + setStyle + ...  (10 lần chạm DOM thật)
+          → 10 lần reflow/paint (đắt, có thể)
+
+React (v DOM):
+  click → setState → render (v DOM mới)
+        → diff (object JS, RẺ, không reflow)
+        → commit: chỉ 1 lần setClass thật (phần khác)
+        → 1 lần reflow/paint (gộp, rẻ hơn)
+```
+
+- **v DOM không "thay thế" DOM mutation** — nó **giới hạn số lần** DOM mutation thật: **batch** (ghép nhiều thay đổi) rồi **commit** (patch) một lần. Không phải "v DOM thay thế DOM mutation".
+- **Diff là object JS, rẻ** — so 2 object JS (memory, cache line friendly) **không trigger reflow**. Chạm DOM thật (mutate) **đắt** (reflow + paint, blocking main thread).
+- → 1 bước diff (rẻ) **đổi lấy** ít bước DOM mutation (đắt) → **lãi** (thắng).
+
+**Khi v DOM không thắng** (trường hợp hợp pháp):
+
+| Case | Tại sao không thắng |
+|---|---|
+| **1 update đơn, 1 attribute** (vd `textContent = 1`) | Direct DOM = 1 op (rẻ). v DOM: render + diff + commit (3 bước) → chậm hơn |
+| **High-frequency (60fps, canvas/SVG)** | v DOM overhead > DOM mutation → dùng `requestAnimationFrame` + canvas/SVG direct |
+| **List 50k item, scroll** | Diff 50k node = đắt → **virtualization** (render chỉ phần visible) + v DOM |
 
 ### 5. Đối chiếu Angular (điểm "ăn điểm" cho người từ Angular)
 

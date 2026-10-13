@@ -18,21 +18,21 @@ Bạn có thể hỏi theo group (dưới đây) để đi từ nền tảng →
 | # | Câu hỏi | Thư mục |
 |---|---|---|
 | 1 | Theo em, React gọi là library chứ không phải framework thì khác nhau ở chỗ nào? | [`01-library-vs-framework`](01-library-vs-framework/README.md) |
-| 2 | React 18 với 19 khác nhau chỗ nào? Sao 19 được gọi là bản bước ngoặt? | [`02-react-18-vs-19`](02-react-18-vs-19/README.md) |
+| 2 - y | React 18 với 19 khác nhau chỗ nào? Sao 19 được gọi là bản bước ngoặt? | [`02-react-18-vs-19`](02-react-18-vs-19/README.md) |
 
 ### Nhóm 2 — JSX & Virtual DOM (Q5–Q8)
 | # | Câu hỏi | Thư mục |
 |---|---|---|
-| 5 | React cập nhật giao diện kiểu gì mà không vẽ lại cả trang? | [`05-virtual-dom`](05-virtual-dom/README.md) |
+| 5 | Em nghe nói React có Virtual DOM — nó là gì, cập nhật giao diện kiểu gì mà không vẽ lại cả trang? | [`05-virtual-dom`](05-virtual-dom/README.md) |
 | 6 | JSX thực chất là gì? Sao trong dấu `{}` chỉ viết được biểu thức mà không viết được `if`/`for`? | [`06-jsx`](06-jsx/README.md) |
 | 7 | Sao React phải đẻ ra Fragment? Cứ bọc `div` cho nhanh thì bị gì? | [`07-fragment`](07-fragment/README.md) |
-| 8 | Em đã bao giờ render danh sách mà lấy index làm key rồi gặp bug chưa? Lúc nào nó gây lỗi thấy rõ? | [`08-key-index`](08-key-index/README.md) |
+| 8 | Em đã từng render danh sách mà lấy index làm key rồi gặp bug chưa? Lúc nào nó gây lỗi thấy rõ? | [`08-key-index`](08-key-index/README.md) |
 
 ### Nhóm 3 — Component & Props/Children (Q9–Q12)
 | # | Câu hỏi | Thư mục |
 |---|---|---|
 | 9 | Hai component con cùng cần dùng chung một state, em đặt state ở đâu? | [`09-lifting-state-up`](09-lifting-state-up/README.md) |
-| 10 | Cần giữ một giá trị qua các lần render mà không muốn UI render lại, em dùng gì? | [`10-useref-vs-usestate`](10-useref-vs-usestate/README.md) |
+| 10 - x | Cần giữ một giá trị qua các lần render mà không muốn UI render lại, em dùng gì? | [`10-useref-vs-usestate`](10-useref-vs-usestate/README.md) | 
 | 11 | Cha muốn bấm nút là focus vào ô input nằm trong con, em làm thế nào? | [`11-parent-calls-child-method`](11-parent-calls-child-method/README.md) |
 | 12 | Component nhận nhiều children mà chỉ muốn hiện đứa đầu tiên, em xử lý sao? | [`12-filter-first-child`](12-filter-first-child/README.md) |
 
@@ -47,27 +47,27 @@ Bạn có thể hỏi theo group (dưới đây) để đi từ nền tảng →
 ### Nhóm 5 — Forms (Q17–Q19)
 | # | Câu hỏi | Thư mục |
 |---|---|---|
-| 17 | Làm ô input mà user gõ chữ gì phải hiện đúng chữ đó — state với input nối với nhau ra sao? | [`17-controlled-form`](17-controlled-form/README.md) |
+| 17 - x | Làm ô input mà user gõ chữ gì phải hiện đúng chữ đó — state với input nối với nhau ra sao? | [`17-controlled-form`](17-controlled-form/README.md) |
 | 18 | Sao form lớn đông người lại dùng react-hook-form thay vì mỗi input một `useState`? | [`18-rhf-vs-controlled`](18-rhf-vs-controlled/README.md) |
 | 19 | Form login có 2 ô thì em dùng `useState` hay lôi react-hook-form vào? Ranh giới ở đâu? | [`19-when-usestate-when-rhf`](19-when-usestate-when-rhf/README.md) |
 
 ### Nhóm 6 — Data & HTTP (Q20–Q24, Q32)
 | # | Câu hỏi | Thư mục |
 |---|---|---|
-| 20 | Cần đổ danh sách user từ API lên màn hình, đoạn lấy data em viết thế nào? | [`20-data-fetching`](20-data-fetching/README.md) |
+| 20 - x | Cần đổ danh sách user từ API lên màn hình, đoạn lấy data em viết thế nào? | [`20-data-fetching`](20-data-fetching/README.md) |
 | 21 | Đang gọi API mà user chuyển trang khác, request dở dang đó em xử lý sao? | [`21-abort-on-navigate`](21-abort-on-navigate/README.md) |
 | 22 | Mọi request đều phải gắn token, gặp 401 thì tự refresh — em đặt logic đó ở đâu để khỏi lặp lại? | [`22-interceptor`](22-interceptor/README.md) |
 | 24 | Trang `/admin` chỉ cho user có quyền vào, em chặn từ phía client thế nào? | [`24-router-guard`](24-router-guard/README.md) |
-| 32 | Bấm xóa xong, em cho UI cập nhật ngay hay ngồi chờ API trả về? | [`32-query-mutations`](32-query-mutations/README.md) |
+| 32 - x | Bấm xóa xong, em cho UI cập nhật ngay hay ngồi chờ API trả về? | [`32-query-mutations`](32-query-mutations/README.md) |
 
 > Q24 (router guard) được xếp vào nhóm Data & HTTP vì guard dựa vào đọc data (token/role) ở loader. Q32 (mutation) nằm đây vì gắn với lifecycle query/cache của TanStack Query.
 
 ### Nhóm 7 — Hooks & Render Pipeline (Q3, Q25–Q30)
 | # | Câu hỏi | Thư mục |
 |---|---|---|
-| 3 | Sao app mới tạo lúc nào cũng thấy StrictMode bọc ngoài? Nó có chạy ở production không? | [`03-strictmode`](03-strictmode/README.md) |
-| 25 | Sao `useState` không được gọi trong `if` hay vòng `for`? | [`25-rules-of-hooks`](25-rules-of-hooks/README.md) |
-| 26 | Trong một cú click mà gọi `setCount` hai lần liên tiếp, UI render mấy lần? Giá trị cuối là gì? | [`26-batching-stale-closure`](26-batching-stale-closure/README.md) |
+| 3 - x | Sao app mới tạo lúc nào cũng thấy StrictMode bọc ngoài? Nó có chạy ở production không? | [`03-strictmode`](03-strictmode/README.md) |
+| 25 - x | Sao `useState` không được gọi trong `if` hay vòng `for`? | [`25-rules-of-hooks`](25-rules-of-hooks/README.md) |
+| 26 - x | Trong một cú click mà gọi `setCount` hai lần liên tiếp, UI render mấy lần? Giá trị cuối là gì? | [`26-batching-stale-closure`](26-batching-stale-closure/README.md) |
 | 27 | Cái gì thì em cho vào `useEffect`, cái gì thì không nên? | [`27-which-effect-when`](27-which-effect-when/README.md) |
 | 28 | Khi nào em bỏ nhiều `useState` lẻ để gom về `useReducer`? | [`28-usereducer-vs-usestate`](28-usereducer-vs-usestate/README.md) |
 | 29 | Ô search gõ chữ nào là list 10.000 dòng giật theo, em làm sao cho gõ vẫn mượt? | [`29-concurrency-transition-deferred`](29-concurrency-transition-deferred/README.md) |

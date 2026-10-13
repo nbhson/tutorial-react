@@ -92,5 +92,7 @@ function Input({ ref, ...p }: { ref?: React.Ref<HTMLInputElement> }) {
 
 ## Câu hỏi liên quan
 
-- **Hỏi tiếp (liên tục)**: [Q1 — library hay framework?](../01-library-vs-framework/README.md) · [Q3 — StrictMode?](../03-strictmode/README.md) · [Q4 — HMR?](../04-hmr/README.md)
+- **Hỏi tiếp (liên tục)**: [Q43 — nâng app 18 lên 19 theo bước nào, chỗ nào dễ vỡ?](../43-migration/README.md) · [Q1 — library hay framework?](../01-library-vs-framework/README.md) · [Q3 — StrictMode?](../03-strictmode/README.md) · [Q43 — nâng app từ 18 lên 19 thực tế đi những bước nào?](../43-migration/README.md)
 - **Đào sâu (xuyên nhóm)**: [Q29 — concurrency: startTransition, useDeferredValue?](../29-concurrency-transition-deferred/README.md) · [Q34 — React 19 ref-as-prop?](../34-ref-callback-n-items/README.md)
+
+> Câu hỏi liên quan thêm: Q2 hỏi "18 khác 19 chỗ nào, vì sao là bước ngoặt" ở tầng **thiết kế/API**. Nếu interviewer vặn sang **thực hành migration** (bắt đầu từ đâu, chỗ nào vỡ, đi từng nấc hay nhảy cóc), thì trả lời bằng Q43 — phần Checklist + Nấc 17→18→19 + codemod + canary. Hai câu nối tiếp tự nhiên: "đã biết 19 khác 18 ở đâu → giờ phải nâng 18 lên 19 thì em đi các bước nào?"
