@@ -10,6 +10,8 @@ Bộ tutorial React đầy đủ, được tổ chức **đối chiếu 1-1** v�
 | `2_angular-techniques` (8 nhóm) | [`2_react-techniques`](2_react-techniques) | Giữ nguyên **8 nhóm**: advanced-features, architecture-patterns, performance-optimization, security-config, micro-frontend, dev-tools, build-with-ai, best-practices |
 | `3_angular-tutorial` (DAY 0..21) | [`3_react-tutorial`](3_react-tutorial) | 22 bài DAY: explore → JSX → list → props → ref → children → render-props → context → external-store → Children API → memo → forms → data-fetching → lazy/Suspense → router → effects → custom-hooks → UI libs → i18n → animations → drag-drop → testing |
 | `4_angular-new-feature` (v14..v22) | [`4_react-new-feature`](4_react-new-feature) | React 18 → 19 → 19.2 → 19.3 → Compiler 1.0 → RSC, mỗi version có bài tổng quan + bài con |
+| (không tương ứng) | [`5_react-crud-jsonplaceholder`](5_react-crud-jsonplaceholder) | Bài CRUD thực chiến với JSONPlaceholder (REST API giả lập) |
+| (không tương ứng) | [`6_interview-question`](6_interview-question) | Bộ câu hỏi phỏng vấn React thực chiến (Q1: library vs framework...) |
 
 ## Timeline kiến thức (React)
 
