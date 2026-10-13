@@ -1,4 +1,4 @@
-# Q12: Component nhận nhiều children mà em chỉ muốn hiện đứa đầu tiên, em xử lý sao?
+# Q12: Component nhận nhiều children mà chỉ muốn hiện đứa đầu tiên, em xử lý sao?
 
 ## Câu hỏi
 

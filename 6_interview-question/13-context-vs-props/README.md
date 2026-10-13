@@ -1,4 +1,4 @@
-# Q13: Props truyền qua 4-5 tầng thấy oải quá, khi nào em chuyển sang dùng Context?
+# Q13: Truyền props qua 4-5 tầng thấy oải quá, khi nào em chuyển sang dùng Context?
 
 ## Câu hỏi
 

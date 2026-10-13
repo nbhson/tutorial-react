@@ -1,4 +1,4 @@
-# Q17: Em làm ô input mà user gõ chữ gì hiện đúng chữ đó — state với input nối với nhau ra sao?
+# Q17: Làm ô input mà user gõ chữ gì phải hiện đúng chữ đó — state với input nối với nhau ra sao?
 
 ## Câu hỏi
 

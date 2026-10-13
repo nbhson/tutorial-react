@@ -1,4 +1,4 @@
-# Q10: Em cần giữ một giá trị qua các lần render mà không muốn UI render lại, em dùng gì?
+# Q10: Cần giữ một giá trị qua các lần render mà không muốn UI render lại, em dùng gì?
 
 ## Câu hỏi
 

@@ -1,4 +1,4 @@
-# Q20: Cần đổ danh sách user từ API lên màn hình, em viết đoạn lấy data thế nào?
+# Q20: Cần đổ danh sách user từ API lên màn hình, đoạn lấy data em viết thế nào?
 
 ## Câu hỏi
 

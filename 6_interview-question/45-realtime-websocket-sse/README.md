@@ -1,4 +1,4 @@
-# Q45: Giá nhảy liên tục qua WebSocket, em đưa vào React sao cho không render loạn?
+# Q45: Dữ liệu nhảy liên tục qua WebSocket, em đưa vào React sao cho không render loạn?
 
 ## Câu hỏi
 

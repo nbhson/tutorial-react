@@ -1,4 +1,4 @@
-# Q2: Em vừa nâng app từ React 18 lên 19, có gì vỡ không? Theo em 19 khác lớn nhất ở đâu?
+# Q2: React 18 với 19 khác nhau chỗ nào? Sao 19 được gọi là bản bước ngoặt?
 
 ## Câu hỏi
 

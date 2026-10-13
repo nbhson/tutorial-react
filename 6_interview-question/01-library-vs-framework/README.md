@@ -1,4 +1,4 @@
-# Q1: Người ta bảo React là library chứ không phải framework — theo em khác nhau ở chỗ nào?
+# Q1: Theo em, React gọi là library chứ không phải framework thì khác nhau ở chỗ nào?
 
 ## Câu hỏi
 

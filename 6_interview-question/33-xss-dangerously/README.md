@@ -1,4 +1,4 @@
-# Q33: Phải hiển thị comment/markdown do user nhập, em làm sao để không bị dính XSS?
+# Q33: Phải hiển thị comment do user nhập, em làm sao để không bị dính XSS?
 
 ## Câu hỏi
 

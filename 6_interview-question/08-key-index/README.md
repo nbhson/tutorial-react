@@ -1,4 +1,4 @@
-# Q8: Render danh sách mà lấy index làm key thì sao? Khi nào nó gây bug thấy rõ?
+# Q8: Em đã bao giờ render danh sách mà lấy index làm key rồi gặp bug chưa? Lúc nào nó gây lỗi thấy rõ?
 
 ## Câu hỏi
 

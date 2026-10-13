@@ -1,4 +1,4 @@
-# Q15: Nhiều chỗ cùng xài chung state, em chọn Redux, Zustand hay cái gì? Vì sao?
+# Q15: Nhiều chỗ cùng xài chung state, lúc đó em chọn Redux, Zustand hay cái gì? Vì sao?
 
 ## Câu hỏi
 

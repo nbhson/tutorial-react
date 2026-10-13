@@ -1,4 +1,4 @@
-# Q19: Form login 2 ô thì em dùng `useState` hay lôi react-hook-form vào? Ranh giới ở đâu?
+# Q19: Form login có 2 ô thì em dùng `useState` hay lôi react-hook-form vào? Ranh giới ở đâu?
 
 ## Câu hỏi
 

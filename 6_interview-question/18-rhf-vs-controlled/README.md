@@ -1,4 +1,4 @@
-# Q18: Sao form đông người lại dùng react-hook-form thay vì mỗi input một `useState`?
+# Q18: Sao form lớn đông người lại dùng react-hook-form thay vì mỗi input một `useState`?
 
 ## Câu hỏi
 

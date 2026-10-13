@@ -1,4 +1,4 @@
-# Q21: Đang gọi API mà user chuyển trang khác, request dở dang đó xử lý sao?
+# Q21: Đang gọi API mà user chuyển trang khác, request dở dang đó em xử lý sao?
 
 ## Câu hỏi
 

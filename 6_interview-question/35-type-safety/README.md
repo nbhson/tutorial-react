@@ -1,4 +1,4 @@
-# Q35: Làm sao để type đi xuyên suốt từ form tới API mà không phải lạm dụng `as`?
+# Q35: Type đứt đoạn giữa form với API phải lạm dụng `as` — em làm sao để type đi xuyên suốt?
 
 ## Câu hỏi
 

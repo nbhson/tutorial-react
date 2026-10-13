@@ -1,4 +1,4 @@
-# Q36: App React to dần, nhiều người làm chung, em chia folder/tổ chức code ra sao? App nhỏ có cần vậy không?
+# Q36: App React to dần, nhiều người làm chung, em chia folder ra sao? App nhỏ có cần vậy không?
 
 ## Câu hỏi
 

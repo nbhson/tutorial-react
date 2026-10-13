@@ -1,4 +1,4 @@
-# Q23: Build xong bundle JS mấy MB, em soi chỗ nào nặng và giảm kiểu gì?
+# Q23: Build xong thấy bundle JS mấy MB, em soi chỗ nào nặng và giảm kiểu gì?
 
 ## Câu hỏi
 

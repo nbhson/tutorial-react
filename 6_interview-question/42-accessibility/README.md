@@ -1,4 +1,4 @@
-# Q42: Button custom của em bấm chuột được mà bấm Tab/phím Enter không ăn — em xử lý sao cho người dùng bàn phím và screen reader dùng được?
+# Q42: Button custom bấm chuột được mà bấm Tab không tới — em xử lý sao cho người dùng bàn phím dùng được?
 
 ## Câu hỏi
 

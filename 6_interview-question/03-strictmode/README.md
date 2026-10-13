@@ -1,4 +1,4 @@
-# Q3: Sao mở app Vite/Next lên lúc nào cũng thấy StrictMode bọc ngoài? Nó có chạy ở production không?
+# Q3: Sao app mới tạo lúc nào cũng thấy StrictMode bọc ngoài? Nó có chạy ở production không?
 
 ## Câu hỏi
 

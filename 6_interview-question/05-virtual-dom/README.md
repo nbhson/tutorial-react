@@ -1,4 +1,4 @@
-# Q5: React cập nhật giao diện kiểu gì mà không vẽ lại cả trang? Em giải thích thử cơ chế đó?
+# Q5: React cập nhật giao diện kiểu gì mà không vẽ lại cả trang?
 
 ## Câu hỏi
 
