@@ -1,8 +1,9 @@
-# Q23: Build ra bundle JS quá to thì làm sao tìm và giảm được?
+# Q23: Build xong bundle JS mấy MB, em soi chỗ nào nặng và giảm kiểu gì?
 
 ## Câu hỏi
 
-> App React build ra 2MB+ JS — đo bằng gì trước, rồi tối ưu theo thứ tự nào (bỏ thư viện thừa, code splitting, tree shaking, tách vendor)? Size budget thì đặt ra sao? Khác Angular chỗ nào?
+> App React build ra 2MB+ JS thì đo bằng gì trước, rồi tối ưu theo thứ tự nào
+> (bỏ thư viện thừa, code splitting, tree shaking, tách vendor)? Size budget đặt ra sao? Khác Angular chỗ nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

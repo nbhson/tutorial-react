@@ -1,11 +1,10 @@
-# Q9: Hai component con cùng cần một state thì đặt state ở đâu?
+# Q9: Hai component con cùng cần dùng chung một state, em đặt state ở đâu?
 
 ## Câu hỏi
 
-> Trong app, hai component anh em cùng cần đọc/đổi một dữ liệu (vd Plus/Minus cùng một count) thì mình đặt state ở đâu?
-> Vì sao đưa lên cha chung gần nhất mà không phải cứ lên root?
-> Nếu cần chia sẻ qua nhiều tầng (5-10 tầng), lifting state còn đủ không, nên chuyển sang gì?
-> So với Angular thì xử lý kiểu gì?
+> Hai component anh em cùng cần đọc/đổi một dữ liệu (ví dụ nút Plus/Minus cùng một count) thì mình đặt state ở đâu?
+> Vì sao đưa lên cha chung gần nhất thay vì cứ lên đến root?
+> Nếu cần chia sẻ qua 5-10 tầng thì lifting state còn đủ không, nên chuyển sang gì? So với Angular thì xử lý kiểu gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

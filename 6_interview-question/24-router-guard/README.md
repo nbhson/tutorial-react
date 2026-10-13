@@ -1,8 +1,10 @@
-# Q24: Làm sao chặn user không có permission khi vào một route (ví dụ trang admin)?
+# Q24: Trang `/admin` chỉ cho user có quyền vào, em chặn từ phía client thế nào?
 
 ## Câu hỏi
 
-> Làm sao để chặn user chưa đăng nhập, hoặc thiếu role, khi vào trang admin? Bọc component (RequireAuth + Navigate) hay dùng loader (Data Router v7) thì hơn? guard trong useEffect có vấn đề gì? So với canActivate của Angular thì sao?
+> Làm sao để chặn user chưa đăng nhập, hoặc thiếu role, khi vào trang admin?
+> Bọc component (`RequireAuth` + `Navigate`) hay dùng `loader` (Data Router v7) thì hơn?
+> Guard trong `useEffect` có vấn đề gì? So với `canActivate` của Angular thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

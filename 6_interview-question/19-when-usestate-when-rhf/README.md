@@ -1,8 +1,10 @@
-# Q19: Form thì dùng useState, hay là phải dùng react-hook-form?
+# Q19: Form login 2 ô thì em dùng `useState` hay lôi react-hook-form vào? Ranh giới ở đâu?
 
 ## Câu hỏi
 
-> Có phải form nào cũng nên lôi react-hook-form (RHF) vào không? Form cỡ nào thì RHF đáng tiền, cỡ nào thì useState thuần là đủ? Dấu hiệu nào cho thấy bạn đang để useState vượt tải?
+> Có phải form nào cũng nên lôi react-hook-form (RHF) vào không?
+> Form cỡ nào thì RHF đáng tiền, cỡ nào thì `useState` thuần là đủ?
+> Dấu hiệu nào cho thấy bạn đang để `useState` vượt tải?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

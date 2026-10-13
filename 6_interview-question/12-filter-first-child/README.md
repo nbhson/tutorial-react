@@ -1,9 +1,9 @@
-# Q12: Component nhận children nhưng chỉ muốn render child đầu tiên thì làm thế nào?
+# Q12: Component nhận nhiều children mà em chỉ muốn hiện đứa đầu tiên, em xử lý sao?
 
 ## Câu hỏi
 
-> Mình viết một component nhận children (slot) nhưng thực ra chỉ muốn render child đầu tiên, bỏ mấy child còn lại — phía nhận thì làm sao?
-> Lấy children[0] trực tiếp có an toàn không, hay phải dùng Children.toArray?
+> Mình viết một component nhận `children` (slot) nhưng thực ra chỉ muốn render child đầu tiên, bỏ mấy child còn lại — phía nhận thì làm sao?
+> Lấy `children[0]` trực tiếp có an toàn không, hay phải dùng `Children.toArray`?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

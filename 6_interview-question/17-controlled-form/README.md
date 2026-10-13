@@ -1,11 +1,11 @@
-# Q17: Form trong React: ô input hiện đúng giá trị user gõ thì state và input phối hợp thế nào?
+# Q17: Em làm ô input mà user gõ chữ gì hiện đúng chữ đó — state với input nối với nhau ra sao?
 
 ## Câu hỏi
 
-> Trong form, ô input phải hiện đúng giá trị user gõ — state và input phối hợp với nhau bằng cách nào (control input)?
+> Trong form, ô input phải hiện đúng giá trị user gõ — state và input phối hợp với nhau bằng cách nào (controlled input)?
 > Khi user gõ một chữ, dữ liệu đi qua mấy bước để input hiện đúng giá trị?
-> Quên e.preventDefault() ở submit thì chuyện gì xảy ra?
-> So với Angular thì controlled trong React khác ngModel ở điểm nào?
+> Quên `e.preventDefault()` ở submit thì chuyện gì xảy ra?
+> So với Angular thì controlled trong React khác `ngModel` ở điểm nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

@@ -1,8 +1,12 @@
-# Q35: Type safety thực sự xuyên suốt app (schema → state → API) làm sao, và as thì khi nào là dấu hiệu xấu?
+# Q35: Làm sao để type đi xuyên suốt từ form tới API mà không phải lạm dụng `as`?
 
 ## Câu hỏi
 
-> Nói là type safety xuyên suốt — từ Zod schema đến state, props, API — thì nó hoạt động cụ thể thế nào để chỉ viết type 1 lần? State fetch (idle/loading/success/error) nên dùng discriminated union hay 3 flag rời? Dấu as hay as unknown as thì bao giờ là smell, nên thay bằng gì? Exhaustive check (never) để làm gì? Hook generic và tuple as const (mô phỏng useState) thì sao?
+> Nói là type safety xuyên suốt — từ Zod schema đến state, props, API —
+> thì nó hoạt động cụ thể thế nào để chỉ viết type 1 lần?
+> State fetch (idle/loading/success/error) nên dùng discriminated union hay 3 flag rời?
+> Dấu `as` hay `as unknown as` thì bao giờ là smell, nên thay bằng gì?
+> Exhaustive check (`never`) để làm gì? Hook generic và tuple `as const` (mô phỏng `useState`) thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

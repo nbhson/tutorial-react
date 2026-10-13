@@ -1,10 +1,10 @@
-# Q10: Cần giữ một giá trị mà không làm UI re-render thì dùng gì?
+# Q10: Em cần giữ một giá trị qua các lần render mà không muốn UI render lại, em dùng gì?
 
 ## Câu hỏi
 
-> Mình cần giữ một giá trị (vd id của timer, tham chiếu input) mà đổi nó không được làm UI re-render — dùng gì, khác useState ở chỗ nào?
-> Đổi ref.current không re-render thật không, vì sao?
-> So với Angular thì tương đương với gì (ViewChild, Signal)?
+> Mình cần giữ một giá trị (ví dụ id của timer, tham chiếu input) mà đổi nó không được làm UI re-render — dùng gì, và khác `useState` ở chỗ nào?
+> Đổi `ref.current` không re-render thật không, vì sao?
+> So với Angular thì tương đương với gì (`@ViewChild`, `Signal`)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

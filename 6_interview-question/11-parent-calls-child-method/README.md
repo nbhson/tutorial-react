@@ -1,9 +1,9 @@
-# Q11: Cha muốn gọi một hành vi của con (vd focus input trong con) thì làm sao?
+# Q11: Cha muốn bấm nút là focus vào ô input nằm trong con, em làm thế nào?
 
 ## Câu hỏi
 
-> Component con có một input, và cha muốn gọi hành vi của con (focus input đó, reset form con...) thì React làm thế nào?
-> Có cách gọi kiểu Angular (gọi method public qua @ViewChild) không, và khác gì?
+> Component con có một input, và cha muốn gọi hành vi của con (focus input đó, reset form con…) thì React làm thế nào?
+> Có cách gọi kiểu Angular (gọi method public qua `@ViewChild`) không, và khác gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

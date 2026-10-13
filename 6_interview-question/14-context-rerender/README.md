@@ -1,9 +1,9 @@
-# Q14: Đổi giá trị Context thì bao nhiêu component render lại?
+# Q14: Đổi một giá trị trong Context thì có phải cả app render lại không?
 
 ## Câu hỏi
 
-> Trong app dùng Context, khi giá trị context đổi thì bao nhiêu component sẽ render lại — có phải cả app không?
-> Làm sao để giảm re-render thừa (vd value là object literal)?
+> Khi giá trị Context đổi, bao nhiêu component sẽ render lại — có phải cả app không?
+> Làm sao giảm re-render thừa (ví dụ khi `value` là object literal)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

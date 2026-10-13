@@ -1,8 +1,12 @@
-# Q27: useEffect thì dùng cho việc gì, việc nào không nên nhét vào đó?
+# Q27: Cái gì thì em cho vào `useEffect`, cái gì thì không nên?
 
 ## Câu hỏi
 
-> Khi nào thì dùng useEffect, và khi nào thì không nên (đặc biệt là tính toán data từ props/state rồi set state)? useEffect khác useLayoutEffect ở chỗ nào? Với external store thì nên tự viết useEffect + useState hay dùng useSyncExternalStore? useEffectEvent (React 19.2) giải quyết vấn đề gì?
+> Khi nào thì dùng `useEffect`, và khi nào thì không nên
+> (đặc biệt là tính toán data từ props/state rồi `setState`)?
+> `useEffect` khác `useLayoutEffect` ở chỗ nào?
+> Với external store thì nên tự viết `useEffect + useState` hay dùng `useSyncExternalStore`?
+> `useEffectEvent` (React 19.2) giải quyết vấn đề gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

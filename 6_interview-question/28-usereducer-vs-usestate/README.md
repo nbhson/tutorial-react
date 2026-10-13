@@ -1,8 +1,10 @@
-# Q28: State nhiều chỗ thay đổi dựa vào nhau — khi nào nên chuyển từ useState sang useReducer?
+# Q28: Khi nào em bỏ nhiều `useState` lẻ để gom về `useReducer`?
 
 ## Câu hỏi
 
-> Form 10 field thì viết 10 useState hay dùng useReducer? Reducer thực sự giải quyết được gì mà useState không tốt? State machine ở đây nghĩa là gì — chỉ dùng cho login → pending → success → error, hay rộng hơn?
+> Form 10 field thì viết 10 `useState` hay dùng `useReducer`?
+> Reducer thực sự giải quyết được gì mà `useState` không tốt?
+> State machine ở đây nghĩa là gì — chỉ dùng cho login → pending → success → error, hay rộng hơn?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

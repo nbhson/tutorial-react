@@ -1,8 +1,11 @@
-# Q32: Sau khi gọi API (xóa/sửa thêm), UI hiện làm sao để cập nhật ngay mà không phải chờ?
+# Q32: Bấm xóa xong, em cho UI cập nhật ngay hay ngồi chờ API trả về?
 
 ## Câu hỏi
 
-> Sau khi gọi API (create/update/delete), cache của Query đã cũ — refresh bằng gì? invalidateQueries vs setQueryData khác nhau khi nào, chọn cái nào? Làm sao cho UI hiện ngay (optimistic), server đồng ý thì giữ, sai thì rollback — viết bằng onMutate/onError/onSettled ra sao? Khác useOptimistic (React 19) ở đâu?
+> Sau khi gọi API (create/update/delete), cache của Query đã cũ — refresh bằng gì?
+> `invalidateQueries` vs `setQueryData` khác nhau khi nào, chọn cái nào?
+> Làm sao cho UI hiện ngay (optimistic), server đồng ý thì giữ, sai thì rollback —
+> viết bằng `onMutate`/`onError`/`onSettled` ra sao? Khác `useOptimistic` (React 19) ở đâu?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

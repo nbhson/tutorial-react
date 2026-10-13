@@ -1,9 +1,9 @@
-# Q3: Vì sao template Vite/Next.js luôn bọc app bằng StrictMode, và nó ảnh hưởng gì đến production?
+# Q3: Sao mở app Vite/Next lên lúc nào cũng thấy StrictMode bọc ngoài? Nó có chạy ở production không?
 
 ## Câu hỏi
 
-> Mọi template React (Vite, Next.js) đều bọc app bằng StrictMode — nó thực sự làm gì, vì sao lại bật sẵn?
-> Nó có ảnh hưởng gì đến production build không?
+> Mọi template React (Vite, Next.js) đều bọc app bằng StrictMode — nó thực sự làm gì, và vì sao bật sẵn?
+> Nó ảnh hưởng gì đến production build không?
 ## Trả lời ngắn (elevator pitch, 30 giây)
 
 - **StrictMode** là component *opt-in* chỉ hoạt động ở **dev**: nó **chạy render + lifecycle 2 lần** (double-invoke) và bật các cảnh báo thêm (deprecated APIs, effect không có cleanup, unstable IDs...) — để **lộ sớm** các bug mà code "trông như chạy đúng" nhưng thực ra không an toàn.

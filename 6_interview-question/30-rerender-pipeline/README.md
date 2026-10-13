@@ -1,8 +1,9 @@
-# Q30: Từ lúc gọi setState đến khi DOM thay đổi, React làm gì qua các bước nào?
+# Q30: Từ lúc gọi `setState` tới lúc mắt thấy UI đổi, React đã làm những bước gì?
 
 ## Câu hỏi
 
-> Nói chính xác việc UI render lại khi data đổi — từ lúc gọi setX cho đến khi trình duyệt paint. Có mấy pha, mỗi pha làm gì? Và khi component cha render, con có nhất thiết render theo không (chưa kể memo)? Con nào render, con nào không?
+> Nói chính xác việc UI render lại khi data đổi — từ lúc gọi `setX` cho đến khi trình duyệt paint.
+> Có mấy pha, mỗi pha làm gì? Và khi component cha render, con có nhất thiết render theo không (chưa kể `memo`)? Con nào render, con nào không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

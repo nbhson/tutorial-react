@@ -1,9 +1,9 @@
-# Q6: JSX biên dịch ra gì, và vì sao trong `{}` chỉ được phép đặt expression, không được viết if/for?
+# Q6: JSX thực chất là gì? Sao trong dấu `{}` chỉ viết được biểu thức mà không viết được `if`/`for`?
 
 ## Câu hỏi
 
-> JSX mình viết trong component, sau khi build nó thực chất là gì — HTML, string hay cái khác?
-> Trong `{}`, bạn được đặt những gì, không được đặt gì? Ví dụ muốn rẽ nhánh hoặc lặp thì viết thế nào?
+> JSX mình viết trong component, sau khi build thì nó thực chất là gì — HTML, string hay cái khác?
+> Trong `{}`, được đặt những gì, không được đặt gì? Muốn rẽ nhánh hoặc lặp thì viết thế nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

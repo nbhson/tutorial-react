@@ -1,8 +1,8 @@
-# Q13: Truyền props qua nhiều tầng thì chán — nên dùng Context khi nào?
+# Q13: Props truyền qua 4-5 tầng thấy oải quá, khi nào em chuyển sang dùng Context?
 
 ## Câu hỏi
 
-> Trong app, truyền props qua 3-4 tầng thì chán (prop drilling) — khi nào nên chuyển sang Context?
+> Truyền props qua 3-4 tầng thì chán (prop drilling) — khi nào nên chuyển sang Context?
 > Context và props khác nhau ở đâu, và dữ liệu đổi liên tục thì có nên dùng Context không?
 > So với DI của Angular thì thế nào?
 

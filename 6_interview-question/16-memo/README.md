@@ -1,10 +1,10 @@
-# Q16: Muốn chặn UI render không cần thiết ở một số component thì làm sao?
+# Q16: Có component render lại hoài dù props y nguyên, em chặn kiểu gì?
 
 ## Câu hỏi
 
 > Trong app, có những component re-render nhiều lần mà props không đổi — muốn chặn render không cần thiết đó thì làm sao?
-> Bao giờ bọc memo là vô dụng, thậm chí tốn hơn?
-> Với React Compiler thì còn cần viết memo tay không?
+> Bao giờ bọc `memo` là vô dụng, thậm chí tốn hơn?
+> Với React Compiler thì còn cần viết `memo` tay không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

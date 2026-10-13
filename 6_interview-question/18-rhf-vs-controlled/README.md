@@ -1,9 +1,9 @@
-# Q18: Vì sao nên dùng react-hook-form thay vì viết controlled form bằng useState?
+# Q18: Sao form đông người lại dùng react-hook-form thay vì mỗi input một `useState`?
 
 ## Câu hỏi
 
 > Form to, gõ từng chữ mà form re-render liên tục thì mệt — react-hook-form (RHF) giải quyết chuyện này khác controlled viết tay (useState) ở điểm nào?
-> register() hoạt động ra sao, và Zod (zodResolver) đóng vai trò gì trong chuyện validate?
+> `register()` hoạt động ra sao, và Zod (`zodResolver`) đóng vai trò gì trong chuyện validate?
 > So với Angular Reactive Forms thì RHF như thế nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)

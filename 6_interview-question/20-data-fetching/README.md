@@ -1,8 +1,9 @@
-# Q20: Lấy data từ API trong React — viết bằng gì cho ổn?
+# Q20: Cần đổ danh sách user từ API lên màn hình, em viết đoạn lấy data thế nào?
 
 ## Câu hỏi
 
-> Mấy cách lấy data từ API trong React, và cách nào viết cho đúng (abort khi unmount, xử lý lỗi, tránh race)? Khi nào thì không nên tự viết nữa mà chuyển sang TanStack Query? So với HttpClient của Angular thì sao?
+> Mấy cách lấy data từ API trong React, và cách nào viết cho đúng (abort khi unmount, xử lý lỗi, tránh race)?
+> Khi nào thì không nên tự viết nữa mà chuyển sang TanStack Query? So với `HttpClient` của Angular thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

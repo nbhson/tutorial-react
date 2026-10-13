@@ -1,8 +1,10 @@
-# Q29: Search trên list 10.000 item bị giật mỗi lần gõ phím — làm sao giữ UI mượt?
+# Q29: Ô search gõ chữ nào là list 10.000 dòng giật theo, em làm sao cho gõ vẫn mượt?
 
 ## Câu hỏi
 
-> Ô search lọc 10.000 item, mỗi phím gõ list giật — concurrent rendering đã có rồi mà vẫn nặng. Cách nói với React: gõ phím là ưu tiên gấp, còn việc lọc list thì xếp sau? startTransition, useTransition, useDeferredValue khác nhau ở đâu, mỗi cái dùng ở đâu, vì sao không dùng 1 cái cho hết?
+> Ô search lọc 10.000 item, mỗi phím gõ list giật — concurrent rendering đã có rồi mà vẫn nặng.
+> Cách nào để nói với React: "gõ phím là ưu tiên gấp, còn việc lọc list thì xếp sau"?
+> `startTransition`, `useTransition`, `useDeferredValue` khác nhau ở đâu, mỗi cái dùng ở đâu, vì sao không dùng 1 cái cho hết?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

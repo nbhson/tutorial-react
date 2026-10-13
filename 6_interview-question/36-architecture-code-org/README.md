@@ -1,8 +1,12 @@
-# Q36: App React lớn, nhiều người làm chung — nên tổ chức code thế nào? App nhỏ thì có cần áp luôn không?
+# Q36: App React to dần, nhiều người làm chung, em chia folder/tổ chức code ra sao? App nhỏ có cần vậy không?
 
 ## Câu hỏi
 
-> App React lớn (10-20+ màn, 5+ dev làm chung) nên tổ chức code thế nào — theo feature (FSD, container-presenter) hay theo loại file? Vì sao component presenter nên là pure function của props? Giới hạn import (không được import chéo tầng) thì ép bằng gì? Và thực tế: app prototype 5 màn, 1 dev thì có nên áp luôn không?
+> App React lớn (10-20+ màn, 5+ dev làm chung) nên tổ chức code thế nào —
+> theo feature (FSD, container-presenter) hay theo loại file?
+> Vì sao component presenter nên là pure function của props?
+> Giới hạn import (không được import chéo tầng) thì ép bằng gì?
+> Và thực tế: app prototype 5 màn, 1 dev thì có nên áp luôn không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

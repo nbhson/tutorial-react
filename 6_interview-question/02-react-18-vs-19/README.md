@@ -1,9 +1,9 @@
-# Q2: Bạn nâng app từ React 18 lên 19 thì thay đổi gì, vì sao 19 được gọi là bản bước ngoặt?
+# Q2: Em vừa nâng app từ React 18 lên 19, có gì vỡ không? Theo em 19 khác lớn nhất ở đâu?
 
 ## Câu hỏi
 
-> Nếu nâng app từ React 18 lên React 19, bạn sẽ đụng phải những thay đổi gì?
-> Vì sao 19 được coi là version 'bước ngoặt' — nó giải quyết được vấn đề gì mà 18 chưa giải quyết được?
+> Nâng app từ React 18 lên 19 thì phải thay đổi những gì?
+> Vì sao 19 được gọi là bản bước ngoặt — nó giải quyết được điều gì mà 18 chưa làm được?
 ## Trả lời ngắn (elevator pitch, 30 giây)
 
 - **React 18 (03/2022)** đặt **nền concurrent**: `createRoot`, concurrent renderer (có thể tạm dừng/ưu tiên/hủy render), automatic batching, transitions (`useTransition`/`useDeferredValue`), `useId`, `useSyncExternalStore`.

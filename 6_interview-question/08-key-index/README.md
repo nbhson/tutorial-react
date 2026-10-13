@@ -1,10 +1,10 @@
-# Q8: Key là index trong list thì có sao không?
+# Q8: Render danh sách mà lấy index làm key thì sao? Khi nào nó gây bug thấy rõ?
 
 ## Câu hỏi
 
-> Trong app có list động (thêm/xóa/di chuyển item) mà mình dùng key={index} thì có sao không?
+> Trong list động (thêm/xóa/di chuyển item), dùng `key={index}` thì có sao không?
 > Khi nào được dùng index, khi nào bắt buộc phải dùng id?
-> Nêu một vài hậu quả cụ thể để thấy tại sao index làm key gây lỗi?
+> Nêu vài hậu quả cụ thể để thấy tại sao index làm key gây lỗi?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

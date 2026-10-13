@@ -1,8 +1,10 @@
-# Q26: Gọi setState hai lần trong cùng một click thì UI render lại mấy lần? State đọc ra đúng không?
+# Q26: Trong một cú click mà gọi `setCount` hai lần liên tiếp, UI render mấy lần? Giá trị cuối là gì?
 
 ## Câu hỏi
 
-> Ghi setCount(c => c + 1) hai lần liên tiếp trong cùng một click, UI hiện +1 hay +2? Vì sao? Hai setState trong cùng một event thì React render lại một lần hay hai? State đọc ra trễ một nhịp (stale) là trường hợp nào, cách sửa chuẩn là gì?
+> Ghi `setCount(c => c + 1)` hai lần liên tiếp trong cùng một click, UI hiện +1 hay +2? Vì sao?
+> Hai `setState` trong cùng một event thì React render lại một lần hay hai?
+> State đọc ra trễ một nhịp (stale) là trường hợp nào, cách sửa chuẩn là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

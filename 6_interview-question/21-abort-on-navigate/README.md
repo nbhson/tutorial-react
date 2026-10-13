@@ -1,8 +1,9 @@
-# Q21: API chưa kịp trả lời mà user đã chuyển trang khác thì request đó bị sao?
+# Q21: Đang gọi API mà user chuyển trang khác, request dở dang đó xử lý sao?
 
 ## Câu hỏi
 
-> Component đang fetch (response chưa về) mà user click sang trang khác thì request bị hủy không? Data mất không? TanStack Query thì xử lý ra sao? So với Angular (takeUntil...) thì sao?
+> Component đang fetch (response chưa về) mà user click sang trang khác thì request bị hủy không? Data mất không?
+> TanStack Query thì xử lý ra sao? So với Angular (`takeUntil`…) thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

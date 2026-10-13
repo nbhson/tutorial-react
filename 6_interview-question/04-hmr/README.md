@@ -1,9 +1,9 @@
-# Q4: HMR thay module mà không mất state được làm thế nào, khác gì khi F5 reload trang?
+# Q4: Em đang sửa code, lưu phát UI cập nhật mà state không mất — cơ chế đó là gì, khác gì F5?
 
 ## Câu hỏi
 
-> Trong app React, khi bạn lưu file xong mà UI tự cập nhật luôn, state không mất — HMR làm được điều đó như thế nào?
-> So với full reload (F5) thì khác chỗ nào? Với React + Vite so với Next.js thì khác nhau không?
+> Lưu file xong mà UI tự cập nhật, state không mất — HMR làm được điều đó như thế nào?
+> So với F5 (full reload) thì khác chỗ nào? React + Vite so với Next.js thì có khác nhau không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

@@ -1,8 +1,8 @@
-# Q22: Muốn mọi request tự động gắn token, xử lý 401 một chỗ tập trung — làm sao?
+# Q22: Mọi request đều phải gắn token, gặp 401 thì tự refresh — em đặt logic đó ở đâu để khỏi lặp lại?
 
 ## Câu hỏi
 
-> Mình muốn mọi request HTTP trong app tự động gắn `Authorization: Bearer <token>`, gặp 401 thì tự refresh token (hoặc đăng xuất), log request/response ở 1 chỗ — kiểu `HttpInterceptor` trong Angular vậy. React thì làm thế nào, pattern chuẩn là gì?
+> Mình muốn mọi request HTTP trong app tự động gắn `Authorization: Bearer <token>`, gặp 401 thì tự refresh token (hoặc đăng xuất), log request/response ở một chỗ — kiểu `HttpInterceptor` trong Angular vậy. React thì làm thế nào, pattern chuẩn là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

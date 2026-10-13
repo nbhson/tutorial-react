@@ -1,8 +1,10 @@
-# Q25: Vì sao không được gọi hook (vd useState) bên trong if hay for?
+# Q25: Sao `useState` không được gọi trong `if` hay vòng `for`?
 
 ## Câu hỏi
 
-> Tại sao useState không được đặt trong if hay vòng lặp? Nếu bạn viết if (user) { useState(...) } thì React báo lỗi gì, và lỗi đó đến từ cơ chế nào bên trong — chứ không phải chỉ là convention?
+> Tại sao `useState` không được đặt trong `if` hay vòng lặp?
+> Nếu bạn viết `if (user) { useState(...) }` thì React báo lỗi gì,
+> và lỗi đó đến từ cơ chế nào bên trong — chứ không phải chỉ là convention?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

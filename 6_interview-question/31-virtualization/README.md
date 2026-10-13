@@ -1,8 +1,11 @@
-# Q31: Render list 50.000 item — phải render hết, hay dùng virtualization?
+# Q31: Nếu UI bắt buộc phải render 10.000 record thì làm thế nào?
 
 ## Câu hỏi
 
-> Render 50.000 li thì có sao không? Virtualization (windowing) là gì, tại sao DOM vẫn nhỏ cố định dù data lên tới 1 triệu item? Các option của useVirtualizer (count, getScrollElement, estimateSize, overscan, measureElement) để làm gì? Kết hợp với useInfiniteQuery thì thế nào? Khác pagination ở đâu?
+> Nếu UI bắt buộc phải render 10.000 record thì làm thế nào?
+> Virtualization (windowing) là gì, tại sao DOM vẫn nhỏ cố định dù data lên tới 1 triệu item?
+> Các option của `useVirtualizer` (`count`, `getScrollElement`, `estimateSize`, `overscan`, `measureElement`) để làm gì?
+> Kết hợp với `useInfiniteQuery` thì thế nào? Khác pagination ở đâu?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

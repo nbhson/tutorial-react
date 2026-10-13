@@ -1,9 +1,9 @@
-# Q1: Khi chọn tool cho project, làm sao phân biệt library và framework? React và Angular thuộc loại nào?
+# Q1: Người ta bảo React là library chứ không phải framework — theo em khác nhau ở chỗ nào?
 
 ## Câu hỏi
 
-> Bạn phân biệt library và framework bằng tiêu chí nào, không phải định nghĩa thuộc lòng?
-> React thì thuộc loại gì? Angular thì sao?
+> Phân biệt library và framework bằng tiêu chí nào (không phải định nghĩa thuộc lòng)?
+> React thì thuộc loại gì, Angular thì sao?
 ## Trả lời ngắn (elevator pitch, 30 giây)
 
 - **Library**: bộ mã dùng lại, *bạn gọi nó* (inversion of control thuộc về bạn) — bạn kiểm soát cấu trúc ứng dụng, library chỉ phụ thuộc.

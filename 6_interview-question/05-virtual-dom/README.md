@@ -1,8 +1,8 @@
-# Q5: React render lại UI bằng Virtual DOM, cơ chế diff chạy ra sao và vì sao phải dùng key?
+# Q5: React cập nhật giao diện kiểu gì mà không vẽ lại cả trang? Em giải thích thử cơ chế đó?
 
 ## Câu hỏi
 
-> React render lại UI bằng Virtual DOM — cây object đó dùng để làm gì, và nó có nhanh hơn sửa DOM thật không?
+> React render lại UI bằng Virtual DOM — cây object đó dùng để làm gì, và nó có thật sự nhanh hơn sửa DOM trực tiếp không?
 > Khi state đổi thì reconciliation (diff) chạy theo cơ chế nào? key trong list quan trọng đến mức nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)

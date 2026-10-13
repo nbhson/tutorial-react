@@ -1,9 +1,9 @@
-# Q7: Vì sao React có Fragment, không dùng div wrap cho tiện?
+# Q7: Sao React phải đẻ ra Fragment? Cứ bọc `div` cho nhanh thì bị gì?
 
 ## Câu hỏi
 
-> Bạn muốn nhóm vài element trong JSX mà không thêm node DOM thừa — vậy React có Fragment để làm gì?
-> Nếu lười mà wrap bằng div cho tiện thì sẽ bị gì (layout, CSS selector, semantics)?
+> Muốn nhóm vài element trong JSX mà không thêm node DOM thừa — Fragment dùng để làm gì?
+> Nếu lười mà wrap bằng `<div>` cho tiện thì sẽ bị gì (layout, CSS selector, semantics)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

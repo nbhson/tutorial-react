@@ -1,8 +1,12 @@
-# Q34: Muốn focus một ô input trong list 50 ô — giữ ref cho N phần tử động thế nào?
+# Q34: Có list 50 ô input, muốn focus đúng ô thứ 20 thì em giữ ref kiểu gì?
 
 ## Câu hỏi
 
-> Muốn focus ô input trong list 50 ô (hoặc scroll tới dòng cụ thể, đo kích thước N element) — bạn giữ ref thế nào? useRef 1 cái thì làm được gì, khi nào không đủ? Ref callback khác useRef ở đâu (lúc mount/unmount)? Vì sao nên Map + callback ref chứ không phải mảng useRef push trong render? React 19 thì ref-as-prop thay đổi gì?
+> Muốn focus ô input trong list 50 ô (hoặc scroll tới dòng cụ thể, đo kích thước N element) — bạn giữ ref thế nào?
+> `useRef` 1 cái thì làm được gì, khi nào không đủ?
+> Ref callback khác `useRef` ở đâu (lúc mount/unmount)?
+> Vì sao nên `Map` + callback ref chứ không phải mảng `useRef` push trong render?
+> React 19 thì ref-as-prop thay đổi gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

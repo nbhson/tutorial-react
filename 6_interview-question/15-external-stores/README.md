@@ -1,9 +1,9 @@
-# Q15: Nhiều component dùng chung state thì chọn Redux, Zustand hay gì?
+# Q15: Nhiều chỗ cùng xài chung state, em chọn Redux, Zustand hay cái gì? Vì sao?
 
 ## Câu hỏi
 
-> Trong app, có một state chung mà nhiều component cùng đọc/ghi (vd giỏ hàng) thì mình chọn Redux, Zustand, hay cách nào khác?
-> Chúng khác nhau ra sao, và useSyncExternalStore (nền tảng của chúng) là gì?
+> Có một state chung mà nhiều component cùng đọc/ghi (ví dụ giỏ hàng) thì chọn Redux, Zustand, hay cách nào khác?
+> Chúng khác nhau ra sao, và `useSyncExternalStore` (nền tảng của chúng) là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 

@@ -1,8 +1,11 @@
-# Q33: Render nội dung user (comment, markdown) vào HTML — làm sao tránh bị XSS?
+# Q33: Phải hiển thị comment/markdown do user nhập, em làm sao để không bị dính XSS?
 
 ## Câu hỏi
 
-> React nói là an toàn XSS — an toàn ở chỗ nào, và ở những chỗ nào lá chắn đó mất tác dụng? dangerouslySetInnerHTML dùng khi nào, vì sao tên lại có chữ dangerously? Render markdown/user content (comment, bio) thì sanitize bằng gì? javascript: trong href thì React chặn chưa đủ?
+> React nói là an toàn XSS — an toàn ở chỗ nào, và ở những chỗ nào lá chắn đó mất tác dụng?
+> `dangerouslySetInnerHTML` dùng khi nào, vì sao tên lại có chữ "dangerously"?
+> Render markdown / user content (comment, bio) thì sanitize bằng gì?
+> `javascript:` trong `href` thì React chặn chưa đủ?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 
