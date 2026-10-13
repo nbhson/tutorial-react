@@ -5,10 +5,9 @@
 > Mọi template React (Vite, Next.js) đều bọc app bằng StrictMode — nó thực sự làm gì, và vì sao bật sẵn?
 > Nó ảnh hưởng gì đến production build không?
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **StrictMode** là component *opt-in* chỉ hoạt động ở **dev**: nó **chạy render + lifecycle 2 lần** (double-invoke) và bật các cảnh báo thêm (deprecated APIs, effect không có cleanup, unstable IDs...) — để **lộ sớm** các bug mà code "trông như chạy đúng" nhưng thực ra không an toàn.
-- Nó **không thay đổi gì** ở production build (zero runtime cost, không chạy lại).
-- Cần vì sao: với **concurrent rendering + Suspense + strict effects** (React 18+), React có quyền **tạm dừng, chạy lại, mount-unmount-mount** component bất cứ lúc nào. Code có side-effect không idempotent (subscribe, fetch, `Math.random()` trong render, `Date.now()`...) sẽ phá UI (duplicated log, double subscription, tearing...). StrictMode bắt bạn phát hiện ngay trên dev.
+- **StrictMode là "chế độ soi lỗi" chỉ chạy ở dev**: nó cố tình chạy render/effect 2 lần để lộ bug ẩn — effect không cleanup, tính toán bừa trong lúc render, id ngẫu nhiên mỗi lần vẽ.
+- **Production không bị gì**: bản build bỏ hết, không tốn hiệu năng, không chạy lại.
+- **Vì sao bật sẵn**: code qua được StrictMode thì kiểu vẽ mới (tạm dừng/chạy lại/bỏ dở) mới an toàn. Chỗ nào double-invoke mà sai thì chỗ đó sẽ vỡ ở bản React mới.
 
 ## Trả lời chi tiết
 

@@ -7,13 +7,8 @@
 > So với cách Angular (NgRx + `HttpClient` + cache) thì khác chỗ nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **3 tầng "lưu data offline" (2026, theo kích cỡ + độ bền)**:
-  1. **`localStorage`/`sessionStorage`** (≤ 5MB, string, "đơn giản"): **token, settings, "small data"** (user profile, last page) — **không** dùng cho "API response lớn" (5MB "đột biến" → crash).
-  2. **`IndexedDB`** (> 5MB, "structured", "nhiều key"): **API response, files, "cache lớn"** (TanStack Query `persistQueryClient` → `indexeddb` adapter, Q20, Q32) — **chuẩn** cho "offline data".
-  3. **`Service Worker`** (cache **JS/CSS/fonts** + "fetch requests" khi offline): **`workbox` / `vite-plugin-pwa`** (Q23, "code split + PWA") — "cache app (code) + 'nạp offline' (không cache 'API response (data')" (khác #1, #2).
-- **Invalidate / resync (khi "server đổi")**: (1) **TanStack Query `staleTime`/`refetchOnWindowFocus`** (Q20, Q32: "query 'cũ' → refetch (server mới)"), (2) **`invalidateQueries`** (Q32: "mutation (thêm/sửa/xóa) → 'cache cũ' (refetch)"), (3) **`setQueryData`** (Q32: "ghi thẳng cache (optimistic), không refetch"). **Thứ tự đúng**: "trước (online, 'refresh') → sau (offline, 'lưu cache') — 'khi mất mạng, 'lấy từ cache' (Q21) (không 'fetch (trống'))"
-- **Khác Angular (NgRx)**: NgRx + `HttpClient` = **"state (in-memory)"** (không "persist (IndexedDB)" (mặc định) — "nâng (NgRx Data / NgRx Persistent)" (ít dùng)"; **TanStack Query (React)** = **"cache (persistent, 'offline')"** (Q20, Q32 — "chuẩn 2026, 'persistQueryClient'").
+- **3 tầng theo nhu cầu**: (1) `localStorage` (≤ 5MB): token, settings, data nhỏ. (2) `IndexedDB`: response API lớn — chuẩn cho data offline (kèm persist của Query). (3) Service Worker: cache **code** (JS/CSS/fonts) để mở được app khi mất mạng.
+- **Đồng bộ khi online lại**: hiển thị cache trước, refresh nền sau — data cũ thì refetch, vừa mutate xong thì invalidate cache.
 
 ## Trả lời chi tiết
 

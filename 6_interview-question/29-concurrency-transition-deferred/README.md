@@ -7,14 +7,9 @@
 > `startTransition`, `useTransition`, `useDeferredValue` khác nhau ở đâu, mỗi cái dùng ở đâu, vì sao không dùng 1 cái cho hết?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Gốc**: React 18 concurrent chia update thành **2 làn (lane)**: **urgent** (gõ phím, click — phải phản hồi ngay) và **non-urgent** (lọc list, đổi tab, kết quả tìm — được hoãn). Trước 18 phải tự `debounce`/`requestIdleCallback` (vất vả, dễ sai).
-- **3 API, 2 vị trí khác nhau** (điểm ăn điểm nhất):
-  - `startTransition(() => setX(...))` / **`useTransition`** → nằm ở **phía SẢN XUẤT update** (bọc `setState`): "update này được hoãn". `useTransition` kèm `isPending` (để render indicator "đang lọc…").
-  - **`useDeferredValue(value)`** → nằm ở **phía TIÊU THỤ giá trị** (bọc giá trị trước khi truyền cho con): trả **bản trễ** của `value` (UI cũ giữ nguyên tới khi bản mới sẵn sàng).
-- **Chọn**: bạn **đang gọi `setState`** (thay state chính mình) → `useTransition`; giá trị **đến từ prop/state của component khác** và bạn chỉ muốn "trễ nó khi render con" → `useDeferredValue`. Kết quả gần tương đương — **đặt đúng phía bạn kiểm soát**.
-- **Bản chất transition**: bản non-urgent bị **hoãn + bỏ dở** nếu urgent liên tục tới (gõ 5 chữ thì chỉ render bản cuối) — không "stack" 5 render.
-- **Hạn chế (ăn điểm)**: `useDeferredValue` **giữ render cũ trước khi render mới** — kết hợp **virtualization** cho list khổng lồ (Q30), vì deferred **không giảm số node DOM**, chỉ hoãn thời điểm render.
+- React 18 chia update thành 2 làn: **gấp** (gõ phím, click — phản hồi ngay) và **hoãn được** (lọc list, kết quả tìm).
+- Đang gọi `setState` thì bọc bằng `startTransition`/`useTransition` (kèm `isPending` để hiện "đang lọc..."). Giá trị từ nơi khác đưa tới mà muốn vẽ trễ thì dùng `useDeferredValue`.
+- Bản chất: update hoãn được sẽ bị **bỏ dở** nếu user gõ tiếp — gõ 5 chữ chỉ vẽ kết quả chữ cuối, không dồn 5 lần vẽ.
 
 ## Trả lời chi tiết
 

@@ -9,12 +9,9 @@
 > `useEffectEvent` (React 19.2) giải quyết vấn đề gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Quy tắc 2026**: `useEffect` chỉ dành cho **đồng bộ với hệ thống ngoài** (timer, socket, DOM, subscription, fetch khi mount). **KHÔNG dùng để tính dữ liệu** từ props/state rồi `setState` — việc đó React làm **trực tiếp trong render** (derived data) hoặc để **đúng hook** (calc → biến, external store → `useSyncExternalStore`, DOM measurement → `useLayoutEffect`).
-- **Vì sao cấm "effect tính data"**: render là **pure** (React chạy 2 lần dev/StrictMode để so) — nếu data "sinh ra" trong effect thì **render đầu thiếu data** (flashing), **race** (effect chạy sau paint, UI đã vẽ 1 frame giá trị cũ), và **loop** (effect → set state → render → effect…). Derived data **tính inline**: `const sorted = items.sort(...)` ngay trong render, không `useEffect + setItems`.
-- **`useEffect` vs `useLayoutEffect`**: effect **sau paint** (mặc định, không chặn vẽ); layout **trước paint** (đo DOM rồi đặt — tooltip/popover không nháy). Giá layout: chặn paint (nặng là treo) → chỉ dùng khi **đo-đặt DOM**.
-- **External store**: **`useSyncExternalStore`** (chính xác, chống **tearing** + batch + StrictMode double-subscribe đúng) — **không** tự viết `useEffect + useState` subscribe (dễ tearing khi concurrent).
-- **`useEffectEvent`** (19.2+): tách "logic không reactive" (handler cần giá trị mới nhất) khỏi **deps** — thay cho `eslint-disable` (giấu stale) hay thêm deps (chạy lại thừa).
+- `useEffect` chỉ dành cho việc **đồng bộ với thế giới bên ngoài React**: timer, socket, đăng ký sự kiện, đo DOM, gọi API lúc mount.
+- Đừng dùng effect để tính dữ liệu từ props/state rồi `setState`: lần vẽ đầu thiếu data (chớp UI), dễ race, dễ vòng lặp. Tính thẳng trong lúc render.
+- Đo DOM rồi đặt vị trí (tooltip/popover) thì dùng `useLayoutEffect` (chạy trước khi vẽ, không nháy). Nghe store ngoài thì dùng `useSyncExternalStore` cho khỏi xé hình.
 
 ## Trả lời chi tiết
 

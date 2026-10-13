@@ -6,13 +6,9 @@
 > Có cách nào "chỉ lấy response mới nhất, bỏ response cũ" không? `AbortController`, `useEffect` cleanup, `stale-while-revalidate` của TanStack Query thì dùng ở đâu?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Vấn đề = "race condition (data race)"**: 3 request cùng lúc, response **về lộn xộn** → UI hiện "data request cũ" (sai — Q20, Q21).
-- **3 cách chặn (2026, theo "ai fetch")**:
-  1. **Tự viết (`useEffect` + `AbortController`)** (Q20, Q21): mỗi lần `query` đổi → `abort` request cũ, **chỉ response mới nhất ghi state** (bỏ response cũ). "Khi fetch bằng `fetch`/`axios` + `useEffect`".
-  2. **TanStack Query (Q20)**: **`stale-while-revalidate`** (queryKey đổi → "cancel/abort request cũ" tự động, chỉ giữ mới nhất) + **`refetchOnWindowFocus`/`enabled`** (chống "nạp trùng"). "Khi dùng Query (không tự viết useEffect + fetch)".
-  3. **`useDeferredValue` + debounce (Q29)**: "delay việc fetch (hoãn), không 'abort' — 'gộp request' (search 10k item)". **Sai nếu "đo response phải về đúng thời điểm" (không debounce)**.
-- **Nguyên tắc**: "chỉ response mới nhất ghi state" — "abort request cũ (không để 'về sau' ghi đè)" (Q20, Q21 — "điểm ăn điểm").
+- **Vấn đề**: 3 request đi cùng lúc, response **về lộn xộn** — response cũ về sau cùng sẽ **ghi đè** response mới, UI hiện data cũ.
+- **3 cách chặn**: (1) Tự viết (`useEffect` + `AbortController`): query đổi thì abort request cũ, chỉ response mới nhất được ghi state. (2) TanStack Query: queryKey đổi thì nó **tự hủy request cũ**, không cần cleanup tay. (3) Giảm số request bằng debounce/`useDeferredValue` khi search gõ nhanh — nhưng cách này chỉ "gộp", không thay abort khi cần đúng thời điểm.
+- **Nguyên tắc một câu**: chỉ response mới nhất được ghi state.
 
 ## Trả lời chi tiết
 

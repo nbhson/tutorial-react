@@ -5,11 +5,9 @@
 > Phân biệt library và framework bằng tiêu chí nào (không phải định nghĩa thuộc lòng)?
 > React thì thuộc loại gì, Angular thì sao?
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Library**: bộ mã dùng lại, *bạn gọi nó* (inversion of control thuộc về bạn) — bạn kiểm soát cấu trúc ứng dụng, library chỉ phụ thuộc.
-- **Framework**: bộ xương ứng dụng *gọi bạn* (inversion of control thuộc về framework) — nó quyết định cấu trúc, vòng đời, điểm vào; bạn viết code nhét vào chỗ framework chuẩn bị sẵn.
-- **React** (theo nghĩa kỹ thuật): **UI library** — nó chỉ lo render view, bạn tự chọn router, state, HTTP... từ ecosystem.
-- **Angular**: **framework full-stack phía client** — đóng gói sẵn Router, Forms, DI, HTTP, module system.
+- **Library = bạn gọi nó**: bạn quyết định kiến trúc app, gọi hàm của library khi cần (ví dụ gọi `debounce` của lodash).
+- **Framework = nó gọi bạn**: framework định sẵn khung (router, vòng đời, điểm vào), bạn chỉ điền code vào chỗ trống nó chừa sẵn.
+- **React là UI library**: nó chỉ lo vẽ giao diện, còn router/state/HTTP bạn tự chọn từ ecosystem. Được tự do thay từng layer, đổi lại phải tự chịu trách nhiệm lắp ghép cho đúng.
 
 ## Trả lời chi tiết
 

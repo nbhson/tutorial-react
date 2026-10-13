@@ -8,12 +8,10 @@
 > Kết hợp với `useInfiniteQuery` thì thế nào? Khác pagination ở đâu?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Render hết 50k item = 50k node DOM** (× ~5 node/item = ~250k node) → layout + paint **mỗi lần scroll** nặng, RAM phình, React diff tốn, scroll giật. **Virtualization (windowing)** = chỉ **vẽ vài chục dòng khớp viewport + vùng đệm (overscan)** — DOM **nhỏ cố định** dù data 10k hay 1M.
-- **Cơ chế**: container ngoài `overflow:auto` + chiều cao hữu hạn; bên trong "canvas" cao bằng **tổng chiều cao ảo** (`getTotalSize()`), mỗi row **`position:absolute; top:0; transform: translateY(start)`** (dùng `transform` = composite, nhanh, không layout mỗi scroll). Scroll đổi → virtualizer tính lại "cửa sổ" → React chỉ render đúng cửa sổ đó.
-- **Quy tắc chọn**: list **> vài trăm dòng** có scroll (hoặc row chứa ảnh/iframe nặng) → virtualize; **< 200 dòng** → render thường + **pagination** (virtualization thêm chi phí đo + absolute positioning, không lợi).
-- **Combo chuẩn feed dài (2026)**: `useInfiniteQuery` (nạp dần page, không tải hết API) + virtualizer (DOM nhỏ) — "vô hạn" nhưng chỉ giữ **cửa sổ DOM** trong memory.
-- **Điểm ăn điểm**: virtualization **giảm số node DOM** (vẽ bao nhiêu), `useDeferredValue`/transition **hoãn thời điểm render** (Q29) — **vấn đề khác nhau, cần cả hai** cho list khổng lồ.
+- Vẽ hết 10.000 dòng là tạo 10.000+ node DOM thật — cuộn là giật, RAM phình, so sánh tốn.
+- **Virtualization**: chỉ vẽ vài chục dòng vừa khung hình + ít dòng đệm, cuộn tới đâu tính tới đó. DOM nhỏ cố định dù data 10k hay 1 triệu.
+- List vài trăm dòng trở lên hoặc dòng nặng (ảnh, iframe) thì virtualize. Dưới ~200 dòng thì phân trang là đủ, đừng bày vẽ.
+- Feed dài vô hạn: Query **nạp dần** từng trang + virtualizer **vẽ ít** — hai thứ giải hai việc khác nhau nên đi cùng nhau. Hoãn thời điểm vẽ (transition/deferred) là việc khác nữa.
 
 ## Trả lời chi tiết
 

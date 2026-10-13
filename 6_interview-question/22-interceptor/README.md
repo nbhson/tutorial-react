@@ -5,12 +5,9 @@
 > Mình muốn mọi request HTTP trong app tự động gắn `Authorization: Bearer <token>`, gặp 401 thì tự refresh token (hoặc đăng xuất), log request/response ở một chỗ — kiểu `HttpInterceptor` trong Angular vậy. React thì làm thế nào, pattern chuẩn là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **React KHÔNG có interceptor built-in** (không có DI container toàn app, Q1) — nhưng ý định hoàn toàn làm được qua **pattern "wrapper/instance"**:
-  1. **Fetch wrapper** (tối giản, 0 lib): 1 hàm `api()` bọc `fetch` — thêm header, check `r.ok`, normalize error. Mọi code chỉ gọi `api()`, không gọi `fetch` trần.
-  2. **Axios instance + `interceptors.request/response`** (gần Angular nhất): axios có đúng từ ngữ "interceptor" — request chain (gắn token) + response chain (401 → refresh, unwrap error).
-- **Nguyên tắc chọn tầng**: interceptor chỉ làm **infrastructure** (auth token, log, timeout, refresh); **retry theo nghiệp vụ + cache để TanStack Query** (Q20) — đừng retry ở cả 2 chỗ (bẫy §2).
-- **401 + refresh**: dùng **single-flight** (1 promise refresh dùng chung, các request 401 xếp hàng) — không để N request 401 gọi N lần refresh.
+- React không có interceptor dựng sẵn, nhưng làm được bằng **1 hàm `api()` bọc `fetch`**: gắn token, check lỗi tập trung một chỗ. Cả app chỉ gọi `api()`, cấm gọi `fetch` trần. Cần đầy đủ hơn thì dùng axios instance + interceptors.
+- Interceptor chỉ lo việc hạ tầng (token, log, timeout, refresh 401). Thử lại theo nghiệp vụ và cache để Query lo — đừng retry cả hai nơi.
+- Refresh token khi 401: nhiều request cùng 401 thì chỉ refresh **một lần** (single-flight), các request xếp hàng chờ token mới.
 
 ## Trả lời chi tiết
 

@@ -6,11 +6,9 @@
 > Có mấy pha, mỗi pha làm gì? Và khi component cha render, con có nhất thiết render theo không (chưa kể `memo`)? Con nào render, con nào không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **4 pha (pipeline)**: (1) **Schedule** — `setState` đánh dấu component **dirty**, React **không render ngay** mà **lên lịch** (scheduler) + **batch** (Q26: N set cùng event = 1 render). (2) **Render** — React **tính lại JSX** từ component dirty **xuống cây** (function chạy, pure) — đây là pha "đắt", chưa chạm DOM. (3) **Reconcile** (diff) — so tree render cũ/mới (theo **type + key**, Q8) → quyết định **thay đổi nào ở DOM** (update/insert/delete). (4) **Commit** — **chạm DOM thật** (thêm/xóa/sửa node) + chạy **`useLayoutEffect` (trước paint)** → trình duyệt **paint** → chạy **`useEffect` (sau paint)**.
-- **Cha render, con render theo (cascading) — MẶC ĐỊNH**: khi cha **tính lại** (render), React **thi hành render của mọi con** (gọi lại function con) — **dù props giống hệt** (vì "không có bằng chứng" con ổn định). Đây là lý do cần **`memo`** (Q16) để **chặn** con khi props không đổi.
-- **Con KHÔNG render lại** (chưa kể memo) khi: (a) **cha không render** (cha đứng yên), hoặc (b) con **được `memo`** + props `Object.is` giống, hoặc (c) con **cùng `useId`/state nội bộ** nhưng cha truyền props ổn định + không `children`/function mới.
-- **Điểm ăn điểm**: "render ≠ DOM". **Render (pha 2) = tính JSX (CPU)**; **Commit (pha 4) = chạm DOM**. "UI cập nhật" thật sự ở **commit**, không phải lúc `setState`.
+- 4 bước từ `setState` tới mắt thấy: (1) **lên lịch** — không vẽ ngay, gộp nhiều set thành một; (2) **tính lại giao diện** bằng object JS (chưa chạm trình duyệt); (3) **so cũ/mới** tìm chỗ khác; (4) **sửa đúng chỗ đó** trên DOM thật rồi mới hiện.
+- Mặc định cha vẽ thì **mọi con vẽ theo** (dù props y hệt) — đó là lý do có `memo` để chặn.
+- Con đứng yên khi: cha không vẽ, hoặc con bọc `memo` mà props không đổi. Nhớ phân biệt: "vẽ lại" (tính toán) khác "đổi DOM" (mắt thấy).
 
 ## Trả lời chi tiết
 

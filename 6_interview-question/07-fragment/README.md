@@ -6,11 +6,9 @@
 > Nếu lười mà wrap bằng `<div>` cho tiện thì sẽ bị gì (layout, CSS selector, semantics)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- Một component React phải trả về **một element gốc duy nhất** (return là một expression). Khi muốn trả nhiều "em" mà không muốn thêm node vào DOM, dùng **Fragment** (`<></>`, hay `<Fragment>` khi cần props — đặc biệt `key`).
-- **`<div>` tạo ra thật một node DOM** — Fragment **không tạo node nào** (biên dịch thành `jsxs(Fragment, ...)`), chỉ "nhóm" các children về mặt React.
-- Dùng `<div>` thay Fragment gây **3 hậu quả**: (1) **thay đổi layout/semantics** (div là block, phá flex/absolutely-positioned parent, thêm layer HTML "vô nghĩa"), (2) **phá CSS selector** (`.parent > child` mất vì có div chen giữa), (3) **accessibility/SEO** — nhét element ngữ nghĩa `<ul>`, `<table>`... vào div làm sai cấu trúc tài liệu.
-- Fragment có `key` (dạng `<Fragment key>`) — shorthand `<></>` **không nhận được key** (đó là lý do khi map list trả nhiều element phải dùng `<Fragment key={id}>`).
+- Component chỉ được return **một khối duy nhất**. Muốn trả nhiều element cạnh nhau mà không thêm thẻ vào DOM thì bọc bằng Fragment (`<>...</>`).
+- Bọc `div` thì trình duyệt vẽ thêm một node thật: dễ vỡ layout flex/grid, vỡ selector CSS (`.cha > .con`), sai ngữ nghĩa (`ul`/`table`).
+- Map list mà mỗi dòng trả nhiều element thì dùng `<Fragment key={id}>` — shorthand `<>` không nhận key.
 
 ## Trả lời chi tiết
 

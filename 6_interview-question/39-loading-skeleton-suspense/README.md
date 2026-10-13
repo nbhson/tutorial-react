@@ -7,13 +7,9 @@
 > Khác Angular (NgRx + `async` pipe, `show loading` ở template) ở điểm nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Không render thẳng khi data chưa có** → **chọn 1 trong 3 tầng "sẵn sàng"**:
-  1. **Skeleton/shimmer "cố định"**: UI có "khung" (card, list, chart) — **render khung ngay + `placeholder` khi chưa có data** (không blocking, không flash). "Skeleton khi layout biết sẵn".
-  2. **`Suspense` + `lazy`**: "data chưa có → không mount subtree, chỉ mount skeleton `fallback`" — **chính xác khi data là "đơn vị lazy" (route, widget)** (không "từng ô input").
-  3. **Conditional render (loading spinner)**: "trạng thái fetch rõ" (`idle/loading/success/error`) — **đơn giản**, "khi chỉ có 1 vùng chờ".
-- **Nguyên tắc 2026 (React 19.3 + Compiler)**: **`React.lazy` theo route** (Q23, "critical < 200KB") + **`Suspense` cho vùng "không cần ngay"** (sidebar, suggestion, chart) — "skeleton = `fallback` của Suspense", "không flash layout (CLS 0 — Web Vitals)".
-- **Khác Angular**: NgRx + `async pipe` (observable) = "mỗi template có async pipe, không block"; React "không có async pipe built-in" — **TanStack Query + `Suspense`** (Q20, Q32) là "combo gần nhất" ("data fetch state-driven, không stream (RxJS)").
+- Data chưa về thì đừng vẽ thẳng, chọn 1 trong 3: **khung skeleton cố định** khi biết trước layout; **Suspense + lazy** cho vùng không cần ngay (route, widget); **spinner đơn giản** khi chỉ có một vùng chờ.
+- 2026: lazy theo route để phần đầu nhẹ + Suspense cho vùng phụ (sidebar, gợi ý, biểu đồ) — skeleton chính là `fallback` của Suspense, không làm lệch layout.
+- Combo chuẩn lấy data: TanStack Query + Suspense.
 
 ## Trả lời chi tiết
 

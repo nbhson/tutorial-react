@@ -7,11 +7,9 @@
 > So với Angular Reactive Forms thì RHF như thế nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Controlled thuần** (Q17): mỗi phím gõ = `setState` → **re-render cả form**. **RHF** dùng **uncontrolled + ref-based**: giá trị nằm trong **DOM** (RHF "đăng ký" input qua `register`), gõ **không re-render** — chỉ re-render khi **hiện lỗi** (blur, theo `mode`) hoặc **submit**.
-- **`register("email")`** trả `{ name, onChange, onBlur, ref }` — spread vào `<input {...register("email")} />` là RHF "đăng ký" field. Không cần `value` từ state.
-- **Zod + `zodResolver`**: schema runtime (validate 1 lần, tái dùng client/server), `zodResolver` cắm schema vào RHF (submit chạy validate, lỗi vào `formState.errors`), `z.infer` suy type TS từ schema (không viết type 2 lần).
-- **Đối chiếu Angular**: RHF + Zod ≈ **Reactive Forms + Validators** (nhưng không có class `FormGroup`, gọn hơn).
+- Controlled gõ phím nào là vẽ lại cả form phím đó. RHF để giá trị nằm trong DOM (đăng ký qua `register`), gõ **không vẽ lại** — chỉ vẽ khi hiện lỗi hoặc submit.
+- `register("email")` trả sẵn name/onChange/onBlur/ref, spread vào input là xong, khỏi viết value/onChange tay.
+- Validate + type viết **một lần** bằng Zod schema: cắm vào RHF qua `zodResolver`, type suy ra bằng `z.infer`.
 
 ## Trả lời chi tiết
 

@@ -6,12 +6,9 @@
 > Có cách gọi kiểu Angular (gọi method public qua `@ViewChild`) không, và khác gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- React **không khuyến khích** cha gọi trực tiếp method con — triết lý là **dữ liệu chảy xuống (props), sự kiện chảy lên (callback)** (unidirectional). Gọi method con là **escape hatch** (hàm "imperative").
-- 3 cách, từ "ít cần" đến "nặng":
-  1. **Ưu tiên: đẩy logic lên state** — đổi hành vi bằng props/state thay vì gọi method (ví dụ muốn input con focus? truyền prop `focusOn`/`key` thay cho "gọi" method). Đây là cách "React-y" nhất.
-  2. **`useImperativeHandle`** — con **lộ API có kiểm soát** (chỉ vài method, ví dụ `focus`, `clear`) cho cha qua ref. Tương đương gọi method public của Angular component, nhưng **chủ động chọn lộ gì** (không lộ toàn bộ DOM).
-  3. **Ref vào DOM trực tiếp** (cha truyền ref xuống, con gắn vào input) — nhanh nhưng lộ **toàn bộ DOM node** (thiếu kiểm soát), ít "an toàn" hơn.
+- React không khuyến khích cha gọi thẳng method con. Cách đúng chất là **đổi hành vi bằng props/state**: muốn con focus khi có lỗi thì truyền prop `error`, con tự focus.
+- Thật cần gọi (component dùng chung) thì con dùng `useImperativeHandle` để lộ đúng 1–2 method (`focus`, `clear`), cha gọi qua ref.
+- Đừng truyền ref DOM trần xuống: cha biết hết ruột gan con, con đổi giao diện là cha vỡ.
 
 ## Trả lời chi tiết
 

@@ -7,11 +7,9 @@
 > Với React Compiler thì còn cần viết `memo` tay không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **`memo(Component)` = "lính gác" chặn re-render của component khi props KHÔNG đổi** (so nông `Object.is` từng field). Cha render → mặc định mọi con render theo (cascade); `memo` giúp con **bỏ qua render** nếu props giống y hệt.
-- **Khác `useMemo`**: `memo` chặn **render của component**; `useMemo` cache **kết quả tính** bên trong component (2 thứ khác nhau, hay bị nhầm).
-- **Khi nào bọc**: (1) **item trong list lớn**, (2) **component render nặng** (biểu đồ, form sâu), (3) **Profiler "chỉ đỏ"** (bằng chứng render nhiều). **KHÔNG bọc**: component nhỏ giản đơn (so props còn tốn hơn vẽ lại), hoặc component nhận **props object/function mới mỗi lần render** (→ `memo` luôn miss, vô dụng).
-- **Với React Compiler 1.0 (chuẩn 2026)**: Compiler **tự memo** — nên "viết tự nhiên", không "bọc tràn lan". Chỉ thêm `memo` tay khi (a) **đo được issue**, (b) cần **tham chiếu ổn định cho effect deps**, (c) **vùng Compiler chưa phủ** (thư viện bên thứ ba).
+- `memo` là "lính gác" trước cửa component: mặc định cha vẽ thì con vẽ theo, `memo` chặn lại nếu props y hệt.
+- Đừng nhầm với `useMemo`: `memo` chặn vẽ **cả component**, `useMemo` chỉ nhớ **kết quả một phép tính** bên trong.
+- Chỉ bọc khi đo thấy vẽ thừa (item trong list lớn, component nặng, Profiler báo đỏ). Component nhỏ, hoặc props là object/function tạo mới mỗi lần thì bọc cũng vô ích. Có Compiler thì nó tự memo, khỏi bọc tràn lan.
 
 ## Trả lời chi tiết
 

@@ -6,13 +6,9 @@
 > Làm sao upload **file lớn** với **progress bar**, **cancel** (user bấm "Hủy"), **resume** (mất mạng giữa chừng, tải tiếp)? `FormData` + `fetch` (Q20) có đủ không? Cần `XMLHttpRequest` (Q22) hay `fetch` (Q20)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Vấn đề gốc**: `fetch` (Q20) **không có progress upload event** (chỉ có `AbortController` (Q21) cancel, không progress). `XMLHttpRequest` (Q22) **có `upload.onprogress`** (Q22) — "chuẩn upload (Q20, Q22) với progress".
-- **3 cách upload (theo file size (Q20, Q22)) (Q20)**:
-  1. **File nhỏ (< 5MB) (Q20)**: `FormData` + `fetch` (Q20) + `AbortController` (Q21) cancel — "đơn giản, không progress (Q20)" (Q20, Q21). "Sai (Q22) khi file lớn (Q20, Q22) — không progress (Q22)".
-  2. **File lớn (50–500MB) (Q22)**: **`XMLHttpRequest` (Q22) + `upload.onprogress`** (Q22) — "progress (Q22)", "cancel (Q22)", "thang (Q22)" (Q22). "Chuẩn (Q22) (Q22, Q20)".
-  3. **File rất lớn (500MB+) (Q22, Q20)**: **Chunk upload (Q20) (chia file thành nhiều phần (Q20, upload từng chunk (Q20, Q22))** — "không (Q20, Q22)", "resume (Q20, Q22) (mất mạng, tải tiếp (Q20, Q22))" (Q20, Q22).
-- **Progress (Q22)**: "`upload.onprogress` (Q22) (percent, speed, size) (Q22)", "không (Q20) (`fetch` không progress) (Q20)". **Cancel (Q21)**: "`AbortController` (Q21) (Q21)" hoặc "`xhr.abort()` (Q22)" (Q21, Q22). **Resume (Q20)**: "Chunk (Q20) (upload từng phần (Q20, server nhận (Q20, client gửi (Q20, Q22))" (Q20).
+- **Vấn đề gốc**: `fetch` **không có sự kiện tiến trình upload** — chỉ hủy được (AbortController). Muốn progress bar phải dùng `XMLHttpRequest` (`upload.onprogress`).
+- **3 cách theo size**: (1) File nhỏ (< 5MB): `FormData` + `fetch` + AbortController — đơn giản, không progress. (2) File lớn (50–500MB): XHR + `upload.onprogress` — có progress, hủy được. (3) File rất lớn (500MB+): chia chunk 5MB, upload từng chunk — có progress từng chunk, hủy được, mất mạng gửi tiếp chunk còn thiếu.
+- **Điểm ăn điểm**: resume được vì server nhớ chunk nào rồi, client chỉ gửi tiếp phần thiếu.
 
 ## Trả lời chi tiết
 

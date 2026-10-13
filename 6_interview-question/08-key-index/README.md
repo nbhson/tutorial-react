@@ -7,11 +7,9 @@
 > Nêu vài hậu quả cụ thể để thấy tại sao index làm key gây lỗi?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- `key` là **"căn cước"** (identity) React dùng để so phần tử cũ/mới giữa 2 lần render (reconciliation — xem [`05-virtual-dom`](../05-virtual-dom)).
-- `key={index}` = "phần tử ở **vị trí thứ i**". Khi list **thêm/xóa/di chuyển**, mọi index phía sau **dịch** 1 → React tưởng "cùng một phần tử đổi nội dung" (mà thật ra là phần tử khác) → **giữ nhầm node DOM + state nội bộ** của phần tử bên cạnh.
-- **Hậu quả cụ thể, nhìn được bằng mắt**: input đang gõ "ở dòng 2" mất focus, text nhảy lên dòng 1; checkbox tick sai dòng; animation chạy lại từ đầu; form 2 trường lệch nhau.
-- **Được dùng index khi**: list **thật sự tĩnh** — không bao giờ thêm/xóa/đổi thứ tự (ví dụ danh sách icon cố định, menu navigation). Khi list **động** (CRUD, filter, sort) → **cấm**, dùng `id` ổn định.
+- `key` là "căn cước" để React nhận ra dòng nào là dòng nào giữa hai lần vẽ. Lấy index làm key nghĩa là "dòng ở vị trí số i".
+- Thêm/xóa dòng đầu thì mọi index sau nó đổi số → React nhận nhầm dòng: ô đang gõ mất focus, checkbox tick nhầm hàng, state nhảy sang dòng bên cạnh.
+- Chỉ dùng index khi list **tĩnh tuyệt đối** (menu cố định, không thêm/xóa/đảo). List CRUD/filter/sort thì dùng `id`.
 
 ## Trả lời chi tiết
 

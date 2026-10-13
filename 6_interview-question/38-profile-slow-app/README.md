@@ -7,14 +7,9 @@
 > Sai lầm phổ biến nhất khi "nghiên cứu performance" (chưa đo đã sửa, `useMemo` lan tràn) là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Nguyên tắc đầu tiên: ĐO TRƯỚC, sửa SAU** (không "nghi ngờ rồi useMemo cho hết" — Q16). Quy trình: (1) **Profile (DevTools / React DevTools / Lighthouse)**, (2) **Xác định pha tốn** (render CPU, layout/paint, JS main thread, memory), (3) **Sửa đúng pha đó** (Q16 memo, Q29 transition, Q23 code split, Q31 virtual), (4) **Đo lại** (budget CI — Q23). Không có số thì không biết "đã sửa tốt".
-- **4 công cụ chuẩn (2026)**:
-  1. **Chrome DevTools → Performance tab**: chọn "record" khi thao tác "chậm", xem **Main thread** (JS, render, layout), **Frames** (giật = frame drop), **Network** (blocking).
-  2. **React DevTools → Profiler**: "record while interacting" → xem **commit (ms)** per component, **flame graph** (function call tree) — "ai render lại nhiều, ai tốn CPU".
-  3. **Lighthouse (mobile + slow 4G)**: **LCP**, **INP** (Input Noticeable Performance — UX 2026, thay FID), **TBT**.
-  4. **`web-vitals`** (lib) + Sentry: production metrics (LCP/INP/CLS) theo cohort.
-- **Bẫy (thường bị)**: "thấy chậm → useMemo khắp nơi" (Q16 — **méo code, không giúp nếu render không phải bottleneck**). **Đúng**: profile → tìm "ai tốn > threshold" → sửa (Q16/Q29/Q31/Q23 theo pha).
+- Luật đầu: **đo trước sửa sau**. Quy trình: profile → tìm pha tốn (vẽ CPU, layout/paint, JS main thread, RAM) → sửa đúng pha → đo lại, giữ ngưỡng ở CI.
+- 4 đồ nghề: Performance tab (xem main thread, frame rớt), Profiler của React DevTools (xem component nào vẽ lâu/vẽ nhiều), Lighthouse (LCP/INP), web-vitals + Sentry cho số liệu thật ở production.
+- Bẫy phổ biến: chưa đo đã rải `useMemo` khắp nơi — vừa rối code vừa không trúng bệnh.
 
 ## Trả lời chi tiết
 

@@ -8,11 +8,9 @@
 > viết bằng `onMutate`/`onError`/`onSettled` ra sao? Khác `useOptimistic` (React 19) ở đâu?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Mutation = ghi dữ liệu** (`useMutation`), không phải đọc (`useQuery`). Sau khi server xác nhận, cache **đã cũ** → phải **cập nhật cache** bằng 1 trong 2: **`invalidateQueries`** (đánh "stale" → Query **refetch** — đúng nhất, tốn request) hoặc **`setQueryData`** (ghi thẳng cache — **instant**, không refetch, bạn tự lo "đúng").
-- **Optimistic (hiện ngay)**: `onMutate` (trước gọi API) **cancel query đang chạy + snapshot cache cũ + ghi cache "phỏng đoán"** → UI hiện ngay không chờ server. `onError` → **rollback** (khôi phục snapshot) + refetch thật. `onSettled` → **invalidate** (đúng cuối).
-- **Bẫy kinh điển**: **mất `cancelQueries` trong `onMutate`** → request cũ (đang chạy) về **ghi đè** optimistic (UI "nhảy ngược") — phải cancel + snapshot + rollback 3 bước đủ.
-- **`useOptimistic` (React 19)**: phiên bản **hook thuần React** của optimistic (actual + optimistic state, rollback tự động khi action throw) — dùng với **Actions (server roundtrip)**; **Query = "quản lý cache"** (rollback + refetch đúng), **`useOptimistic` = "quản lý render state"** (không có cache layer). Chọn theo stack (Q2/Q20).
+- Ghi xong (thêm/sửa/xóa) thì cache cũ phải làm mới bằng 1 trong 2: `invalidateQueries` (đánh dấu cũ → tải lại, đúng nhất, tốn request) hoặc `setQueryData` (ghi thẳng vào cache, hiện ngay, tự chịu đúng/sai).
+- **Optimistic**: chưa cần server trả lời đã hiện trước — trước khi gọi thì hủy query đang chạy + chụp cache cũ + ghi giá trị đoán; lỗi thì rollback về ảnh chụp, xong thì invalidate cho chắc.
+- Bẫy hay quên: thiếu `cancelQueries` trong `onMutate` thì request cũ về ghi đè, UI "nhảy ngược". React 19 có `useOptimistic` cho roundtrip Actions, còn quản lý cache vẫn là việc của Query.
 
 ## Trả lời chi tiết
 

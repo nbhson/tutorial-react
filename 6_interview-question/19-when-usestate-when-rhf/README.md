@@ -7,16 +7,9 @@
 > Dấu hiệu nào cho thấy bạn đang để `useState` vượt tải?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Quy tắc thực chiến**:
-  - **Form 1–3 field, rule đơn giản, không validate chéo** → **`useState` thuần** (Q17 controlled pattern): 0 dependency, đọc hiểu ngay, debug trực tiếp.
-  - **Form nhiều field (≥5), rule phức tạp (validate chéo, async, field động), hoặc form lặp lại nhiều nơi** → **RHF + Zod**: ít re-render (uncontrolled + ref), lỗi theo field có sẵn, schema tái dùng (client + server).
-- **Dấu hiệu `useState` VƯỢT TẢI** (thời điểm chuyển RHF):
-  1. Bạn phải tạo **n state + n setter** (một state mỗi field, kèm cờ lỗi từng field, cờ submitting).
-  2. **Validate tay bằng `if` lồng nhau**, lỗi dồn vào một `err` chung rồi tự phân rã ra từng field.
-  3. **Cùng rule** xuất hiện ở **nhiều form** (duplicating).
-  4. Form **nhiều field + mỗi phím gõ gây lag** (controlled re-render).
-- **Điểm ăn điểm**: quyết định dựa trên **phức tạp validate + số field + hiệu năng**, KHÔNG phải "RHF luôn xịn hơn". Form đăng nhập 2 field với RHF = **overkill** (thêm lib, thêm khái niệm `register`/`mode` không cần thiết).
+- Form 1–3 ô, rule đơn giản, không check chéo → `useState` thuần: không thêm lib, đọc hiểu ngay.
+- Form từ ~5 ô trở lên, rule chéo/async/ô động, hoặc cùng rule lặp nhiều form → RHF + Zod.
+- Dấu hiệu `useState` quá tải: n state + n cờ lỗi, `if` lồng nhau để validate, cùng rule copy nhiều nơi, gõ thấy lag. Form login 2 ô mà lôi RHF vào là overkill.
 
 ## Trả lời chi tiết
 

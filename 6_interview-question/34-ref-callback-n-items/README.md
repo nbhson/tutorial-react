@@ -9,11 +9,9 @@
 > React 19 thì ref-as-prop thay đổi gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **`useRef` = 1 "box" cho 1 node** (tham chiếu ổn định, `.current` đổi không re-render — Q10). List N item → **không thể** dùng "N `useRef`" (vi phạm rules of hooks: gọi hook trong loop, Q25) → dùng **ref callback** + **Map/array** (giữ N node, sạch).
-- **Ref callback** `ref={(node) => {...}}`: React gọi với **`node` khi mount**, **`null` khi unmount** (cùng ref "gắn/gỡ") — đúng lúc node gắn/gỡ, **không cần `useEffect` theo dõi** (khác `useRef` + effect: hiệu ứng chạy **sau** render, có thể "trễ").
-- **N node → `Map` (hoặc array) + callback ref**, key theo `id`: `map.set(id, node)` / unmount: `if (node) map.delete(id)` — **không push trong render** (mỗi render push → **tích lũy sai**, array phình vô hạn).
-- **React 19: `ref` là prop thường** (không cần `forwardRef`) — component function **tự nhận `ref`** (destructure), truyền xuống DOM. `forwardRef` chỉ còn cho code cũ/thư viện chưa nâng.
+- Một `useRef` chỉ giữ một node. List N dòng mà gọi N `useRef` trong vòng lặp là phạm luật hook.
+- Dùng **ref callback + Map theo id**: mount thì `map.set(id, node)`, unmount (node null) thì `map.delete(id)`. Muốn focus/scroll/đo dòng nào thì lấy từ Map.
+- Đừng push ref vào mảng trong lúc render — mỗi lần vẽ push thêm, mảng phình vô hạn. React 19 thì `ref` là prop thường, khỏi `forwardRef`.
 
 ## Trả lời chi tiết
 

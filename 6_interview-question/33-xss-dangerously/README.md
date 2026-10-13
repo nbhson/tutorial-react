@@ -8,11 +8,9 @@
 > `javascript:` trong `href` thì React chặn chưa đủ?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **React escape mặc định** mọi giá trị trong `{value}`: JSX tạo **text node** (`document.createTextNode`), trình duyệt **không parse** → `<img onerror=...>` chỉ hiện thành **chữ**, không chạy. Đây là **mặc định, không cần cấu hình** — "React an toàn XSS" là đúng **ở `{value}`**.
-- **Lá chắn biến mất ở 4 "cửa hậu"**: (1) **`dangerouslySetInnerHTML`** (gán `innerHTML` thật → parse + thực thi `script`/`onerror`), (2) **thuộc tính URL** (`href`/`src`/`formAction` — `javascript:`), (3) **`eval`/`new Function`**, (4) **lib render HTML user** (marked + `rehype-raw`, SSR `innerHTML`).
-- **Nguyên tắc**: mọi data từ **user/API/localStorage/query** mà đi vào HTML/URL thì **luôn** qua **sanitize/allowlist** — coi không tin cậy **ngang input user**. Không cần thẻ → để React **text** (escape) là xong; cần **rich text** (markdown) → **sanitize (DOMPurify)** rồi mới vào DOM.
-- **Defense-in-depth**: dù sanitize có bypass mới, **CSP `script-src 'self'`** là lớp chặn cuối (payload lọt cũng không chạy được) — sanitize + CSP **đi đôi**.
+- Giá trị trong `{value}` React biến thành **chữ thuần**, trình duyệt không chạy — `<img onerror=...>` chỉ hiện thành chữ. Đây là mặc định, không cần cấu hình.
+- Lá chắn mất ở 4 cửa: `dangerouslySetInnerHTML` (gán HTML thật), thuộc tính URL (`href`/`src` với `javascript:`), `eval`/`new Function`, lib render HTML của user.
+- Luật: data từ user/API mà vào HTML/URL thì luôn qua kiểm duyệt (sanitize, chỉ cho phép thẻ an toàn). Chỉ cần chữ thì để React escape, cần rich text (markdown) thì DOMPurify trước. Thêm CSP `script-src 'self'` làm lớp chặn cuối.
 
 ## Trả lời chi tiết
 

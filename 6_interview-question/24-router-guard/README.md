@@ -7,12 +7,9 @@
 > Guard trong `useEffect` có vấn đề gì? So với `canActivate` của Angular thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- React **không có guard class như Angular** (`CanActivate`/DI) — thay bằng **2 tầng**:
-  1. **Tầng component** (đơn giản, mọi app): `<RequireAuth>` / `<RequireRole>` bọc route, đọc token/roles từ store/Context, sai → `<Navigate to="/login" replace />` (redirect lần render đầu, không flash).
-  2. **Tầng `loader` (Data Router v7)** — mạnh hơn: chạy **trước khi render** (giống `canActivate` của Angular + resolver), thiếu quyền → `throw redirect("/403")` — không có khung hình tạm, không fetch data của trang cấm.
-- **Guard trong `useEffect` là SAI** (bẫy #1): page **đã render + đã fetch data** rồi mới đá → flash nội dung nhạy cảm + request thừa.
-- **Nguyên tắc vàng**: guard client **chỉ là UX** (giấu UI) — **bảo mật thật ở API server** (token giả, localStorage ai cũng sửa được).
+- React không có guard dựng sẵn: bọc route bằng component `RequireAuth`/`RequireRole`, thiếu quyền thì đá về `/login` ngay lần vẽ đầu — không chớp nội dung.
+- Mạnh hơn thì dùng `loader` của Data Router: chạy **trước khi vẽ**, thiếu quyền thì redirect luôn — trang cấm không tải data, không lóe khung hình.
+- Đừng check quyền trong `useEffect`: trang đã vẽ + đã gọi API rồi mới đá ra, lộ nội dung nhạy cảm. Và nhớ: guard client chỉ giấu UI, bảo mật thật nằm ở server.
 
 ## Trả lời chi tiết
 

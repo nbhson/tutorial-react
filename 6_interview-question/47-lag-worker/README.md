@@ -6,12 +6,9 @@
 > Làm sao push việc nặng ra **Web Worker** (không block main thread (Q30)), kết quả trả về component React? `Worker` + `postMessage` (Q30) là chuẩn? `useWorker` (Q16) hay `useEffect` (Q27) + `Worker`?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Vấn đề gốc**: JS nặng (parse, filter, compute) chạy **trên main thread** (Q30) → **UI treo** (Q30, Q16). **Mục tiêu**: push ra **Web Worker** (Q30, Q35), "không block main thread (Q30, Q35)" (Q30, Q35).
-- **2 cách (Q30, Q35) (Q30)**:
-  1. **Vanilla `Worker` (Q30, Q35)**: `new Worker(new URL("./worker.js", import.meta.url))` (Q35) + `worker.postMessage(data)` (Q30, Q35) → kết quả `worker.onmessage` (Q30) → `setState` (Q10). "Chuẩn (Q30, Q35, Q10, Q27)" (Q30, Q35).
-  2. **`useWorker` (Q16) (hook (Q16, Q27))**: "hook (Q16, Q27) quản lý (Q30, Q35) (Q16, Q27)" — "không (Q30, Q35) khi viết (Q30, Q35, Q27)" (Q16, Q30).
-- **`SharedWorker` (Q35)**: **Nhiều tab (Q35) dùng cùng (Q35) (Q35)** — "không (Q30, Q35, Q35)". **Khi nào `Worker` (Q30, Q35)**: **1 tab (Q35)** — "đơn giản (Q30, Q35)" (Q30). **Khi nào `SharedWorker` (Q35)**: **Nhiều tab (Q35)** — "chia sẻ (Q35)" (Q35).
+- **Vấn đề**: JS nặng chạy trên main thread sẽ block render/paint — UI khựng theo đúng thời gian tính toán.
+- **Cách làm**: đẩy tính toán ra Web Worker (`new Worker` + `postMessage`/`onmessage`), kết quả về mới `setState`; trong lúc chờ giữ UI responsive (loading/disabled).
+- **Khi nào dùng**: tác vụ trên ~50ms mà không cần DOM (parse file, filter list lớn, mã hóa). Không dùng khi cần chạm DOM (worker không có DOM) hoặc việc nhẹ hơn chi phí gửi message.
 
 ## Trả lời chi tiết
 

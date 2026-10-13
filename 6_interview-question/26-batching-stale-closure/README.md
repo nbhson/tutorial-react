@@ -7,11 +7,9 @@
 > State đọc ra trễ một nhịp (stale) là trường hợp nào, cách sửa chuẩn là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **N lần `setState` trong 1 event handler = React render 1 lần** — **automatic batching** (React 18+, mọi context: click, Promise, timeout). Trước React 18 chỉ batch trong React event; 18 mở rộng sang **mọi nơi**.
-- **Hai `setCount(c => c + 1)` → +2**: dạng **functional** (nhận giá trị trước đó, xếp hàng update) — **không mất update** dù batch. Dạng **trị giá** `setCount(count + 1)` gọi 2 lần → chỉ +1 (cả 2 cùng đọc `count` cũ — **stale closure**).
-- **Quy tắc vàng**: update nào **dựa trên giá trị trước** (đếm, nối mảng, toggle) → **luôn dùng dạng hàm** `setX(x => ...)`. Update **thay bằng giá trị độc lập** (từ event, từ fetch) → dạng trị giá là đủ.
-- **Stale closure trong effect/timeout** (đọc state "trễ 1 nhịp"): đọc `count` trong `setTimeout`/`addEventListener` → đóng gói giá trị **lúc tạo** closure, không phải lúc chạy. Sửa: (a) **deps đủ** (effect chạy lại khi state đổi — closure mới), (b) **functional update**, (c) `useRef` giữ giá trị "sống" (cần đọc mới mà không muốn chạy lại effect — liên hệ Q25 → Q27 `useEffectEvent`).
+- Nhiều `setState` trong cùng một cú click thì React gộp thành **1 lần vẽ** (batching — từ 18 áp dụng mọi nơi, kể cả Promise/timeout).
+- Gọi `setCount(count + 1)` hai lần chỉ +1 vì cả hai cùng đọc giá trị cũ. Muốn +2 thì dùng dạng hàm `setCount(c => c + 1)` — mỗi update xếp hàng nhận giá trị mới nhất.
+- Luật vàng: update nào dựa trên giá trị cũ (đếm, nối mảng, bật/tắt) thì luôn dùng dạng hàm. Đọc state trong `setTimeout`/listener mà thấy "trễ một nhịp" thì kiểm tra deps hoặc dùng dạng hàm/`ref`.
 
 ## Trả lời chi tiết
 

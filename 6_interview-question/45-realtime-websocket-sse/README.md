@@ -6,13 +6,8 @@
 > Nên subscribe ở đâu (component leaf, context, external store)? Khi nào dùng `useSyncExternalStore` (Q15) thay vì `useEffect + useState`? Lỗi "re-render loạn" thường gặp là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Vấn đề gốc**: WebSocket/SSE gửi data liên tục → nếu mỗi event → `setState` trong component cha (top) → **cả cây re-render mỗi tick** (Q30 cascade). **Mục tiêu**: chỉ "component dùng data đó" re-render, không lan lên (Q16, Q30).
-- **3 cách đưa data (theo "nhiều component dùng?") (Q15, Q16, Q30)**:
-  1. **Component leaf (1 component dùng)**: `useEffect` subscribe (Q27) + `useState` (Q10) — "đơn giản, không cần context/store". "Sai khi nhiều component dùng (prop drilling, Q9, Q13) → cascade (Q30)".
-  2. **External store (Zustand/Jotai + `useSyncExternalStore`) (Q15)**: store "nằm ngoài React", component "lấy giá trị bằng hook" (chỉ re-render khi giá trị đó đổi, Q15, Q30). **Chuẩn khi: nhiều component (khác tầng) dùng data real-time (Q13, Q15) mà không cascade (Q30)**.
-  3. **Context (Q13) + `useMemo` value (Q14)**: "cùng tầng (Q13)", "không nên cho data tick mỗi giây (Q14 cascade — mỗi tick = value mới = tất cả consumer re-render, Q14, Q30)".
-- **`useSyncExternalStore` (Q15)**: "hook React built-in (Q15, Q27), subscribe external store (Q15) mà không tearing (Q27), batch (Q26) — chuẩn cho data ngoài React (Q15)". **Sai khi dùng `useEffect + useState` (Q27) cho external store (Q15)**: tearing (Q27), không batch (Q26) (Q27, Q28).
+- **Vấn đề**: mỗi tick `setState` ở component cao thì **cả cây render lại mỗi giây**. Mục tiêu là chỉ component nào dùng data đó mới render lại.
+- **3 cách theo số nơi dùng**: (1) Một component dùng → subscribe trong `useEffect` + `useState` ngay tại leaf, đặt càng thấp càng tốt. (2) Nhiều nơi dùng → external store (`useSyncExternalStore`/Zustand): mỗi component chỉ render lại khi lát mình đọc đổi. (3) Tránh Context cho data tick nhanh — mỗi tick là value mới, mọi consumer render lại hết.
 
 ## Trả lời chi tiết
 

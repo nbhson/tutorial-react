@@ -7,14 +7,9 @@
 > State machine ở đây nghĩa là gì — chỉ dùng cho login → pending → success → error, hay rộng hơn?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **`useState`**: giá trị **độc lập, thay bằng** (đặt 1 giá trị mới — `setEmail(e.target.value)`, `setIsOpen(true)`). Mỗi field một state, mỗi setter một hàm — N field = N state + N setter + N điều kiện validate lồng (Q17/Q19).
-- **`useReducer`**: state là **1 object** + **update là "hành động" (action)** — thay vì "set giá trị trực tiếp" thì **mô tả điều xảy ra** (`dispatch({type: "SET_EMAIL", payload})` → reducer (pure) trả state mới). **Ăn điểm** khi:
-  - Nhiều update **liên quan nhau / phụ thuộc state cũ** (validation chéo, derive field từ field khác, "clear all", "reset"),
-  - N `setState` lồng nhau trong 1 handler (gộp thành **1 action** = code ngắn hơn + logic test được),
-  - **State machine** (login: `idle → loading → success/error`, "chỉ từ error mới retry được" — rule nằm ở reducer, không rải trong các event handler).
-- **Không phải "form phức tạp → dùng reducer"**: nếu 10 field **độc lập, thay bằng, không validate chéo** → 10 `useState` **đơn giản hơn** (đọc trực tiếp, debug trực tiếp — Q17). Reducer ăn điểm khi có **nhiều update liên quan** hoặc **rule chuyển trạng thái**.
-- **Điểm ăn điểm nhất**: "Reducer là **pure function** (input state + action → output state, không side effect) — test được mà không cần mount component (Q `renderHook`), logic tách khỏi UI (MVVM, techniques 3-mvvm-hooks)."
+- `useState` hợp cho giá trị **độc lập, thay bằng** giá trị mới (email, bật/tắt). Mỗi ô một state, đọc đâu thấy đó.
+- `useReducer` hợp khi nhiều mảnh state **dính nhau**: validate chéo, gộp n `setState` trong một cú click thành một action, hoặc máy trạng thái (idle → loading → success/error) mà luật chuyển chỉ nằm một chỗ trong reducer.
+- 10 ô độc lập không check chéo thì 10 `useState` đơn giản hơn. Reducer là hàm thuần (state cũ + action → state mới) nên test dễ.
 
 ## Trả lời chi tiết
 

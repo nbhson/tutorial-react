@@ -9,11 +9,9 @@
 > Exhaustive check (`never`) để làm gì? Hook generic và tuple `as const` (mô phỏng `useState`) thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Type safety end-to-end** = type **không phải "hình" viết 2 lần** mà là **1 nguồn sự thật chạy xuyên stack**: **Zod schema (runtime) → `z.infer` (type) → state/props → API return**. Đổi 1 chỗ (schema), mọi nơi khác tự cập nhật (Q18: "1 schema = 1 type, không viết 2 lần").
-- **Discriminated union cho state máy** (fetch: `idle | loading | success(data) | error(err)`) thay **3 flag rời** (`isLoading` + `data` + `error`): TS **biết "field nào có trong state nào"** — ở state `success`, `data` **luôn defined** (không `T | null`); ở `error`, `err` **luôn defined** → **exhaustive check** (`never`) bắt "quên case". Không union = phải `if (isLoading) ... else if (error) ... else data!` (dấu `!` = **đánh lừa type system** — bẫy).
-- **`as` là smell** — "đánh lừa type system" (bỏ qua kiểm tra, tin "biết rồi"). **Đúng ở "biên"** (borders): parse từ **string không tin cậy** (env/API/`JSON.parse`) → **Zod (runtime) rồi `z.infer`** (không cần `as`); **sai "trong" logic** (bỏ qua guard, cast `any` để "đẩy code chạy"). Quy tắc: **`as` càng "sâu" vào app = càng nguy hiểm** (Q23: "validate ở biên, không rải rác").
-- **Exhaustive check `never`**: trong `switch` của union, thêm `default: assertNever(x)` — **quên case mới = compile error** (đắt giá cho state máy).
+- Viết type **một lần** ở Zod schema (runtime), suy ra type TS bằng `z.infer`, dùng xuyên suốt state/props/API. Đổi schema là mọi nơi theo.
+- State máy (idle/loading/success/error) viết dạng union có nhãn thay vì 3 cờ rời: ở nhánh success thì `data` chắc chắn có, khỏi dấu `!`. Thêm check `never` để quên case nào là báo ngay.
+- `as` là "bảo type system nhắm mắt": chỉ chấp nhận ở **biên** (đọc env/JSON từ ngoài vào, và phải qua Zod trước), càng vào sâu logic càng cấm.
 
 ## Trả lời chi tiết
 

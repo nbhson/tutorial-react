@@ -6,11 +6,9 @@
 > Khi nào thì không nên tự viết nữa mà chuyển sang TanStack Query? So với `HttpClient` của Angular thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **3 tầng**, chọn theo quy mô: (1) **`fetch` + `useEffect`** — để học cơ chế (abort, race, 3 nhánh loading/error/data); (2) **TanStack Query** — chuẩn production (cache, dedupe, retry, stale/focus refetch làm sẵn); (3) **`use()` + Suspense / Server Components** — framework-level (Next.js), SPA Vite không bắt buộc.
-- **Contract 4 điểm** của `useEffect` + `fetch`: (a) `AbortController` + `signal`, (b) check `!r.ok` (fetch **không reject** HTTP 4xx/5xx), (c) bỏ qua `AbortError` trong catch, (d) cleanup `return () => ctrl.abort()`. Thiếu 1 là bug (rò request, race, 404 hiện như data đúng).
-- **Vì sao Query thay effect**: server state có bản chất *thời gian* (có thể stale, cần retry, có thể đang trên đường về) — `useEffect` tự viết lại cache/dedupe/stale và sai từng cái. Query: `queryKey` = địa chỉ cache + dedupe, `staleTime`/`gcTime`, `retry`, `refetchOnWindowFocus` làm sẵn.
-- **Khác Angular**: `HttpClient` trả **Observable** (stream, hủy bằng unsubscribe, `switchMap` tự hủy request trước); `fetch` trả **Promise** (1 lần, hủy bằng AbortController). Interceptor Angular → wrapper fetch tập trung; guard resolver → router loader.
+- 3 tầng theo quy mô: tự viết `fetch` + `useEffect` để học cơ chế; production dùng TanStack Query (cache, chống gọi trùng, thử lại, tự refresh có sẵn); dự án Next.js mới dùng `use()` + Suspense.
+- Tự viết thì nhớ 4 điểm: AbortController + signal để hủy, check `!r.ok` (fetch không tự báo lỗi 4xx/5xx), bỏ qua lỗi AbortError, cleanup abort khi unmount.
+- Effect tự viết không lo được cache/dedupe/stale — càng viết càng sai, đó là lý do production dùng Query.
 
 ## Trả lời chi tiết
 

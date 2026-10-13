@@ -6,11 +6,9 @@
 > Trong `{}`, được đặt những gì, không được đặt gì? Muốn rẽ nhánh hoặc lặp thì viết thế nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **JSX = cú pháp mở rộng của TypeScript** (Vite/esbuild biên dịch) cho phép viết "gần giống HTML" trong logic render. **Không phải HTML thật, không phải string** — nó được biên dịch thành **function call trả về object mô tả UI** (React element).
-- **`{expression}` là cửa ngõ DUY NHẤT đưa dữ liệu TS vào JSX** — và nó chỉ nhận **expression** (mọi thứ **trả về giá trị**: biến, phép toán, gọi hàm, ternary, template string, array...).
-- **Không nhận statement** (câu lệnh: `if`, `for`, `switch`, khai báo `const`...) → dùng **ternary** cho rẽ nhánh, **`.map()`** cho lặp, hoặc IIFE (rare).
-- Vì JSX "là JS" nên bạn không học DSL mới — **biết JS là biết JSX**; mọi logic nằm ở phần đầu component, `return` chỉ "vẽ".
+- **JSX chỉ là cách viết giao diện trông giống HTML** — lúc build nó biến thành lời gọi hàm trả về object mô tả UI. Không phải HTML thật, không phải chuỗi.
+- Trong `{}` chỉ được đặt **biểu thức** (thứ có giá trị trả về: biến, phép tính, gọi hàm, ternary). `if`/`for` là câu lệnh, không trả về giá trị nên bị cấm.
+- Muốn rẽ nhánh dùng ternary, muốn lặp dùng `.map()`. Biết JS là viết được JSX, không có ngôn ngữ mới nào ở đây.
 
 ## Trả lời chi tiết
 

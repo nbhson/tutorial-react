@@ -7,10 +7,9 @@
 > Nếu cần chia sẻ qua 5-10 tầng thì lifting state còn đủ không, nên chuyển sang gì? So với Angular thì xử lý kiểu gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Lifting state up** = **đưa `useState` lên component cha chung gần nhất** khi **nhiều component cần đọc/đổi cùng một dữ liệu**. Con nhận giá trị qua **props** (một chiều xuống), báo thay đổi qua **callback** (một chiều lên). State lúc đó là **single source of truth (nguồn sự thật duy nhất)**.
-- **Khi nào phải đưa lên cha**: (1) **hai component "anh em"** (không là cha–con của nhau) cần cùng một dữ liệu; (2) **cha cần đọc giá trị con đang giữ** (hiển thị, validate, quyết định); (3) **một sự kiện ở con A phải ảnh hưởng giao diện của con B**.
-- **Đưa lên "cha chung gần nhất"**, không phải root: đặt cao quá → **cả app re-render** mỗi khi state đổi; đặt thấp quá → "hai anh em" không ai đọc được. Cần **chia sẻ sâu/rộng** → chuyển sang **Context** (DAY 7) hoặc **store** (Zustand/Redux — DAY 8), không "lifting vô hạn".
+- Hai con cùng cần một dữ liệu thì **đưa state lên ông cha chung gần nhất**: con nhận qua props, muốn đổi thì gọi callback cha đưa xuống. Một nơi giữ sự thật duy nhất.
+- Đừng đẩy lên tận root: state càng cao, mỗi lần đổi càng nhiều component vẽ lại. Đặt vừa đủ cao để các con cần nó đều với tới.
+- Cần chia sẻ qua 5–10 tầng hoặc nhiều chỗ không họ hàng thì hết đất lifting — chuyển Context/store.
 
 ## Trả lời chi tiết
 

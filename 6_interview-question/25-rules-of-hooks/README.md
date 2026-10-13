@@ -7,11 +7,9 @@
 > và lỗi đó đến từ cơ chế nào bên trong — chứ không phải chỉ là convention?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- React **nhớ state theo THỨ TỰ gọi hook** trong lần render, KHÔNG phải theo tên/khóa. Mỗi component có **một danh sách (list) state** nội bộ; hook lần gọi 1, lần gọi 2… gán vào ô 1, ô 2… **cố định theo thứ tự**.
-- Gọi hook trong `if`/loop → **số hook đổi giữa 2 render** (lần trước có `if` thật, lần này không) → danh sách state **dở dang/lệch 1 ô** → ô 2 nhận state của ô 3 → render sai, crash, hoặc "state bí mật tự đổi". React bắt lỗi này: **"Rendered more/fewer hooks than expected"**.
-- **Quy tắc** (rules of hooks, bắt buộc): chỉ gọi **top-level**, **không trong điều kiện/hàm con/callback**, và **chỉ trong component function hoặc hook khác**. Đây là lý do phải **đưa điều kiện VÀO trong logic của hook** (deps `[cond]`), không phải bao hook bằng `if`.
-- **Điểm ăn điểm**: nói được "state theo thứ tự gọi, React không có 'key' cho hook" = đã hiểu thật, không phải vẹt.
+- React nhớ state **theo thứ tự gọi hook**, không theo tên. Mỗi component có một hàng ô nhớ, hook gọi thứ mấy thì vào ô thứ mấy.
+- Gọi hook trong `if`/vòng lặp thì số hook đổi giữa các lần vẽ → ô nhớ lệch nhau → state con này chạy sang con kia, crash hoặc sai âm thầm. React báo "Rendered more/fewer hooks than expected".
+- Luật: hook chỉ gọi ở đầu component/hook khác. Muốn điều kiện thì đưa vào **bên trong** logic hook (deps), đừng bọc hook bằng `if`.
 
 ## Trả lời chi tiết
 

@@ -9,11 +9,9 @@
 > Và thực tế: app prototype 5 màn, 1 dev thì có nên áp luôn không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Nguyên tắc nền**: app lớn (nhiều màn + nhiều dev + dự án dài) → tổ chức code **theo feature nghiệp vụ** (không theo loại file kỹ thuật). Hai khung chính: **FSD** (6 layer `app→pages→widgets→features→entities→shared`, import một chiều, public API mỗi slice) và **container–presentational** (tách "lấy data/logic" khỏi "render thuần"). MVVM (hooks) + hexagonal là nâng cấp (tách logic ra hook / tách nghiệp vụ khỏi framework).
-- **Vì sao đáng tiền**: **giới hạn phụ thuộc** (component A của feature X không nhìn vào nội bộ feature Y — chỉ qua public API), **test dễ** (presentational = pure function of props, test bằng props giả, không mock data), **scale team** (mỗi dev sở hữu 1 slice/feature).
-- **Chống chỉ định (điểm ăn điểm nhất)**: **app prototype (5 màn, 1 dev)** → **ĐỪNG over-engineer** (FSD 6 layer + ESLint boundary = nghi thức hơn code). **Bắt đầu đơn giản** (feature-flat), **nâng cấp khi đau thật sự** (100 component không ai tìm được, prop-drilling 4+ tầng).
-- **Nối 2026**: **Server Components** = container tự nhiên (fetch server, gửi props client) — container–presentational tái sinh dạng built-in (Next.js), không tự tổ chức (RSC, Q2).
+- App lớn thì xếp code **theo feature nghiệp vụ**, không theo loại file. Khung phổ biến: FSD (6 tầng, import một chiều, mỗi slice có public API) hoặc tách lấy-data khỏi vẽ (container–presentational), logic gom vào hook để test.
+- Đáng tiền ở 3 điểm: giới hạn ai được nhìn vào ai, component vẽ thuần thì test bằng props giả, mỗi người sở hữu một slice.
+- App 5 màn 1 người thì đừng bày vẽ: xếp phẳng theo feature, đau thật (100 component tìm không ra, props 4+ tầng) mới nâng. Kiến trúc là thuốc chữa đau cụ thể, không phải đích đến.
 
 ## Trả lời chi tiết
 

@@ -6,11 +6,9 @@
 > So với F5 (full reload) thì khác chỗ nào? React + Vite so với Next.js thì có khác nhau không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **HMR (Hot Module Replacement)**: khi bạn lưu file, dev server (Vite/Webpack) **thay một module (hoặc một nhóm module) đang chạy** trong browser mà **không reload** — **state không mất**, app "tiếp tục" từ đúng chỗ trước đó.
-- **Full reload (F5)**: **reset từ đầu**: JS engine chạy lại toàn bộ bundle, state, timer, scroll — mọi thứ mất sạch.
-- HMR khác reload ở **3 điểm**: (1) không re-run entry point / toàn bộ module graph, (2) **giữ state** (React state, Context, router URL), (3) **nhanh hơn** vì chỉ truyền diff module, không re-download/re-execute toàn bộ bundle.
-- HMR *không phải miễn phí*: có "boundary" (ranh giới) — nếu thay đổi ảnh hưởng module mà HMR không xử lý được (ví dụ sửa hook sai quy tắc, sửa `vite.config.ts`), dev server sẽ tự **fallback sang full reload** (gọi là "full reload boundary" hoặc "out of HMR scope").
+- **HMR**: lưu file thì dev server chỉ thay đúng module vừa sửa, app đang chạy giữ nguyên state. Form nhập dở thì nhập tiếp luôn, không mất chữ.
+- **F5**: chạy lại từ đầu — mất hết state, tải lại cả bundle nên chậm.
+- **Không phải lúc nào cũng HMR được**: sửa config hoặc phá quy tắc hook thì dev server tự reload cả trang (fallback). Thấy mất state sau khi lưu thì hiểu là rơi vào trường hợp này.
 
 ## Trả lời chi tiết
 

@@ -6,14 +6,9 @@
 > Ví dụ: dùng `Class component` thay vì hook, dùng `Service` (DI) thay vì Context/prop, dùng `Subject`/`Observable` thay vì state, hay "viết React như Angular" (template-style, hai chiều binding, event-driven).
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **5 "dấu hiệu code không React" (cần review, 2026 — React 19.3 + Compiler 1.0, Q1, Q3)**:
-  1. **Class component (Q3, Q5)**: viết class + `constructor` + `state = {}` thay vì `useState` (Q10). Sai: class deprecated (Q3), hook là chuẩn (Q5).
-  2. **Service (DI) (Q1, Q15)**: dùng `@Injectable` + `inject(Service)` thay vì `useContext` (Q13) hoặc props (Q9). Sai: DI không tồn tại trong React (Q1), dùng Context/props (Q9, Q13).
-  3. **`Subject`/`Observable` (Q1, Q15)**: dùng RxJS `subject: Subject<T>` + `subscribe()` thay vì `useState` (Q10). Sai: state nên là React state (Q10), không stream (Q15).
-  4. **"Template-style" (Q6, Q3)**: viết `*ngIf`, `*ngFor` (Q3) thay vì conditional rendering (Q6). Sai: template là Angular (Q3), JSX là React (Q6).
-  5. **Event-driven (Q27, Q9)**: dùng `emit()`, `EventEmitter` (Q3) thay vì callback (Q11) hoặc state (Q9, Q10). Sai: React là state-driven (Q9), không event-driven (Q27).
-- **Nguyên tắc review (Q3, Q15, Q27)**: Code React = **state-driven** (Q9, Q10, Q13, Q27), không event-driven (Q27, Q3). Review 5 dấu hiệu trên (Q3, Q15, Q27).
+- Code React "đúng chất" = **state-driven**: UI là hàm của state/props, mọi thay đổi đi qua `setState`, data chảy xuống — sự kiện chảy lên.
+- **5 dấu hiệu review**: (1) Chọc DOM trực tiếp (`getElementById`, `innerHTML`) thay vì state/ref. (2) Class component còn sót trong codebase đã hooks. (3) Hai nguồn sự thật — DOM và state lệch nhau. (4) Effect làm việc của render: tính data từ props/state rồi `setState` trong effect. (5) Logic copy-paste giữa component thay vì tách custom hook.
+- **Nguyên tắc một câu**: đọc code mà không chỉ ra được "state nào điều khiển UI này" thì có mùi.
 
 ## Trả lời chi tiết
 

@@ -8,11 +8,9 @@
 > So với Angular thì controlled trong React khác `ngModel` ở điểm nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Controlled input** = input có **`value` (đọc từ state) + `onChange` (ghi ngược lại state)**: `<input value={email} onChange={e => setEmail(e.target.value)} />`. **State là nguồn sự thật duy nhất** — muốn biết input hiện gì, chỉ nhìn state.
-- **Luồng một chiều**: gõ → `onChange` → `setState` → React **re-render** → JSX đánh giá `value` với giá trị mới → DOM cập nhật input.
-- Mỗi phím = **một lần `setState` + re-render** (giá phải trả của controlled). Form 2–3 field: không sao. Form 30 field + validate nặng mỗi phím → **lag** (đây là lúc RHF uncontrolled phát huy — xem Q18).
-- **`e.preventDefault()` trong `onSubmit` là BẮT BUỘC** (với `<form>` thật): không chặn → trình duyệt reload trang → **mất toàn bộ state** (React unmount). Quên dòng này là bug #1 của người mới.
+- **Controlled input = cắm 2 dây vào state**: `value` đọc từ state, `onChange` ghi ngược vào state. Muốn biết ô hiện gì, nhìn state là đủ.
+- Vòng đời một phím gõ: gõ → `onChange` → set → vẽ lại → giá trị mới hiện lên. Mỗi phím là một lần vẽ lại.
+- Trong `<form>` thật thì `onSubmit` phải `preventDefault` — không là trình duyệt tải lại trang, mất sạch state. Quên dòng này là bug số 1 của người mới.
 
 ## Trả lời chi tiết
 

@@ -6,10 +6,9 @@
 > Viết bằng `useState` + tự check hợp lệ sau mỗi keystroke thì có gì vấn đề? Dùng `react-hook-form` + `zod` thì khác chỗ nào, và khi nào thì tự viết vẫn hợp lý hơn?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Tự viết bằng `useState` + validate trong render** = mọi keystroke → `setState` → **cả form re-render + chạy lại validation toàn bộ** → form 20 field dễ lag (Q17, Q18, Q19). **Điểm đúng**: validation nên là **pure function của value**, **chạy ít nhất có thể** (mỗi field tự check, không cả form).
-- **`react-hook-form` + `zod`** (Q18): **form state lives ngoài React** (Ref, không `useState`), React chỉ nhận kết quả validate; **`register`** không bind `value` (tránh re-render mỗi keystroke), **`zodResolver`** chạy schema một lần (debounce có sẵn khi set `mode: 'onChange'` + `debounce: 500`).
-- **Khi nào tự viết hợp lý**: form **< 5 field + không có dependency chéo** (Q19) — `useState` + `zod` manual (gọi `safeParse` trong `useEffect` + debounce). **Complex form (cross-field, dynamic fields, sectioned)** → `react-hook-form` + `zod` (chống "viết 2 lần").
+- Tự viết `useState` + validate trong lúc render: mỗi phím gõ là vẽ lại **cả form + chạy lại toàn bộ rule** → 20 ô là lag.
+- RHF + Zod: state form nằm ngoài React, gõ không vẽ lại; `register` không bind value; schema chạy một lần (debounce khi `mode: 'onChange'`).
+- Form dưới 5 ô không check chéo thì tự viết + Zod check tay vẫn hợp lý. Form chéo/động/nhiều section thì RHF.
 
 ## Trả lời chi tiết
 

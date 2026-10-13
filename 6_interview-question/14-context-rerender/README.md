@@ -6,10 +6,9 @@
 > Làm sao giảm re-render thừa (ví dụ khi `value` là object literal)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- Khi `value` đổi (so bằng `Object.is`), React **re-render tất cả component đã gọi `useContext(Ctx)` (consumer) nằm trong subtree của Provider đó** — **không phải cả app**, và **không kéo theo component không đọc Context**.
-- **Tầng trung gian không đọc Context → đứng yên** (React "vượt qua" chúng, chỉ báo đến consumer). Đây là điểm khác props: props đổi thì **toàn subtree con** render lại theo cascade; context chỉ "bắn" đúng consumer.
-- **Bẫy lớn nhất**: nếu `value` là **object literal** (`value={{ theme, toggle }}`), mỗi lần Provider render → object MỚI (reference đổi) → React coi là "value đổi" → mọi consumer re-render dù theme không đổi. Fix: **`useMemo` value / tách value + actions thành 2 context / bật React Compiler** (auto-memo — chuẩn 2026).
+- Đổi value thì **chỉ những component có gọi `useContext` mới vẽ lại** — component không đọc thì đứng yên, không phải cả app.
+- Component ở giữa không đọc Context cũng đứng yên (React đi thẳng tới nơi đọc, khác props là cha vẽ thì con vẽ theo).
+- Bẫy hay gặp nhất: `value={{...}}` tạo object mới mỗi lần cha vẽ → React tưởng đổi → vẽ lại hết. Sửa bằng `useMemo` cho value hoặc tách thành 2 context.
 
 ## Trả lời chi tiết
 

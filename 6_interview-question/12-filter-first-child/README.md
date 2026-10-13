@@ -6,10 +6,9 @@
 > Lấy `children[0]` trực tiếp có an toàn không, hay phải dùng `Children.toArray`?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Không nên** dùng `children[0]` trực tiếp: `children` **không phải mảng** ở các shape đơn (1 element, string, fragment...) — index `[0]` trả `undefined` hoặc sai. Shape của `children` là **bất định**.
-- Cách **an toàn**: dùng **`Children.toArray(children)`** (phẳng hóa mọi shape + gán key ổn định) rồi lấy `[0]`.
-- Nhưng **trước khi lọc, tự hỏi: có nên lọc không?** React ưu tiên **composition tường minh** (props có tên) thay vì component "thông minh" tự chọn child. "Chỉ hiện child đầu tiên" nghĩa là API **đơn (1 slot)** — nên **định nghĩa lại bằng 1 prop `ReactNode`** thay vì nhận `children` (nhiều). Đây là điểm ăn điểm nhất.
+- `children` không phải lúc nào cũng là mảng (một element, chuỗi, fragment...) nên `children[0]` dễ trả sai hoặc `undefined`.
+- Lấy đứa đầu an toàn: `Children.toArray(children)[0]` — vừa phẳng hóa mọi dạng, vừa có key ổn định.
+- Nhưng tự hỏi trước: chỉ hiện 1 đứa thì API nên nhận **1 prop `ReactNode` đặt tên rõ**, đừng nhận `children` rồi lén lọc.
 
 ## Trả lời chi tiết
 

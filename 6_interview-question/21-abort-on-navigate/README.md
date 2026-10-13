@@ -6,10 +6,9 @@
 > TanStack Query thì xử lý ra sao? So với Angular (`takeUntil`…) thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Manual (`useEffect` + `fetch`)**: cleanup `return () => ctrl.abort()` chạy khi unmount → **request bị hủy** (AbortError), data **mất** — quay lại là fetch từ đầu (chưa có cache). Nếu quên cleanup → request vẫn chạy xong, `setState` trên component đã chết (harmless từ React 18, nhưng lãng phí + race khi đổi url nhanh).
-- **TanStack Query (chuẩn prod)**: unmount **KHÔNG** abort request mặc định — **request chạy tiếp nền**, kết quả đổ vào **cache**. Quay lại trong `gcTime` (mặc định 5') → **hiện data ngay** (stale thì refetch nền, không skeleton). Muốn hủy thật thì gọi `cancelQueries` — không phải mặc định.
-- **Khác Angular**: `async` pipe / `takeUntil(destroy$)` **tự unsubscribe khi component chết** = request hủy (giống manual). Query "để chạy tiếp + cache" là **chỉ khác Angular có chủ đích** — UX tốt hơn cho SPA (đi–về không fetch lại).
+- Tự viết mà unmount không abort thì request vẫn chạy nền: tốn tài nguyên, dễ race. Cleanup `return () => controller.abort()` là bắt buộc.
+- TanStack Query thì ngược lại: unmount **không hủy** mà để request chạy tiếp, kết quả cất vào cache — quay lại trang trong vài phút là hiện ngay, khỏi tải lại.
+- Muốn hủy thật trong Query thì gọi `cancelQueries`. Mặc định "chạy tiếp + cache" là cố ý để UX mượt, không phải bug.
 
 ## Trả lời chi tiết
 

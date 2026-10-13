@@ -5,11 +5,9 @@
 > Nâng app từ React 18 lên 19 thì phải thay đổi những gì?
 > Vì sao 19 được gọi là bản bước ngoặt — nó giải quyết được điều gì mà 18 chưa làm được?
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **React 18 (03/2022)** đặt **nền concurrent**: `createRoot`, concurrent renderer (có thể tạm dừng/ưu tiên/hủy render), automatic batching, transitions (`useTransition`/`useDeferredValue`), `useId`, `useSyncExternalStore`.
-- **React 19 (12/2024)** xây **API tầng ứng dụng** trên nền đó: **Actions** (`action` prop, `useActionState`, `useOptimistic`, `useFormStatus`), **`use()`** đọc Promise/Context có điều kiện, **`ref` là prop thường** (bỏ `forwardRef`), **Document Metadata** native, **Context-as-provider** (`<Ctx value>`).
-- Một câu chốt: **18 giải quyết "UI đứng hình khi render nặng", 19 giải quyết "boilerplate form/mutation/head metadata"**.
-- 19 còn là bản major đầu tiên sau 3 năm và là **tiền đề của RSC** (Server Actions chạy cả khi chưa hydrate).
+- **React 18 giải quyết "UI đứng hình"**: trước đây update nặng (lọc 10.000 dòng) thì cả trang khựng vì lần vẽ chặn main thread. 18 cho vẽ ngắt được/ưu tiên được, gộp nhiều `setState` thành một lần vẽ (batching), và đánh dấu update "không gấp" (transition). Đổi duy nhất bắt buộc: `createRoot` thay `ReactDOM.render`.
+- **React 19 giải quyết "viết form cực"**: submit + pending + lỗi + hiện trước (optimistic) trước đây tự quản bằng `useState` rất lằng nhằng. 19 cho `<form action>` + `useActionState` (pending/error có sẵn), `useOptimistic` (hiện ngay, lỗi tự rollback), `ref` thành prop thường (bỏ `forwardRef`), viết `<title>` thẳng trong component.
+- **Một câu chốt**: 18 làm UI mượt, 19 làm code gọn. Nâng 18 lên 19 gần như suôn sẻ, chỉ cần dọn API đã báo deprecated từ trước (string ref, `defaultProps`, `ReactDOM.render`).
 
 ## Trả lời chi tiết
 

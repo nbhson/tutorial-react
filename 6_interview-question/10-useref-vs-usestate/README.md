@@ -7,12 +7,9 @@
 > So với Angular thì tương đương với gì (`@ViewChild`, `Signal`)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **`useRef` = "hộp" (object `{ current }`) được tạo MỘT LẦN lúc mount, cùng một object dùng lại qua mọi render**. Đổi `ref.current` **không kích hoạt re-render** — React không "nghe" gì cả.
-- **`useState` = "giá trị + quyền trigger"**: gọi `setState` **kích hoạt render** (đánh dấu dirty, schedule — xem Q "gì khiến UI re-render").
-- **Phân loại bằng 1 câu hỏi**: **"Giá trị này có xuất hiện trên UI không?"**
-  - **Có** (hiển thị text, đổi giao diện) → **`useState`** (để React re-render).
-  - **Không** (tham chiếu DOM, timer id, giá trị "giữa các lần render", cờ nội bộ) → **`useRef`** (cần mutable + ổn định, không cần vẽ).
+- `useRef` là cái "hộp" giữ đồ qua các lần vẽ: đổi đồ trong hộp **không làm vẽ lại**. Dùng cho tham chiếu DOM, id của timer, cờ nội bộ.
+- `useState` là "giá trị lên hình": gọi set là **vẽ lại**. Dùng cho thứ hiện lên màn hình.
+- Một câu phân loại: "giá trị này có hiện lên UI không?" Có → `useState`, không → `useRef`. Đọc ref an toàn trong event/effect, đừng đọc trong lúc render.
 
 ## Trả lời chi tiết
 

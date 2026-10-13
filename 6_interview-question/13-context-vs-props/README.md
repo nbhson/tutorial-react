@@ -7,13 +7,9 @@
 > So với DI của Angular thì thế nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Context = "ống dẫn" truyền một giá trị từ Provider xuống mọi consumer trong subtree, DÙ SÂU BAO NHIÊU TẦNG** — không cần "đục lỗ" (drill) qua từng component trung gian. Bộ 3: **`createContext` → `<Provider value>` → `useContext`** (thường bọc trong custom hook để ép scope).
-- **Props** chỉ đi **1 tầng** (cha → con trực tiếp). Muốn xuyên 3–4 tầng bằng props thì phải truyền "chuyển tiếp" qua mỗi tầng trung gian (**prop drilling**) — component trung gian phải "đỡ" một giá trị không phải việc của nó.
-- **Quy tắc chọn**:
-  - **1–2 tầng, rõ ràng** (cha → con, con → cháu) → **props** (dễ theo dõi).
-  - **3+ tầng, ít đổi** (theme, locale, auth, i18n) → **Context**.
-  - **Đổi THƯỜNG XUYÊN** (input gõ từng phím, cart, stream) → **Store** (Zustand/Redux — DAY 8), **không phải Context** (mỗi lần value đổi, **mọi consumer re-render**).
+- **Context là "đường ống"** dẫn một giá trị từ Provider xuống mọi component bên dưới — sâu bao nhiêu tầng cũng tới, không cần chuyền tay qua từng tầng (prop drilling).
+- 1–2 tầng thì cứ props cho dễ theo dõi. 3+ tầng mà giá trị **ít đổi** (theme, ngôn ngữ, thông tin user) thì Context.
+- Giá trị **đổi liên tục** (ô nhập gõ từng chữ, giỏ hàng) thì đừng dùng Context — mỗi lần đổi là mọi nơi đọc nó vẽ lại hết. Trường hợp đó dùng store.
 
 ## Trả lời chi tiết
 

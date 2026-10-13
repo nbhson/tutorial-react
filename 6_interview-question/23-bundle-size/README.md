@@ -6,11 +6,9 @@
 > (bỏ thư viện thừa, code splitting, tree shaking, tách vendor)? Size budget đặt ra sao? Khác Angular chỗ nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Quy trình đúng = đo trước, tối ưu sau**: build report/visualizer (treemap) tìm 3 chunk lớn nhất → nghi ngờ → sửa → đo lại → **budget CI** (script check size chạy bằng `bun run`) giữ không phình lại. Không số thì không sửa (bẫy §1).
-- **Thứ tự tối ưu (rẻ trước, đắt sau)**: (1) **xóa lib không dùng** (moment → date-fns, lodash → tree-shake được), (2) **code splitting** (`React.lazy` + Suspense từng route, Router v7 route `lazy`), (3) **vendor riêng** (`manualChunks` — react/react-dom một chunk ổn định, app đổi không tải lại vendor), (4) assets (ảnh webp/avif + lazy, font swap).
-- **Mục tiêu thực chiến**: **critical < 200KB gzip** (shell + route đầu) — không phải "bundle toàn bộ nhỏ nhất có thể".
-- **Khác Angular**: cùng dynamic `import()` ES — Angular lazy theo **route module** (`loadChildren`, strategy preloading có sẵn); React lazy được **cả route lẫn widget** (linh hoạt hơn), nhưng preloading (hover/idle/viewport) **tự viết theo tín hiệu**.
+- Quy trình: **đo trước sửa sau** — mở treemap bundle tìm 3 cục nặng nhất, sửa, đo lại, đặt ngưỡng size chạy ở CI để không phình lại.
+- Thứ tự từ rẻ tới đắt: xóa lib thừa → tách code theo route (lazy) → tách vendor riêng → nén ảnh/font.
+- Mục tiêu thực tế: phần hiện đầu tiên dưới ~200KB gzip. Không phải "càng nhỏ càng tốt".
 
 ## Trả lời chi tiết
 

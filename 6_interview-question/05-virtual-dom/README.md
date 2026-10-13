@@ -6,11 +6,9 @@
 > Khi state đổi thì reconciliation (diff) chạy theo cơ chế nào? key trong list quan trọng đến mức nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **Virtual DOM = một cây object JS nhẹ** (`{ type, props, children }`) mô tả UI, **không phải** DOM thật. Mỗi lần render, React tạo cây object mới trong bộ nhớ.
-- **Reconciliation (diff)**: so cây object cũ (đang hiển thị) với cây mới (vừa render), tìm **chỉ phần khác**, rồi **patch đúng các node đó** vào DOM thật. DOM thật đắt (layout/paint, reflow), object JS rẻ → "vẽ lại bản sao trong bộ nhớ rồi sửa ít" nhanh hơn "sờ DOM trực tiếp".
-- **`key`** là "căn cước công dân" của mỗi phần tử trong list: React dùng key để biết "phần tử nào là phần tử nào" khi thêm/xóa/đảo → giữ đúng state nội bộ, tránh nhầm lẫn. Dùng `key={index}` hoặc thiếu key → bug "state nhảy hàng".
-- Virtual DOM **không bị thay thế** bởi React Compiler (19.3, 1.0): Compiler chỉ giảm số lần render thừa (auto-memo); khi đã render, diff vẫn chạy như cũ.
+- React không vẽ thẳng lên trình duyệt. Mỗi lần vẽ nó tạo một **bản mô tả giao diện bằng object JS** (rẻ), so với bản trước để tìm đúng chỗ khác nhau, rồi chỉ sửa mấy chỗ đó trên DOM thật (đắt).
+- So theo "loại + key": cùng loại thì giữ node cũ, khác loại thì vẽ mới.
+- `key` là "căn cước" của từng dòng trong list để so không nhầm hàng — vì sao thì xem Q8.
 
 ## Trả lời chi tiết
 

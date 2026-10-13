@@ -6,14 +6,9 @@
 > Chúng khác nhau ra sao, và `useSyncExternalStore` (nền tảng của chúng) là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-
-- **External store = state nằm NGOÀI React** (module scope, sống suốt app, đọc/ghi được từ cả code không phải React). React "đăng ký đọc" nó qua **`useSyncExternalStore(subscribe, getSnapshot)`** — hook nền tảng (React 18) mà mọi thư viện store đều xây trên đó.
-- Trong hệ React 2026, **3 lớp**, không phải "nhiều framework đối thủ":
-  1. **`useSyncExternalStore`** — nền (gạch xây, hợp đồng 2 hàm `subscribe`/`getSnapshot`). Tự viết store = viết đúng hợp đồng này.
-  2. **Zustand** — lib gọn: `create` + selector, không Provider → **mặc định cho app vừa** (2026).
-  3. **Redux Toolkit (RTK)** — lib đầy đủ: slice + DevTools time-travel + audit action → **app lớn, team cần audit/undo**.
-- **Mục đích của store (khác Context/props)**: state **đổi thường xuyên + nhiều nơi đọc/ghi** (giỏ hàng, realtime, bộ lọc) — và **selector cho phép mỗi component chỉ subscribe đúng "lát" (slice) mình đọc** → đổi slice A không kéo component đọc slice B (điểm Context làm không được — xem Q14).
-- **Quy tắc 3 nấc chọn state**: `useState` (cục bộ, chết theo component) → **Context** (config ít đổi, xuyên tầng: theme/auth/locale) → **Store** (hay đổi + nhiều nơi) → server state riêng: **TanStack Query** (KHÔNG nhét vào store — cache/refetch/dedupe là việc của Query).
+- **Store ngoài là state sống ngoài React**, đọc/ghi được từ bất cứ đâu, React đăng ký nghe qua `useSyncExternalStore`.
+- Muốn gọn, ít boilerplate → Zustand. App lớn, cần DevTools soi từng action, audit/undo → Redux Toolkit.
+- Store hơn Context ở một điểm: mỗi component chỉ nghe đúng "lát" mình cần (selector) — đổi lát A không kéo component đọc lát B vẽ theo.
 
 ## Trả lời chi tiết
 
