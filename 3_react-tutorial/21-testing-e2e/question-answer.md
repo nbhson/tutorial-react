@@ -1,7 +1,7 @@
 # DAY 21 — Hỏi & Đáp: Testing & E2E
 
 > File hỏi–đáp chi tiết cho `3_react-tutorial/21-testing-e2e`.
-> Đọc kèm: `README.md` (lý thuyết) + `example.tsx` (Counter dễ test + mẫu test注释 chạy được).
+> Đọc kèm: `README.md` (lý thuyết) + `example.tsx` (Counter dễ test + mẫu test (comment) chạy được).
 
 ---
 

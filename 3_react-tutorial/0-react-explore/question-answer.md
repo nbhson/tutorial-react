@@ -56,7 +56,7 @@ setCount(c => c + 1)      → React re-render App → diff → vá DOM (mọi l�
 - **Không phải bug, không nên bỏ.** `StrictMode` là component đặc biệt của React, **chỉ có tác dụng ở development**.
   Production build tự loại bỏ hành vi kiểm tra nên không ảnh hưởng hiệu năng.
 - Ở dev nó cố tình **chạy 2 lần**: render function, effects (`useEffect` mount → cleanup → mount lại),
-  để lộ side-effect "không sạch" (thiếu cleanup, fetch không abort,订阅 không hủy, mutation trong render).
+  để lộ side-effect "không sạch" (thiếu cleanup, fetch không abort,unsubscribe không hủy, mutation trong render).
 - Nếu code bạn đúng (effect có cleanup, render thuần khiết), chạy 2 lần vẫn cho kết quả đúng.
   Nếu chạy 2 lần mà sinh bug (gọi API 2 lần, timer nhân đôi) thì đó chính là bug thật mà StrictMode giúp bạn thấy sớm.
 - Quy tắc: **giữ `<StrictMode>` ở dev**, viết effect đúng chuẩn (setup ↔ cleanup đối xứng, xem DAY 15).

@@ -67,7 +67,7 @@ Container ngoài cuộn; canvas trong cao `getTotalSize()` + `position:relative`
 
 ### 4. Dynamic size — `measureElement` + `getItemKey` cho row cao không đều
 
-`estimateSize` chỉ là ước khởi đầu. Row cao động (text 1–3 dòng) phải đo thật: gắn `ref={v.measureElement}` + `data-index` lên row, đặt `getItemKey={(i) => items[i].id}` ổn định. TanStack đo sau render và hiệu chỉnh offset — scroll không lệch dần. Chỉ `estimateSize` cho row động → tổng cao sai 누적, càng cuộn càng lệch.
+`estimateSize` chỉ là ước khởi đầu. Row cao động (text 1–3 dòng) phải đo thật: gắn `ref={v.measureElement}` + `data-index` lên row, đặt `getItemKey={(i) => items[i].id}` ổn định. TanStack đo sau render và hiệu chỉnh offset — scroll không lệch dần. Chỉ `estimateSize` cho row động → tổng cao sai tích lũy, càng cuộn càng lệch.
 
 ```tsx
 // ✅ ĐÚNG: row cao động — đo thật + key ổn định
@@ -213,7 +213,7 @@ react-window đơn giản nhưng row cùng size, grid thủ công, API thập ni
 
 Giữ `top: 0` + `transform: translateY(start)` để chỉ composite. Đo Performance trước/sau để thấy khác biệt frame time.
 
-### 4. Row động mà chỉ estimate → lệch 누적
+### 4. Row động mà chỉ estimate → lệch tích lũy
 
 Thêm `measureElement` + `getItemKey` như mục Khái niệm 4. Với ảnh trong row, chừa `aspect-ratio` để có cao trước khi ảnh tải (tránh nhảy khi ảnh về).
 

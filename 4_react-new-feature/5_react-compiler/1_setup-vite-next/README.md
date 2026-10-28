@@ -47,28 +47,49 @@ npx react-compiler-healthcheck
 
 `react-compiler-healthcheck` quét project, báo số component compile-safe / bị skip và lý do — chạy trước khi bật compiler cho codebase cũ.
 
-### Bước 2a — Vite
+### Bước 2a — Vite (Vite 8 / rolldown)
 
-Dùng `@vitejs/plugin-react` và truyền plugin Babel của compiler:
+> **⚠️ Cập nhật Vite 8 (03/2026):** Vite 8 dùng **Rolldown** (bundler Rust) thay cho Rollup + esbuild — `rolldown-vite` giờ là core của Vite 8. Kèm đó, **`@vitejs/plugin-react` v6+ đã bỏ option `babel`**, nên config kiểu cũ `react({ babel: { plugins: ['babel-plugin-react-compiler'] } })` **không còn hoạt động**. Có 2 cách cấu hình compiler trên Vite 8:
+
+**Cách 1 — Native compiler qua Oxc (khuyến nghị, experimental):** `@vitejs/plugin-react` ≥ 6.1 có option `compiler` dùng `oxc-transform-react` (port Rust của React Compiler):
+
+```bash
+npm install -D oxc-transform-react
+```
 
 ```ts
-// vite.config.ts
+// vite.config.ts — Vite 8 + @vitejs/plugin-react v6+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [['babel-plugin-react-compiler', {}]],
-      },
-    }),
+    react({ compiler: true }), // hoặc react({ compiler: { compilationMode: 'annotation' } })
   ],
 });
 ```
 
-Có thể chỉ định target React: `['babel-plugin-react-compiler', { target: '19' }]`.
-Ngoài ra có plugin wrapper tiện hơn: `vite-plugin-react-compiler`.
+**Cách 2 — Babel qua `@rolldown/plugin-babel` + `reactCompilerPreset`** (ổn định, dùng khi cần option Babel đầy đủ):
+
+```bash
+npm install -D @rolldown/plugin-babel @babel/core babel-plugin-react-compiler
+```
+
+```ts
+// vite.config.ts — Vite 8
+import { defineConfig } from 'vite';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
+
+export default defineConfig({
+  plugins: [
+    react(), // Fast Refresh qua Oxc, không cần Babel
+    babel({ presets: [reactCompilerPreset()] }),
+  ],
+});
+```
+
+> **Vite 7 trở xuống (legacy):** vẫn dùng cách cũ — `react({ babel: { plugins: [['babel-plugin-react-compiler', {}]] } })` với `@vitejs/plugin-react` v5. Hoặc chuyển dần qua gói `rolldown-vite` trên Vite 7 trước khi lên Vite 8 (đường migration 2 bước mà team Vite khuyến nghị).
 
 ### Bước 2b — Next.js
 
@@ -168,7 +189,7 @@ export const ManualMemoChild = memo(function ManualMemoChild() {
 ## Lỗi thường gặp
 
 1. **Quên cài `babel-plugin-react-compiler`** — đặt config nhưng thiếu package ⇒ build lỗi hoặc compiler không chạy.
-   *Fix:* `npm i -D babel-plugin-react-compiler` rồi build lại.
+   *Fix:* `npm i -D babel-plugin-react-compiler` rồi build lại. (Vite 8 + plugin-react v6: kiểm tra bạn đang dùng đúng 1 trong 2 cách ở Bước 2a — `react({ compiler: true })` hoặc `@rolldown/plugin-babel`; option `react({ babel: ... })` đã bị bỏ ở plugin v6.)
 2. **Đặt `reactCompiler: true` sai chỗ theo phiên bản Next** — Next 15 cần `experimental.reactCompiler`, Next 16 dùng top-level. *Fix:* xem phiên bản Next, đặt đúng vị trí.
 3. **Bật compiler cho codebase cũ chưa kiểm tra** — nhiều component bị skip mà bạn không biết. *Fix:* chạy `npx react-compiler-healthcheck` trước, xử lý vi phạm dần.
 4. **Tưởng bật compiler là mọi thứ tự tối ưu** — nếu component vi phạm Rules of React, nó bị skip. *Fix:* dùng ESLint (bài 3) để đảm bảo thực sự được compile.

@@ -11,6 +11,8 @@ Framework triển khai: **Next.js App Router**, React Router, Waku...
 | 1 | [App Router (Server vs Client)](1_app-router/README.md) | Server Component mặc định, boundary `"use client"`, quy tắc serializable props |
 | 2 | [Server Actions](2_server-actions/README.md) | `"use server"` — gọi hàm server từ form/client, `useActionState`, revalidate + redirect |
 | 3 | [cache() & fetch caching](3_cache-fetch/README.md) | `cache()` dedupe, fetch cache (`force-cache`/`no-store`/`revalidate`), tags, `cacheSignal()` |
+| 4 | [Streaming + loading.js + Suspense](4_streaming-loading/README.md) | Shell stream trước, hole stream sau; `loading.js` theo segment, `<Suspense>` thủ công theo vùng |
+| 5 | [Prerender + PPR](5_static-prerender-ppr/README.md) | `react-dom/static` (`prerender`), Partial Prerendering: shell tĩnh prerender lúc build + hole động stream runtime |
 
 ## ĐÁNH GIÁ TỔNG QUAN
 

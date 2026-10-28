@@ -11,7 +11,7 @@ Tổng hợp các tính năng mới của React từ version 18 đến 19.3, Rea
 | 3 | [3_react-19-2](3_react-19-2/README.md) | React 19.2 | 10/2025 | `<Activity>`, `useEffectEvent`, `cacheSignal`, Partial Pre-rendering |
 | 4 | [4_react-19-3](4_react-19-3/README.md) | React 19.3 | 09/2026 | `<ViewTransition>`, Fragment refs, `browser()` API |
 | 5 | [5_react-compiler](5_react-compiler/README.md) | React Compiler 1.0 | 10/2025 (stable) | Auto-memoization, setup Vite/Next, Rules of React, ESLint plugin |
-| 6 | [6_react-server-components](6_react-server-components/README.md) | RSC (stable) | 2024 → nay | App Router, Server Actions, `cache()` + `fetch` caching |
+| 6 | [6_react-server-components](6_react-server-components/README.md) | RSC (stable) | 2024 → nay | App Router, Server Actions, `cache()` + `fetch` caching, streaming/loading.js, prerender + PPR |
 
 ## Timeline React (2022 → 2026)
 
@@ -39,6 +39,7 @@ Tổng hợp các tính năng mới của React từ version 18 đến 19.3, Rea
 1_react-18 → 2_react-19 → 3_react-19-2 → 4_react-19-3
                  ↘ 5_react-compiler (bật bất cứ lúc nào sau 19)
                  ↘ 6_react-server-components (đọc sau 19 để hiểu Actions → RSC)
+                     └─ 4_streaming + 5_PPR: đọc sau 1_app-router (dựa trên Suspense + cache)
 ```
 
 - **Mới bắt đầu**: đọc 18 → 19 → 19.2 → 19.3 theo dòng thời gian (mỗi version xây trên version trước).

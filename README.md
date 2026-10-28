@@ -26,7 +26,7 @@ Bộ tutorial React đầy đủ, được tổ chức **đối chiếu 1-1** v�
 
 ## Stack chuẩn trong tutorial
 
-- **Build tool**: Vite 6+ (`npm create vite@latest`) — CRA đã deprecated.
+- **Build tool**: Vite 8+ (rolldown-based, `npm create vite@latest`) — CRA đã deprecated.
 - **Ngôn ngữ**: TypeScript strict, code `tsx`.
 - **UI/data**: React Router v7 hoặc TanStack Router; TanStack Query v5; Zustand; `react-hook-form` + Zod.
 - **UI kit / style**: MUI / shadcn-ui / Tailwind CSS v4.

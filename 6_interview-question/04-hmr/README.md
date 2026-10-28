@@ -57,7 +57,67 @@ Không chỉ "nhanh hơn" — HMR (Hot Module Replacement) cho phép **dev loop 
 - **React Compiler (1.0)** + HMR (Hot Module Replacement): compiler **auto-memo** giúp React Refresh "biết" boundary nào là an toàn (stable component) → HMR (Hot Module Replacement) ít escalate full reload hơn, đặc biệt khi dùng `<memo>`, `useCallback`.
 - **Lưu ý**: HMR (Hot Module Replacement)/React Refresh là **dev-only**; production build không có (báo "React-Refresh only works in dev" nếu thấy).
 
-### 6. Case thực tế: "HMR (Hot Module Replacement) không hoạt động, state bị mất"
+### 6. Vite 8 (rolldown) + Turbopack: HMR nhanh hơn ở tầng nào?
+
+- **Vite 8 (rolldown-based)**: bundler đổi từ esbuild+Rollup sang **Rolldown (Rust)**, còn React Refresh transform chạy bằng **Oxc** qua `@vitejs/plugin-react` v6 (Babel không còn là dependency). Kết quả dev-loop thấy được: transform 1 file nhanh hơn, pre-bundle dependency (cold start) nhanh tới bậc — nhưng **cơ chế HMR không đổi**: vẫn module graph + WebSocket + React Refresh boundary.
+- **Next.js (Turbopack dev mặc định từ Next 15/16)**: HMR "unit" là module Turbopack + router-aware; hành vi escalate khác `vite-plugin-react` nhưng cùng nguyên lý — phần không an toàn thì reload.
+- **Điểm ăn điểm khi phỏng vấn**: tách bạch 3 lớp — (1) **bundler** gửi update (Rolldown/Turbopack/Webpack), (2) **runtime refresh** (React Refresh) giữ state theo component, (3) **escalation rule** khi đổi vượt boundary. Ba tầng này độc lập — đổi bundler không đổi cơ chế giữ state.
+
+### 7. Checklist debug "HMR mất state / không cập nhật"
+
+1. File vừa sửa là gì? `*.config.*`, `.env`, file trong `node_modules` → **server restart**, không phải HMR.
+2. Đổi số hook / đổi export? → React Refresh escalate — **đúng hành vi**, không phải bug. Lưu trước khi đổi cấu trúc hook.
+3. Module có top-level side effect (mở WebSocket, `setInterval` không cleanup) → state cũ "ma" sau HMR — thêm `import.meta.hot.dispose` hoặc chuyển side-effect vào effect.
+4. Component export kiểu HOC/higher-order — Refresh bọc wrapper có thể reset state; bọc ở module hoặc đổi sang hàm thường.
+5. Production build thấy lỗi "React Refresh only works in dev" → ai đó import plugin dev vào bundle prod — xóa ngay (làm phình + rò runtime).
+
+### 8. HMR API của Vite (không phải React): `import.meta.hot`
+
+React component có React Refresh lo; nhưng file thường (store, plugin, CSS-in-JS runtime) muốn tự quản HMR thì dùng Vite HMR API:
+
+```ts
+// utils/state.ts — tự khai báo cách "thay" module khi HMR
+if (import.meta.hot) {
+  import.meta.hot.accept((newModule) => {
+    // module mới về: áp dụng thủ công, không để escalate full reload
+    store.replaceReducer(newModule.reducer);
+  });
+  import.meta.hot.dispose(() => {
+    clearInterval(timer); // dọn side-effect của phiên bản cũ — không để "state ma"
+  });
+}
+```
+
+- `import.meta.hot.accept(cb)` — khai báo "module này tự biết cách cập nhật". Không khai báo thì fallback lên cha → lan tới entry → full reload.
+- `import.meta.hot.dispose(cb)` — dọn side-effect (timer, listener, cache) **trước** khi module cũ bị thay; bỏ qua đây là nguồn bug "dữ liệu cũ còn sống sau khi sửa code".
+- Redux Toolkit / Zustand v5 có sẵn HMR-aware `import.meta.hot.accept` trong docs — store thay reducer mới mà giữ state, không cần tự viết.
+
+### 9. Từ vựng phỏng vấn cần dùng đúng
+
+| Thuật ngữ | Nghĩa chính xác |
+|---|---|
+| **Module graph** | Đồ thị phụ thuộc module; HMR hoạt động trên graph, update lan theo cạnh bị ảnh hưởng |
+| **HMR boundary** | Module khai báo "tôi tự xử lý update" (`accept`); không ai nhận thì lan lên tới entry → full reload |
+| **React Refresh boundary** | Component được bọc bởi React Refresh runtime — đơn vị giữ state |
+| **Escalate** | Update không an toàn → ném lên trên / full reload |
+| **HMR invalidate** | Server chủ động báo "module này đã stale" → reload ngay cả khi không sửa file đó |
+
+Nói đúng thuật ngữ giúp trả lời "HMR hoạt động thế nào" không bị rơi vào kiểu trả lời "nó nóng reload, nhanh" — kiểu đó không qua được vòng senior.
+
+### 10. Scenario trả lời mẫu (30 giây)
+
+> "Sửa 1 component → Vite 8 transform lại đúng module đó bằng Oxc, gửi update qua WebSocket; React Refresh thay component trong boundary và giữ state; em đang gõ dở form vẫn thấy style mới mà không mất chữ. Sửa `vite.config.ts` → server restart (không phải HMR). Thêm 1 `useState` mới trong component → đổi hook count, Refresh đánh giá không an toàn → escalate full reload. Ba hành vi đó đều **đúng thiết kế**, khác nhau ở tầng nào quyết định."
+
+Câu này chứng minh bạn hiểu **3 tầng độc lập** (bundler → refresh runtime → escalation rule) thay vì học thuộc một dòng định nghĩa.
+
+### 11. Câu hỏi drill-down sau câu chính
+
+- **"HMR giữ state tới mức nào?"** — tới **component boundary**: state của component và con nó được giữ; state module-level (store tự viết, biến ngoài) không được bảo vệ trừ khi module tự khai báo `import.meta.hot.accept` + dispose đúng.
+- **"Sao sửa file store thì mất hết state?"** — store không phải component → không có React Refresh boundary → `accept` fallback lan lên entry → full reload. Giải pháp: dùng HMR-aware middleware của Redux Toolkit/Zustand (mục 8).
+- **"Escalate là ai quyết định?"** — React Refresh runtime quyết theo **quy tắc an toàn** (số hook, cấu trúc export), không phải dev server. Dev chỉ thấy kết quả: giữ state, reload subtree, hoặc full reload.
+- **"Production có HMR không?"** — không; toàn bộ nhánh này là dev-only, build prod không nhúng React Refresh runtime.
+
+### 12. Case thực tế: "HMR (Hot Module Replacement) không hoạt động, state bị mất"
 
 Nguyên nhân thường gặp (đặt vào phần "Lỗi thường gặp"):
 
@@ -79,9 +139,10 @@ Nguyên nhân thường gặp (đặt vào phần "Lỗi thường gặp"):
 
 ## Reference
 
-- Vite HMR (Hot Module Replacement) — [vitejs.dev/guide/features.html#hot-module-replacement](https://vitejs.dev/guide/features.html)
+- Vite HMR (Hot Module Replacement) — [vite.dev/guide/features#hot-module-replacement](https://vite.dev/guide/features/)
+- Vite 8 release (rolldown + Oxc) — [vite.dev/blog/announcing-vite8](https://vite.dev/blog/announcing-vite8)
 - React Refresh (vite-plugin-react) — [vitejs.dev/react.html](https://vitejs.dev/react.html)
-- Next.js HMR (Hot Module Replacement) behavior — [nextjs.org/docs/app/building-your-application/next-internals](https://nextjs.org/docs/app/building-your-app/next-internals)
+- Next.js HMR (Hot Module Replacement) behavior — [nextjs.org/docs/app/building-your-application/next-internals](https://nextjs.org/docs/app/building-your-application/next-internals)
 - Q3 (StrictMode) — double-invoke ở dev, tương quan "dev-only" tooling
 - [`2_react-techniques/6_dev-tools/1-vite`](../../2_react-techniques/6_dev-tools/1-vite) — Vite dev server + HMR (Hot Module Replacement) trong tutorial
 
