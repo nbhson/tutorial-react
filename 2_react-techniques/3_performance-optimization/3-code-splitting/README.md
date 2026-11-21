@@ -10,32 +10,11 @@
 
 **Cơ chế:** `lazy(() => import('./pages/X'))` tạo split point — Rollup tách file đó thành chunk riêng. `manualChunks` gom vendor theo nhóm (`chart-vendor`) để lib nặng không lẫn page chunk và hash ổn định để cache. Trình duyệt tải main trước, chunk khác khi điều hướng/hover.
 
-```ts
-// vite.config.ts — tách vendor để main nhẹ + cache tốt (comment tiếng Việt từng nhóm)
-export default {
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // react + router gần như không đổi → hash ổn định → browser cache lâu
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // chart 500KB chỉ /analytics cần → không kéo vào First Load
-          'chart-vendor': ['recharts'],
-        },
-      },
-    },
-  },
-};
-```
+> 📄 **Code ví dụ:** [`examples/01-1-chia-bundle-js-thanh-nhieu-chunk-e.ts`](examples/01-1-chia-bundle-js-thanh-nhieu-chunk-e.ts)
 
 **Sai thì sao:**
 
-```ts
-// ❌ SAI: không tách — recharts 500KB nằm trong index.js, login cũng phải tải
-import { BarChart } from 'recharts'; // import tĩnh ở file dùng chung → gộp vào main
-// ✅ ĐÚNG: route analytics lazy + chart-vendor riêng — login không dính chart
-const Analytics = lazy(() => import('./AnalyticsPage')); // + manualChunks chart-vendor
-```
+> 📄 **Code ví dụ:** [`examples/02-1-chia-bundle-js-thanh-nhieu-chunk-e.ts`](examples/02-1-chia-bundle-js-thanh-nhieu-chunk-e.ts)
 
 **Usecase thực tế:** app 4 route + recharts + Monaco. Trước: index 2.8MB. Sau: index 180KB + analytics chunk + editor chunk + 2 vendor chunk. Mở login chỉ 180KB; vào /analytics mới thêm chart-vendor. Quy tắc nhận diện: bundle đầu > 150–200KB gzip, hoặc visualizer thấy 1–2 khối > 200KB → tách ngay. App < 100KB → đừng tách, thêm request vô ích.
 
@@ -49,7 +28,9 @@ const Analytics = lazy(() => import('./AnalyticsPage')); // + manualChunks chart
 
 **Vì sao:** tách xong, lần đầu vào route nặng vẫn chờ network (fallback hiện). Prefetch lấp khoảng này: hover/focus link là chunk bay về trước, bấm là có ngay — user không bao giờ thấy "Đang tải".
 
-**Cơ chế:** `onMouseEnter={() => import('./page')}` chạy promise sớm (module cache), mount sau dùng ngay. React Router `<Link prefetch="intent|viewport">` tự động (hover hoặc vào viewport là preload chunk + loader). Không prefetch mọi link (tốn data) — chỉ route khả năng cao kế tiếp.
+**Cơ chế:** `onMouseEnter={() => import('./page')}` chạy promise sớm (module cache), mount sau dùng ngay. React Router `<Link prefetch="intent|viewport">` tự động (hover hoặc vào viewport là preload chunk + loader). Không prefetch mọi link (tốn data) — chỉ route khả năng cao kế tiếp. Ví von: prefetch như bạn nhìn thấy khách định gọi món là pha chế sẵn — khách bấm xuống thì nước đã trên bàn.
+
+> **Tóm gọn 1 câu:** Mục tiêu của bài: cắt bundle theo route + vendor để màn hình đầu nhẹ nhất có thể, và dùng prefetch để lần điều hướng sau "tức thì".
 
 ## Tổng quan
 
@@ -59,16 +40,13 @@ Một SPA gộp mọi thứ vào một file JS duy nhất: user mở trang đăn
 
 ## Khái niệm cốt lõi
 
+Mục này trả lời 5 câu hỏi chiến lược: chia ở đâu trước (route), gom gì lại (vendor), khi nào prefetch, chia mịn tới đâu là đủ, và đo bằng công cụ nào. Đọc để chọn đúng "dao cắt" cho từng loại code.
+
 ### 1. Route-based splitting — mỗi route một chunk, tải khi điều hướng
 
 **Vì sao là mức chia đầu tiên:** route là ranh giới tự nhiên nhất (mỗi URL một màn hình), 1 chunk/page thường đủ tốt mà không cần suy nghĩ. React Router v7 `route.lazy = () => import('./pages/x')` còn gộp loader + Component vào một chunk — giảm waterfall (không tải component xong mới biết cần data gì).
 
-```tsx
-// ✅ ĐÚNG: mỗi page một chunk — chunk nào chỉ tải khi page đó mount
-import { lazy, Suspense } from 'react';
-const Analytics = lazy(() => import('./AnalyticsPage')); // chunk analytics riêng
-const Editor = lazy(() => import('./EditorPage')); // chunk editor riêng
-```
+> 📄 **Code ví dụ:** [`examples/03-1-route-based-splitting-moi-route-mot-chunk.tsx`](examples/03-1-route-based-splitting-moi-route-mot-chunk.tsx)
 
 **Sai thì sao:** lazy cả route login/home (màn hình đầu) → LCP phải chờ network. Fix: giữ critical route import tĩnh, lazy route sau login.
 
@@ -82,21 +60,21 @@ const Editor = lazy(() => import('./EditorPage')); // chunk editor riêng
 
 **Vì sao không phải lúc nào cũng cần:** chunk < 50KB tải lúc điều hướng cũng nhanh (vài chục ms), prefetch chỉ thêm tốn data. Chunk > 100KB hoặc flow chính (bước tiếp theo 80% user đi) thì prefetch đáng giá.
 
-```tsx
-// ✅ ĐÚNG: prefetch có điều kiện — chỉ route trọng yếu, lúc gần click
-<a href="/analytics" onMouseEnter={() => import('./AnalyticsPage')}>Báo cáo</a>
-// Hoặc Router làm sẵn: <Link to="/analytics" prefetch="viewport"> (vào viewport là tải)
-```
+> 📄 **Code ví dụ:** [`examples/04-3-prefetch-hover-focus-viewport-tai-truoc.tsx`](examples/04-3-prefetch-hover-focus-viewport-tai-truoc.tsx)
 
 ### 4. Cân bằng chunk — overhead request vs lợi ích tách
 
-Mỗi request tốn ~30–80ms overhead (DNS/handshake/header nếu không HTTP/2). 200 chunk 5KB chậm hơn 20 chunk 50KB. Ngưỡng thực dụng: chunk ≥ ~20KB mới đáng tách; tổng < 50 chunk với HTTP/2. Đo First Load (gzip) + số chunk sau mỗi lần tách để không phân mảnh quá mức.
+Mỗi request tốn ~30–80ms overhead (DNS/handshake/header nếu không HTTP/2). 200 chunk 5KB chậm hơn 20 chunk 50KB. Ví von: đi chợ 200 lần mỗi lần mua 1 củ cà rốt thì tốn xăng hơn đi 20 lần mua đủ cả giỏ. Ngưỡng thực dụng: chunk ≥ ~20KB mới đáng tách; tổng < 50 chunk với HTTP/2. Đo First Load (gzip) + số chunk sau mỗi lần tách để không phân mảnh quá mức.
 
 ### 5. Đo lường — visualizer + Network + Lighthouse
 
 `vite-bundle-visualizer`/`rollup-plugin-visualizer` xem treemap (khối nào to). DevTools Network cột Transfer Size xem chunk nào bay lúc nào. Lighthouse "Reduce unused JavaScript" xác nhận split có bớt JS thừa thật. Mục tiêu: JS critical < 200KB gzip.
 
+> **Tóm gọn 1 câu:** Route là ranh giới chia đầu tiên, vendor gom để cache bền, prefetch là "pha nước trước khi khách gọi", và mọi lần tách đều phải đo lại bằng visualizer.
+
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là 5 bước từ "tìm khối to nhất" tới "ghi budget vào CI" — làm theo thứ tự thì mỗi lần tách đều thấy rõ tác dụng.
 
 ### Bước 1. Build + visualizer → tìm 3 thứ to nhất
 
@@ -118,48 +96,15 @@ Hover link → chunk xuất hiện trước khi click (Network). Dùng `prefetch
 
 So trước/sau: main giảm bao nhiêu %, số chunk bao nhiêu, First Load còn dưới 200KB không. Ghi vào CI budget để bắt hồi quy.
 
+> **Tóm gọn 1 câu:** Quy trình: visualizer tìm thủ phạm → lazy route ngoài trang đầu → tách vendor nặng → prefetch link trọng yếu → đo lại và ghi budget.
+
 ## Ví dụ chi tiết
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn), cộng config vendor:
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-import { lazy, Suspense } from 'react';
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
-// Mỗi page thành 1 chunk riêng, tải khi điều hướng tới
-// Vì sao 2 dòng này là tách: import() đường dẫn tĩnh → Rollup sinh analytics-*.js, editor-*.js riêng
-const Analytics = lazy(() => import('./AnalyticsPage'));
-const Editor = lazy(() => import('./EditorPage'));
-
-export function Routes({ page }: { page: 'analytics' | 'editor' }) {
-  return (
-    // Suspense bọc cả 2: fallback chung cho toàn vùng route — tải chunk nào cũng hiện một skeleton
-    <Suspense fallback={<p>Đang tải trang…</p>}>
-      {/* chỉ mount 1 page tương ứng — chunk kia không hề tải (kiểm chứng ở Network) */}
-      {page === 'analytics' ? <Analytics /> : <Editor />}
-    </Suspense>
-  );
-}
-```
-
-```ts
-// vite.config.ts — tách vendor theo nhóm (bổ sung cạnh example.tsx)
-// Vì sao tách: react-vendor hash ổn định để cache; chart-vendor nặng chỉ analytics cần
-export default {
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // gộp react + router vào 1 chunk ổn định (đổi code page không đổi hash vendor)
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // chart riêng: chỉ route /analytics cần mới tải — không kéo 500KB vào First Load
-          'chart-vendor': ['recharts'],
-        },
-      },
-    },
-  },
-};
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.ts`](examples/06-vi-du-chi-tiet.ts)
 
 ## Giải thích từng phần
 
@@ -179,11 +124,13 @@ Thành phần nhỏ trong page đã nằm cùng page chunk (lazy theo page) — 
 
 100KB chart một route dùng → tách đúng. 5KB util mọi route dùng → đừng tách. Kiểm tra visualizer sau tách: chunk nào < 10KB thì gom lại.
 
+> **Tóm gọn 1 câu:** `lazy` là split point, `manualChunks` là bảng phân loại để cache bền — tách đúng ranh giới thì nhanh, tách quá mịn thì phí request.
+
 ## So sánh (nếu có)
 
 ### One-bundle vs multi-chunk
 
-Một file: ít request, đơn giản, nhưng First Load dài, sửa 1 dòng tải lại tất cả. Nhiều chunk: First Load nhanh, cache tốt, nhưng cần kiểm soát số chunk và xử lý loading giữa chừng. App < 100KB giữ một file; trên thì chia.
+Một file: ít request, đơn giản, nhưng First Load dài, sửa 1 dòng tải lại tất cả. Nhiều chunk: First Load nhanh, cache tốt, nhưng cần kiểm soát số chunk và xử lý loading giữa chừng. Ví von: một file như vác nguyên chiếc tủ đi loanh quanh trong nhà, nhiều chunk như tháo từng ngăn mang ra khi cần. App < 100KB giữ một file; trên thì chia.
 
 ### manualChunks tay vs Rollup tự chia
 
@@ -197,13 +144,7 @@ Hết: tốn băng thông (user data plan), có khi tải thứ không bao giờ
 
 ### 1. Lazy cả route đầu → LCP chờ network
 
-```tsx
-// ❌ SAI: login cũng lazy — màn hình đầu trắng chờ chunk
-const Login = lazy(() => import('./Login'));
-// ✅ ĐÚNG: giữ critical route tĩnh, lazy route sau login
-import Login from './Login';
-const Dashboard = lazy(() => import('./Dashboard'));
-```
+> 📄 **Code ví dụ:** [`examples/07-1-lazy-ca-route-au-lcp-cho-network.tsx`](examples/07-1-lazy-ca-route-au-lcp-cho-network.tsx)
 
 ### 2. `manualChunks` quá mịn (< 10KB/chunk) → phí request
 
@@ -220,6 +161,8 @@ Tách vendor + `chunkFileNames` có hash. Mỗi deploy chỉ đổi hash chunk b
 ### 5. Chống chỉ định: mạng chậm nhiều chunk nhỏ, app rất nhỏ
 
 Di động yếu: mỗi chunk một round-trip — ít chunk vừa phải tốt hơn nhiều chunk nhỏ. App < 100KB: tách chỉ thêm phức tạp. Đo First Load trước rồi quyết.
+
+> **Tóm gọn 1 câu:** 5 cạm bẫy: lazy route đầu (LCP chờ), chunk quá mịn (phí request), không tách vendor (mất cache), nhồi asset vào chunk (sai scope), và tách cho app bé xíu (thêm rối vô ích).
 
 ## Câu hỏi thường gặp
 
@@ -258,6 +201,8 @@ JS critical < 200KB gzip, chunk ≥ 20KB, < 50 chunk. `route.lazy` + `Link prefe
 ### Cache hash + monorepo/federation + Lighthouse + tree-shaking trước khi tách
 
 `chunkFileNames`/`assetFileNames` có hash để cache tối đa. Monorepo chia theo package + Federation cho remote. Lighthouse xác nhận bớt JS thừa. Thay lib nặng (moment → date-fns) trước khi tách — đôi khi bỏ được cả chunk. Budget trong CI, `sideEffects: false` + xóa dead export trước. i18n mỗi locale một chunk. `modulePreload` cho chunk chắc chắn dùng. Landing/login không lazy.
+
+> **Tóm gọn 1 câu:** Số liệu dẫn đường: First Load < 200KB gzip, chunk ≥ 20KB, vendor theo nhóm có hash — và lazy nào cũng phải có ErrorBoundary chờ sẵn.
 
 ## Bài tập nhỏ
 

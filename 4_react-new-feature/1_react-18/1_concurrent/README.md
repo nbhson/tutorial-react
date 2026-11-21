@@ -11,12 +11,14 @@
 - Phân biệt render phase (có thể gián đoạn) và commit phase (nguyên tử) để biết đâu là nơi merge ảnh hưởng.
 
 ## Vấn đề giải quyết
+Mục này kể "câu chuyện trước khi có concurrent": vì sao render đồng bộ làm app đứng hình — đọc để hiểu concurrent ra đời nhằm giải quyết đúng bài toán này.
 - Trước React 18, mọi `setState` dẫn tới **render đồng bộ đến cùng**: render một cây 10.000 dòng sẽ **block main thread** — người dùng gõ phím không thấy chữ, click không phản hồi, mọi thứ đứng hình tới khi render xong.
 - Không có cách nào "can thiệp" giữa chừng: một render đã bắt đầu thì phải chạy hết, dù có update khẩn cấp hơn xen vào.
 - Fragment nền càng nặng thì thời gian "đứng hình" càng lớn → UI feel lag, đặc biệt tệ trên máy yếu.
 - Concurrent giải quyết bằng cách chia render thành **đơn vị nhỏ**, nhường quyền điều khiển cho browser ở giữa, và nếu có update khẩn cấp (typing, click) thì **bỏ dở** render đang chạy để xử lý cái mới.
 
 ## Khái niệm cốt lõi
+Mục này định nghĩa 6 thuật ngữ nền của concurrent — đọc để nắm "từ vựng" trước khi xem luồng hoạt động phía sau.
 - **Hai phase của render:**
   - *Render phase*: React dựng lại cây fiber, tính toán element mới. Phase này **tinh khiết, không chạm DOM**, và **có thể bị ngắt/bỏ dở**.
   - *Commit phase*: React áp thay đổi lên DOM. Phase này **nguyên tử (atomic)** — chạy một mạch, không thể ngắt nửa chừng (nếu không thì DOM sẽ nửa mới nửa cũ).
@@ -26,21 +28,21 @@
 - **`createRoot`** là công tắc bật concurrent behaviors; **`ReactDOM.render` (legacy)** chỉ render đồng bộ kiểu cũ và bị cảnh báo deprecation.
 - **StrictMode double-invoke**: `createRoot` với `<StrictMode>` ở dev sẽ gọi render + effect **2 lần liên tiếp** để lộ side-effect không an toàn — effect phải idempotent (có cleanup đúng).
 
+Ví von gộp lại cả mục: render phase là "nháp" (viết xong có thể xé, viết dở có thể bỏ), commit phase là "bản chính ký tên" (không sửa nửa chừng), time slicing là "làm việc theo ca ngắn", lanes là "làn ưu tiên trên cao tốc" — xe cứu thương (typing/click) luôn được nhường đường.
+
+> **Tóm gọn 1 câu:** Concurrent là "render có thể bỏ dở để nhường đường": render phase làm nháp được ngắt, commit phase là bản chính một mạch, `createRoot` là công tắc bật chế độ này.
+
 ## Cú pháp / API
 
-```tsx
-import { createRoot } from 'react-dom/client';
-
-// Thay cho: ReactDOM.render(<App />, container)
-const root = createRoot(container, options?); // options: { onUncaughtError?, onRecoverableError?, identifierPrefix?... }
-root.render(<App />);   // render (có thể bị ngắt nếu có update khẩn cấp hơn)
-root.unmount();         // gỡ cây, dọn listener (thay cho ReactDOM.unmountComponentAtNode)
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 Lưu ý: không còn callback `ReactDOM.render(<App/>, el, callback)` — dùng `useEffect`/`useLayoutEffect` trong component thay thế. JSX chỉ render `root.render(<React.StrictMode><App /></React.StrictMode>)` ở chính entry.
 
+> **Tóm gọn 1 câu:** `createRoot` là hộp chiếu mới: dựng một lần ở entry, sau đó chiếu (render) bao nhiêu lần tùy thích — không còn callback "khi chiếu xong" ở tham số thứ 3.
+
 ## Luồng hoạt động (Flow)
 
+Mục này đi qua 5 bước theo đúng nhịp một update khẩn cấp xen vào render nặng — đọc theo thứ tự để thấy "bỏ dở - nhường đường - làm lại" diễn ra thế nào.
 1. User tương tác (gõ, click) → React tạo update trên **lane khẩn cấp**.
 2. Scheduler đánh dấu cần render, **yield** cho browser xử lý các tác vụ khác trước.
 3. **Render phase** bắt đầu: dựng lại fiber từng phần; mỗi lát nhỏ xong thì **kiểm tra** — có update khẩn cấp hơn? Có thì **pause/discard** render hiện tại, chuyển sang cái mới.
@@ -51,52 +53,7 @@ Ví dụ thực tế: đang filter 5000 items (render nặng) mà user gõ thêm
 
 ## Ví dụ chi tiết
 
-```tsx
-// example.tsx — Concurrent + createRoot (React 18)
-import { createRoot } from 'react-dom/client';
-import { StrictMode, useState } from 'react';
-
-// Entry point React 18: createRoot thay ReactDOM.render
-const el = document.getElementById('root')!;
-const root = createRoot(el); // tạo root MỘT LẦN, tái sử dụng cho mọi render sau
-
-const ITEMS = Array.from({ length: 5000 }, (_, i) => `Item ${i + 1}`);
-
-function App() {
-  const [query, setQuery] = useState('');
-
-  // Render nặng: filter 5000 phần tử ngay trong render.
-  // Với renderer legacy (17) mỗi keystroke chạy khối này đồng bộ → input giật.
-  // Với concurrent renderer: React có thể NGẮT render này để xử lý keystroke,
-  // rồi quay lại hoàn tất lọc khi rảnh → gõ phím luôn mượt.
-  const filtered = ITEMS.filter((item) =>
-    item.toLowerCase().includes(query.toLowerCase()),
-  );
-
-  return (
-    <div>
-      <h2>Concurrent + createRoot (React 18)</h2>
-      <input
-        value={query}                    // value controlled
-        onChange={(e) => setQuery(e.target.value)} // keystroke = urgent update
-        placeholder="Gõ để lọc 5000 items..."
-      />
-      <p>Kết quả: {filtered.length}</p>
-      <ul>
-        {filtered.slice(0, 100).map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-root.render(
-  <StrictMode>   {/* dev: double-invoke render/effect để lộ side-effect không an toàn */}
-    <App />
-  </StrictMode>,
-);
-```
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - `createRoot(el)` — tạo một root concurrent gắn với `<div id="root">`; chạy đúng **một lần** khi app khởi động, về sau chỉ gọi `root.render()`.
@@ -107,6 +64,7 @@ root.render(
 
 ## So sánh với cách làm cũ
 
+Mục này đặt `ReactDOM.render` cạnh `createRoot` để thấy khác biệt cốt lõi — đọc cột "Lợi ích" nếu chỉ cần lý do migrate.
 | Cách cũ (`ReactDOM.render`) | Cách mới (`createRoot`) | Lợi ích |
 |---|---|---|
 | Render đồng bộ, không thể ngắt | Render theo lịch, có thể interrupt/discard | UI không đứng hình vì render nặng |
@@ -114,7 +72,10 @@ root.render(
 | Callback tham số thứ 3 (`render(el, dom, cb)`) | Không có callback root level | Bắt buộc dùng Effect; loại bỏ anti-pattern |
 | Không StrictMode double-invoke | StrictMode do bạn bọc chủ động | Lộ bug side-effect sớm ở dev |
 
+> **Cách đọc bảng này:** mỗi dòng là một khác biệt cũ ↔ mới; dòng 1 và dòng 2 là lý do chính đáng để migrate — các dòng sau là hệ quả đi kèm cần biết (mất callback, StrictMode tự bọc).
+
 ## Lỗi thường gặp
+Mục này gom 5 lỗi chuyển đổi sang `createRoot` hay gặp nhất — mỗi lỗi đều có "vì sao" và "fix" ngay trong dòng.
 1. **Vẫn dùng `ReactDOM.render` trong project 18** → vì sao: legacy renderer không có concurrent behaviors, console log cảnh báo *"ReactDOM.render is no longer supported"* → fix: thay bằng `createRoot(...).render(...)`, thường là 3 dòng ở entry file.
 2. **Kỳ vọng concurrent tự làm render nhanh hơn** → vì sao: concurrent chỉ phân phối lại thời gian, không giảm tổng công việc → fix: bọc update không khẩn cấp trong `startTransition`/`useDeferredValue` (bài 3) để render nặng đi đường non-urgent.
 3. **Effect không cleanup → StrictMode chạy 2 lần gây bug khó hiểu** (subscribe 2 lần, setState sau unmount) → fix: mọi effect trong `<StrictMode>` phải trả về hàm cleanup; test kỹ ở dev.
@@ -124,6 +85,8 @@ root.render(
 ## Khi nào dùng / Khi nào không
 - **Dùng**: mọi project React 18+ — migrate `createRoot` là bắt buộc để dùng concurrent features; list/filter/dashboard render nặng; app cần giữ input responsive lúc có update lớn.
 - **Không dùng**: logic phụ thuộc *thứ tự commit đồng bộ tuyệt đối* giữa nhiều root (hiếm); cũng đừng lạm dụng StrictMode trong production (nó là công cụ dev).
+
+> **Tóm gọn 1 câu:** `createRoot` là bắt buộc để bật concurrent — nhưng nhớ: nó chia lại thời gian chứ không bào mỏng công việc, render nặng vẫn cần `startTransition`/`useDeferredValue` đi cùng.
 
 ## Bài tập nhỏ
 - Tạo list 50.000 item + ô lọc, chạy bằng `ReactDOM.render`. Mở DevTools Performance, gõ liên tục vào ô lọc, chú ý task dài (>200ms) làm input miss keystroke.

@@ -7,13 +7,20 @@
 > Nêu vài hậu quả cụ thể để thấy tại sao index làm key gây lỗi?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- `key` là "căn cước" để React nhận ra dòng nào là dòng nào giữa hai lần vẽ. Lấy index làm key nghĩa là "dòng ở vị trí số i".
+
+Mục này là câu trả lời 30 giây — key là gì, index phá ở đâu, khi nào được phép dùng.
+
+- `key` là "căn cước" để React nhận ra dòng nào là dòng nào giữa hai lần vẽ. Ví von: key là **số chứng minh nhân dân**, còn index chỉ là **số ghế trên xe** — đổi chỗ ngồi không đổi người, nhưng if bạn nhầm số ghế là người thì ngồi nhầm cả chuyến. Lấy index làm key nghĩa là "dòng ở vị trí số i".
 - Thêm/xóa dòng đầu thì mọi index sau nó đổi số → React nhận nhầm dòng: ô đang gõ mất focus, checkbox tick nhầm hàng, state nhảy sang dòng bên cạnh.
 - Chỉ dùng index khi list **tĩnh tuyệt đối** (menu cố định, không thêm/xóa/đảo). List CRUD/filter/sort thì dùng `id`.
+
+> **Tóm gọn 1 câu:** key = căn cước của item — index là số ghế dễ đổi chỗ, list động phải dùng id ổn định.
 
 ## Trả lời chi tiết
 
 ### 1. `key` là identity, không phải "gợi ý thứ tự"
+
+Mục này đặt nền móng: diff theo "vị trí + key", và bảng so sánh hành vi khi list động — đây là logic gốc giải thích mọi triệu chứng phía sau.
 
 Reconciliation (xem [`05-virtual-dom`](../05-virtual-dom)) so cây cũ với cây mới **theo vị trí + key**:
 
@@ -23,25 +30,13 @@ Reconciliation (xem [`05-virtual-dom`](../05-virtual-dom)) so cây cũ với câ
 | Chèn item mới | "key mới" → mount node mới, còn lại giữ | mọi index phía sau đổi → React "đổi nội dung" hàng loạt, state "nhảy" |
 | Đảo/sắp xếp | node **di chuyển** (giữ state: input đang gõ, animation) | React "cập nhật nội dung" tại chỗ → state không theo node → sai |
 
+> **Cách đọc bảng này:** đọc ngang từng hàng — cột giữa là "thế giới đúng" (React nhớ được từng người), cột phải là "thế giới nhầm số ghế" (React chỉ nhớ vị trí); so sánh hai cột là hiểu ngay vì sao state "nhảy".
+
 ### 2. Hậu quả **cụ thể** (4 triệu chứng "nhìn thấy được")
 
 Với một list có **state nội bộ** (input, checkbox, focus, animation), `key={index}` + xóa/dịch → 4 lỗi điển hình:
 
-```tsx
-// ❌ SAI — list động dùng index làm key
-type Todo = { id: number; text: string };
-function TodoList({ todos }: { todos: Todo[] }) {
-  return (
-    <ul>
-      {todos.map((t, i) => (
-        <li key={i}>
-          <input defaultValue={t.text} /> {/* state nội bộ của input */}
-        </li>
-      ))}
-    </ul>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-2-hau-qua-cu-the-4-trieu-chung.tsx`](examples/01-2-hau-qua-cu-the-4-trieu-chung.tsx)
 
 1. **Focus/input nhảy hàng**: đang gõ ở item thứ 2 (index=1) → xóa item đầu → list dịch → React "giữ" node ở index=1 nhưng giờ là **item thứ 3** → focus/text gõ dở "trôi" lên item sai.
 2. **Checkbox tick sai dòng**: tick "item 2" → xóa item đầu → tick "mắc" lên item 3 (node cũ, state "đã tick" giữ lại dù nội dung đã đổi).
@@ -52,10 +47,14 @@ function TodoList({ todos }: { todos: Todo[] }) {
 
 ### 3. Khi nào `key={index}` **được** (trường hợp hợp lệ)
 
+Mục này là "lối thoát" của câu hỏi: index không phải kẻ thù, chỉ là kẻ nguy hiểm khi list động — biết đúng chỗ dùng là trả lời cân bằng, không cực đoan.
+
 | Dùng được index | Lý do |
 |---|---|
 | List **thật sự tĩnh** (không thêm/xóa/đổi thứ tự) — ví dụ danh sách icon cố định, menu nav có N item luôn | index "không bao giờ đổi" → không có "dịch" → không "sai state" |
 | Render **nhiều lần** nhưng list **không bao giờ đổi thứ tự/dài ngắn** | Cùng điều kiện trên |
+
+> **Cách đọc bảng này:** chỉ 2 hàng, ý chính là một điều kiện duy nhất — list phải "không bao giờ dịch chuyển"; thỏa thì index được phép, vi phạm thì quay về `id`.
 
 > **Quy tắc thực chiến**: nếu list liên quan đến **filter/sort/CRUD/động** → **không bao giờ index**. Nếu dữ liệu **không có id**, **sinh id ổn định** khi nhận dữ liệu (một lần, ví dụ `crypto.randomUUID()`) — không "đổi" mỗi render.
 
@@ -74,6 +73,8 @@ function TodoList({ todos }: { todos: Todo[] }) {
 Nếu bạn **viết DOM bằng ref** (`ref.current.textContent = count`) thay vì state/props (xem [`05-virtual-dom`](../05-virtual-dom) — "sai DOM bằng ref trong render"), reconciliation **không biết** thay đổi đó (cây Virtual DOM "sạch") → lần render sau "mất" thay đổi → **lỗi tương tự "state nhảy"** nhưng ở cấp DOM. **Quy tắc**: "không sửa DOM tay trong render — cập nhật UI qua state/props".
 
 ## Bẫy khi phỏng vấn
+
+Mục này là 5 bẫy — trong đó bẫy số 2 ("test không thấy lỗi") đáng chú ý nhất vì lỗi key chỉ hiện khi đủ điều kiện, không hiện là chưa chắc đúng.
 
 1. **"key chỉ để 'thông báo thứ tự'"** (nói suông) → **sai**: key là **identity**, dùng cho diff (giữ/tạo/unmount node + state). Hiểu "chỉ là thứ tự" → dùng index, "sai ngay khi list động".
 2. **"Tôi test không thấy lỗi (vì list chỉ 3 item, không gõ input trong list)"** → **sai**: lỗi **chỉ hiện** khi có **state nội bộ** (input, focus, animation) + **list động**. Test "không thấy" ≠ "không có".

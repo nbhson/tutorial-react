@@ -8,16 +8,9 @@
 ## Khái niệm cốt lõi (Core)
 
 ### 1. `<form action={fn}>` — submit gọi hàm, không tự viết `onSubmit`
-React 19 cho truyền **hàm** vào prop `action` của `<form>`: khi submit, React gọi hàm với `FormData`. Không cần `e.preventDefault()` — form **không reload** mặc định khi `action` là function. Trong Next.js App Router, hàm có thể là **Server Action** (`"use server"`); trong Vite/thuần React, nó là hàm client async.
+React 19 cho truyền **hàm** vào prop `action` của `<form>`: khi submit, React gọi hàm với `FormData`. Không cần `e.preventDefault()` — form **không reload** mặc định khi `action` là function. Trong Next.js App Router, hàm có thể là **Server Action** (`"use server"`); trong Vite/thuần React, nó là hàm client async. Hãy hình dung: thay vì bạn tự dựng rào chắn chống reload, React đã dựng sẵn — bạn chỉ đưa danh sách việc cần làm (hàm) cho nó.
 
-```tsx
-//Thuần React (client): action nhận FormData, async OK
-async function submit(fd: FormData) {
-  await saveName(String(fd.get("name")));
-}
-<form action={submit}>...</form>
-// Không cần onSubmit + preventDefault — React lo
-```
+> 📄 **Code ví dụ:** [`examples/01-1-form-action-fn-submit-goi-ham-khong.tsx`](examples/01-1-form-action-fn-submit-goi-ham-khong.tsx)
 
 Vì sao đáng đổi? Vì luồng submit async có sẵn: React biết form "đang gửi" (pending) và cho hook đọc trạng thái đó — thay vì tự viết `isSubmitting` như RHF/DAY 11.
 
@@ -28,67 +21,38 @@ Vì sao đáng đổi? Vì luồng submit async có sẵn: React biết form "đ
 - `action` — hàm truyền thẳng vào `<form action={action}>`; có dạng `(prevState, formData) => newState` (signature khác hàm action thường: thêm `prevState`).
 - `pending` — `true` khi action đang chạy (thay `isSubmitting` tự viết).
 
-```tsx
-type State = { errors: string[] | null };
-const [state, action, pending] = useActionState(async (_prev: State, fd: FormData) => {
-  const body = String(fd.get("body") ?? "");
-  if (body.length < 3) return { errors: ["Ít nhất 3 ký tự"] };
-  await api.addComment(body);       // lỗi ném ra => React giữ prev state? KHÔNG — throw là crash boundary
-  return { errors: null };          // validation error = state, KHÔNG throw
-}, { errors: null });
-
-<form action={action}>
-  <textarea name="body" />
-  {state.errors && <p role="alert">{state.errors[0]}</p>}
-</form>
-```
+> 📄 **Code ví dụ:** [`examples/02-2-useactionstate-state-tra-ve-tu-action.tsx`](examples/02-2-useactionstate-state-tra-ve-tu-action.tsx)
 
 Vì sao validation error phải **trả về state** chứ không throw? Vì throw trong action đi vào Error Boundary (trang "Oops") — đó là lỗi hệ thống. Lỗi validate là *kết quả dự kiến* → nằm trong state, hiện cạnh field. Đây là quy ước react.dev: **action trả dữ liệu, không ném lỗi nghiệp vụ**.
+
+> **Tóm gọn 1 câu:** `useActionState` = action + trạng thái đang chạy + kết quả lần gần nhất, gói trong một hook — lỗi validate là dữ liệu, không phải bom nổ.
 
 ### 3. `useFormStatus` — nút đọc form cha, không prop drilling
 `const { pending, data, method } = useFormStatus()`: hook đọc trạng thái của `<form>` **cha gần nhất**. Quy tắc sống còn: **component gọi `useFormStatus` phải là con của `<form>`** — gọi trong component chứa form thì trả `pending: false` mãi mãi (không có form cha phía trên hook đó).
 
-```tsx
-// SubmitButton.tsx — KHÔNG nhận prop pending, tự đọc form cha
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  const { pending } = useFormStatus();
-  return <button disabled={pending}>{pending ? "Đang lưu..." : children}</button>;
-}
-
-<form action={action}>
-  <textarea name="body" />
-  <SubmitButton>Đăng</SubmitButton>  {/* con trực tiếp => đọc được pending */}
-</form>
-```
+> 📄 **Code ví dụ:** [`examples/03-3-useformstatus-nut-oc-form-cha-khong-prop.tsx`](examples/03-3-useformstatus-nut-oc-form-cha-khong-prop.tsx)
 
 Vì sao thiết kế kiểu này? Vì nút submit thường là component tái sử dụng (Nút UI dùng chung 20 form) — không muốn mỗi chỗ truyền prop `pending`. React 19 bọc form trong Context ẩn; `useFormStatus` là cách đọc đúng không cần tự bọc Context.
+
+> **Tóm gọn 1 câu:** `useFormStatus` là "người ngồi trong rạp mới biết show đang diễn": phải là con của `<form>`, đứng ngoài thì nghe thấy... im lặng.
 
 ### 4. Bộ đôi kết hợp — pattern chuẩn
 `useActionState` lo **kết quả** (errors, thành công), `useFormStatus` lo **trạng thái lúc gửi** (disable nút, đổi chữ). Form dùng cả hai:
 
-```tsx
-"use client";
-const [state, action, pending] = useActionState(addComment, { errors: null, ok: false });
-
-<form action={action}>
-  <textarea name="body" />            {/* uncontrolled: gõ 0 re-render (DAY 22 khác DAY 11 controlled) */}
-  {state.errors?.map((e) => <p key={e} role="alert">{e}</p>)}
-  <SubmitButton>Đăng bình luận</SubmitButton>  {/* useFormStatus bên trong */}
-</form>
-```
+> 📄 **Code ví dụ:** [`examples/04-4-bo-oi-ket-hop-pattern-chuan.tsx`](examples/04-4-bo-oi-ket-hop-pattern-chuan.tsx)
 
 Điểm tinh tế: `pending` từ `useActionState` **cũng đọc được** — vậy khi nào cần `useFormStatus`? Khi nút nằm ở **component con riêng** (tái sử dụng / ở xa trong cây). Nút cùng file với form thì dùng `pending` của `useActionState` là đủ. Đừng dùng cả hai cho cùng một nút — chọn một nguồn.
+
+> **Tóm gọn 1 câu:** `useActionState` lo kết quả, `useFormStatus` lo cờ lúc gửi — mỗi nút chỉ cần nghe một nguồn sự thật.
 
 ### 5. `useOptimistic` — hiện kết quả trước, server chốt sau
 Với form thêm item vào list: `useOptimistic` hiện bản "kỳ vọng" ngay khi submit; server từ chối thì rollback tự động.
 
-```tsx
-const [optimisticComments, addOptimistic] = useOptimistic(comments, (cur, c: Comment) => [...cur, c]);
-// trong action: addOptimistic(newComment) — chạy NGAY, không đợi await
-// server reject => React trả list về như cũ; accept => replace bằng data thật
-```
+> 📄 **Code ví dụ:** [`examples/05-5-useoptimistic-hien-ket-qua-truoc-server-chot.tsx`](examples/05-5-useoptimistic-hien-ket-qua-truoc-server-chot.tsx)
 
 Không lạm dụng: chỉ cho thao tác "khả năng thành công cao, hậu quả sai thấp" (like, thêm comment). Xóa/linear-money-flow thì chờ server thật.
+
+> **Tóm gọn 1 câu:** `useOptimistic` là "chốt đơn trước, đối soát sau" — dùng cho món nhẹ dễ thành công, đừng dùng cho giao dịch tiền bạc.
 
 ### 6. Đối chiếu Angular (người từ Angular sang)
 - `form` submit + `NgForm.pending` ↔ `<form action>` + `useFormStatus().pending`.
@@ -100,6 +64,7 @@ Không lạm dụng: chỉ cho thao tác "khả năng thành công cao, hậu qu
 
 ## Luồng hoạt động (Flow)
 
+Mục này đi qua 7 bước theo đúng trình tự từ lúc user gõ chữ đến khi form sạch sẽ — đọc theo thứ tự để thấy trạng thái chảy thế nào.
 1. User gõ vào `<textarea name="body">` — **uncontrolled**, React không re-render (khác controlled DAY 11).
 2. Bấm nút `<SubmitButton>` (`type="submit"`) → React chặn reload mặc định, gọi `action(prevState, formData)`.
 3. `useFormStatus().pending` của nút → `true` ngay (nút disable, chữ "Đang lưu...").
@@ -112,40 +77,7 @@ Không lạm dụng: chỉ cho thao tác "khả năng thành công cao, hậu qu
 
 Xem [`example.tsx`](example.tsx). Bản mô phỏng chạy được (không cần server):
 
-```tsx
-// Giả lập Server Action bằng hàm async client — signature giữ nguyên (prev, formData)
-type State = { errors: string[] | null; ok: boolean };
-
-async function addComment(_prev: State, fd: FormData): Promise<State> {
-  const body = String(fd.get("body") ?? "").trim();
-  if (body.length < 3) return { errors: ["Bình luận ít nhất 3 ký tự"], ok: false };
-  if (body.length > 140) return { errors: ["Tối đa 140 ký tự"], ok: false };
-  await fakeApi(body); // 800ms — thử bấm kép: nút đã disable
-  return { errors: null, ok: true };
-}
-
-export default function CommentBox() {
-  const [state, action, pending] = useActionState(addComment, { errors: null, ok: false });
-  return (
-    <form action={action}>
-      <textarea name="body" placeholder="Viết bình luận..." aria-label="Bình luận" />
-      {state.errors && state.errors.map((e) => <p key={e} role="alert">{e}</p>)}
-      {state.ok && <p role="status">Đã đăng!</p>}
-      <SubmitButton>Đăng</SubmitButton>
-    </form>
-  );
-}
-
-// SubmitButton — component con riêng, dùng useFormStatus (đây là lý do hook này tồn tại)
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" disabled={pending}>
-      {pending ? "Đang lưu..." : children}
-    </button>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.tsx`](examples/06-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -158,6 +90,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 
 ## Bảng so sánh
 
+Mục này đặt DAY 11 và DAY 22 cạnh nhau để chọn đúng công cụ cho từng loại form — đọc cột "Khi nào" cuối bảng nếu chỉ cần kết luận nhanh.
 | Tiêu chí | DAY 11 (controlled + RHF) | DAY 22 (Actions + useFormStatus) |
 |---|---|---|
 | Input | Controlled (`value`/`onChange`) hoặc RHF uncontrolled | **Uncontrolled** — đọc qua `FormData` |
@@ -168,7 +101,11 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 | Nút disable | Truyền prop `isSubmitting` | `useFormStatus` — không cần prop |
 | Khi nào | Form tương tác nặng, dynamic fields | CRUD/login/comment — mutation đơn giản |
 
+> **Cách đọc bảng này:** mỗi dòng là một tiêu chí sống còn khi làm form; đọc từ trên xuống sẽ thấy pattern nổi lên — DAY 22 "gạt bỏ" gần hết việc tay (controlled, prop pending, reset tay) mà vẫn giữ validate, nên form càng đơn giản càng nên nghiêng về DAY 22.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Mục này gom 6 cái bẫy kinh điển của form Actions — phần lớn đều xoay quanh "hook nào đọc được gì" và "reset/lỗi đặt sai chỗ".
 
 ### 1. Gọi `useFormStatus` ở component chứa form
 `pending` mãi `false` — hook chỉ đọc form **cha**. Fix: tách nút thành component con (hoặc dùng `pending` của `useActionState` ngay trong component form).
@@ -194,6 +131,8 @@ Hai nguồn sự thật lệch nhau. Fix: chọn một — nút con riêng dùng
 - **Server Action luôn re-validate** — client là UX, server là an toàn (Q37).
 - Không dùng `useOptimistic` cho thao tác hủy/tiền bạc — rollback không hoàn toàn "như chưa có gì".
 - Test "bấm kép": bấm nút 3 lần nhanh → chỉ 1 request (nhờ `disabled={pending}`).
+
+> **Tóm gọn 1 câu:** Form Actions chuẩn là: Zod một nguồn, nút nghe một nguồn pending, lỗi validate là dữ liệu trả về — server luôn chốt chặn cuối cùng.
 
 ## Bài tập nhỏ
 1. Nâng `example.tsx` thành form bình luận thật: thêm field `author`; lỗi từng field hiển thị cạnh field (mảng errors theo key thay vì mảng chuỗi).

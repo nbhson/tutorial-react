@@ -15,13 +15,7 @@
 
 ### 1. `memo` hoạt động ra sao
 
-```tsx
-function Row({ text }: { text: string }) {
-  console.log("Row render:", text); // bằng chứng: chỉ in khi THẬT SỰ render
-  return <li>{text}</li>;
-}
-const MemoRow = memo(Row); // bọc ngoài (không đổi code Row)
-```
+> 📄 **Code ví dụ:** [`examples/01-1-memo-hoat-ong-ra-sao.tsx`](examples/01-1-memo-hoat-ong-ra-sao.tsx)
 
 Cơ chế:
 1. Cha render → React **dự định** render mọi con (cascade, "đúng" với hành vi mặc định).
@@ -39,6 +33,8 @@ Cơ chế:
 | So sánh | props cũ vs mới (`Object.is` từng field) | deps cũ vs mới (`Object.is`) |
 | Kết quả | Con **không render** (giữ kết quả cũ) | **Giá trị không tính lại** (dùng cache) |
 | Phạm vi | Bọc **bên ngoài** component | **Bên trong** render (hook) |
+
+> **Cách đọc bảng này:** hai cột là hai công cụ hay bị lẫn — đọc ngang từng dòng để thấy chúng chỉ chung mỗi chữ "memo", còn mọi thứ khác (đối tượng, phạm vi, kết quả) đều khác nhau.
 
 **Mối liên hệ**: `useMemo` *có thể* giúp `memo` (tạo props object **ổn định** để so ra "giống"), nhưng **không bắt buộc** — `memo` và `useMemo` là 2 công cụ độc lập.
 
@@ -65,17 +61,7 @@ Cơ chế:
 
 Compiler **tự động memoize** (component + hook + object) **ở build-time** — thay "bọc memo tay tràn lan". Quy tắc **2026**:
 
-```tsx
-// Trước (không Compiler — "tay"):
-const Row = memo(({ text }) => <li>{text}</li>);
-const total = useMemo(() => rows.reduce((a, b) => a + b, 0), [rows]);
-const stable = useCallback((x) => setX(x), []);
-
-// Sau (Compiler 1.0 bật — "viết tự nhiên"):
-function Row({ text }: { text: string }) { return <li>{text}</li>; }
-const total = rows.reduce((a, b) => a + b, 0); // "tính lại chỉ khi rows đổi" (Compiler lo)
-const stable = (x) => setX(x); // "Compiler giữ tham chiếu ổn định" (giúp effect deps)
-```
+> 📄 **Code ví dụ:** [`examples/02-4-voi-react-compiler-1-0-2026-iem.tsx`](examples/02-4-voi-react-compiler-1-0-2026-iem.tsx)
 
 **3 điều kiện khi "vẫn cần" `memo` thủ công** (dù có Compiler):
 
@@ -92,6 +78,8 @@ const stable = (x) => setX(x); // "Compiler giữ tham chiếu ổn định" (gi
 3. **"Memo component nhận object/array mới tạo mỗi render"** → **vô dụng** ("so tham chiếu → khác" "mỗi lần"). Fix: "tạo object 'ổn định' 'trước" (truyền value nguyên thủy, hoặc `useMemo` props).
 4. **"Nhầm `useMemo` là 'chạy 1 lần'"** → **sai**: `useMemo(fn, [a,b])` "chạy lại" "khi" "a/b đổi" (đúng: "tính lại" "khi cần"); "muốn 1 lần" → `[]`, nhưng "dùng" "biến" "đổi theo thời gian" = **stale**.
 5. **"Nói `memo` thay thế list virtualization"** (10000 item) → **sai**: `memo` "giữ render cũ", "nhưng DOM vẫn 10000 node" — cần **virtualization** (`react-window`, `@tanstack/virtual` — chỉ render phần visible) "khi" "list" "khổng lồ".
+
+> **Tóm gọn 1 câu:** `memo` là lính gác chỉ đáng trả lương khi cửa đông khách (list lớn, component nặng, Profiler báo đỏ) — cửa vắng hoặc khách nào cũng mặc đồ mới mỗi lần đến (object/function mới) thì gác cũng uổng.
 
 ## Gợi ý câu chốt
 

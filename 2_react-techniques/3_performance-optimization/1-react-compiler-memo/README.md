@@ -10,13 +10,7 @@
 
 **Cơ chế:** Compiler (Babel plugin) duyệt từng component/hook, ghi lại biến/deps nào dùng ở đâu, sinh code cache so sánh. Re-render cha chỉ chạy lại khối mà dependency thật sự đổi. Điều kiện duy nhất: không mutate props/state, hook đúng rules, render thuần (cùng input → cùng output). Vi phạm → Compiler skip component đó và báo ở build log/eslint.
 
-```tsx
-// ✅ ĐÚNG: viết trần, tuân rules — Compiler tự memo, không cần useMemo/useCallback
-function Chao({ ten }: { ten: string }) {
-  const loiChao = `Xin chào, ${ten}!`; // dẫn xuất thuần — Compiler tự cache
-  return <p>{loiChao}</p>; // cha re-render mà ten không đổi → Compiler bỏ qua render này
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-hieu-react-compiler-1-0-2026-tu.tsx`](examples/01-1-hieu-react-compiler-1-0-2026-tu.tsx)
 
 **Usecase thực tế:** list 1.000 dòng, cha giữ state filter gõ liên tục. Không Compiler: mỗi phím vẽ lại 1.000 Row. Có Compiler: chỉ Row có item đổi mới vẽ. Quy tắc nhận diện "khi nào bật": project React 19+ mới thì bật mặc định; codebase cũ chạy `healthcheck` trước, sửa mutation rồi bật nhánh riêng, so Profiler trước/sau.
 
@@ -28,7 +22,9 @@ function Chao({ ten }: { ten: string }) {
 
 ### 3. Đo trước/sau bằng Profiler, tránh memo bừa
 
-**Vì sao:** `memo` không miễn phí: mỗi lần so sánh props tốn CPU + giữ bộ nhớ. Bọc component nhẹ (vài text) thì chi phí so sánh lớn hơn tiết kiệm. "Premature optimization is the root of all evil" — chỉ memo khi Profiler chỉ ra render thừa thật (render count cao, duration lớn, props thực sự không đổi).
+**Vì sao:** `memo` không miễn phí: mỗi lần so sánh props tốn CPU + giữ bộ nhớ. Bọc component nhẹ (vài text) thì chi phí so sánh lớn hơn tiết kiệm. Ví von: `memo` giống như thuê bảo vệ gác cửa — cửa nào đông khách (component nặng, render nhiều) thì đáng thuê, cửa kho ít ai qua thì tốn tiền oan. "Premature optimization is the root of all evil" — chỉ memo khi Profiler chỉ ra render thừa thật (render count cao, duration lớn, props thực sự không đổi).
+
+> **Tóm gọn 1 câu:** Mục tiêu của bài: để Compiler tự memoize thay bạn, biết chỗ nào `memo` tay vẫn cần, và mọi quyết định tối ưu phải có số Profiler chứng minh.
 
 ## Tổng quan
 
@@ -38,18 +34,15 @@ Tác giả phải tuân "rules of React" (không mutate, hook đúng thứ tự,
 
 ## Khái niệm cốt lõi
 
+Mục này mổ xẻ 6 khái niệm làm nên bài: Compiler hoạt động thế nào, `memo`/`useMemo` còn vai trò gì, và bộ công cụ nào bắt buộc phải có khi bật. Đọc để hiểu "tại sao" trước khi sang phần áp dụng bên dưới.
+
 ### 1. Cơ chế Compiler — memoize theo purity, skip khi mutate
 
 **Vì sao:** Compiler "biết" nhờ giả định render thuần: cùng props/state cho cùng JSX. Mọi mutation (`arr.push`, `obj.field = x`) phá giả định — Compiler không dám cache vì cache sẽ sai. Nên "rules of React" từ mẹo style thành điều kiện chạy đúng.
 
-**Cơ chế:** với mỗi component, Compiler chia render thành các khối reactive, mỗi khối nhớ deps. Re-render chỉ chạy khối mà deps đổi (so `Object.is`). Gặp mutation/vi phạm rules → bỏ qua component (skip), giữ hành vi cũ (đúng nhưng không nhanh), log "bail out" để sửa.
+**Cơ chế:** với mỗi component, Compiler chia render thành các khối reactive, mỗi khối nhớ deps. Re-render chỉ chạy khối mà deps đổi (so `Object.is`). Gặp mutation/vi phạm rules → bỏ qua component (skip), giữ hành vi cũ (đúng nhưng không nhanh), log "bail out" để sửa. Ví von: Compiler như nhân viên kiểm chất lượng trên dây chuyền — sản phẩm nào tuân chuẩn thì đóng dấu "cache được", sản phẩm nào bị can thiệp tay lúc chạy thì bỏ qua, không đóng dấu.
 
-```tsx
-// ❌ SAI: mutate props — Compiler skip, mất tối ưu (và eslint báo đỏ)
-function Row({ item }: any) { item.ten = item.ten.trim(); return <li>{item.ten}</li>; }
-// ✅ ĐÚNG: thuần — Compiler cache được
-function Row({ item }: any) { const ten = item.ten.trim(); return <li>{ten}</li>; }
-```
+> 📄 **Code ví dụ:** [`examples/02-1-co-che-compiler-memoize-theo-purity-skip.tsx`](examples/02-1-co-che-compiler-memoize-theo-purity-skip.tsx)
 
 ### 2. `memo(Component)` — so shallow props, chặn render tường minh
 
@@ -73,7 +66,11 @@ Gọi hook điều kiện/trong loop, mutate props/state, gọi hàm không thu�
 
 Component thư viện viết trước Compiler vẫn `memo` — cứ để yên. Compiler và `memo` tay cộng tác (memo ngoài, compiler trong), không đè nhau. Gỡ dần `memo` nội bộ sau khi đo, giữ ngoại lệ có lý do.
 
+> **Tóm gọn 1 câu:** Compiler là "memo tự động", `memo`/`useMemo` là bảo hiểm cho vùng ngoài tầm biên dịch — còn purity (không mutate) là điều kiện để cả hai chạy đúng.
+
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là roadmap 5 bước từ "kiểm tra sức khỏe codebase" tới "đo Profiler có số liệu" — đi đúng thứ tự thì bật Compiler không làm vỡ gì.
 
 ### Bước 1. Kiểm tra sẵn sàng: `npx react-compiler-healthcheck@latest`
 
@@ -95,51 +92,13 @@ Mở Profiler record lúc gõ filter: đếm Row render bao nhiêu lần, mỗi 
 
 List > 100 row, tính > 1ms, props ngoài vùng compiler — giữ và ghi `// memo: vì props từ lib X ngoài vùng compiler`. Không số liệu thì không memo.
 
+> **Tóm gọn 1 câu:** Luồng chuẩn: healthcheck → sửa vi phạm → bật ở nhánh riêng → đo Profiler trước/sau → chỉ giữ `memo` tay ở ngoại lệ có comment lý do.
+
 ## Ví dụ chi tiết
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn):
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-import { memo, useMemo, useState } from 'react';
-
-type Item = { id: number; name: string };
-
-// Chỉ re-render khi item đổi (so sánh shallow props)
-// Với Compiler bật, memo này gần như là "bảo hiểm" — compiler cũng tự memo;
-// giữ lại khi Row nhận props từ ngoài vùng compiler hoặc muốn tường minh ngữ nghĩa.
-// Vì sao memo ở đây: List re-render mỗi phím gõ; không memo thì 1.000 Row vẽ lại dù item không đổi.
-export const Row = memo(function Row({ item }: { item: Item }) {
-  console.log('render row', item.id); // theo dõi để debug re-render — KHÔNG để log ở production
-  return <li>{item.name}</li>;
-});
-
-export function List({ items }: { items: Item[] }) {
-  const [filter, setFilter] = useState(''); // state "nóng": mỗi phím gõ re-render List
-  // useMemo chỉ cho việc lọc danh sách (đắt khi 1.000+ phần tử) — deps đầy đủ items + filter
-  // Vì sao useMemo: List re-render vì lý do khác (cha vẽ lại) mà filter chưa đổi thì không lọc lại
-  const visible = useMemo(
-    () => items.filter((i) => i.name.includes(filter)),
-    [items, filter], // thiếu deps là stale; thừa deps là tính lại thừa — phải đủ đúng
-  );
-  return (
-    <div>
-      <input
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder="Lọc…"
-      />
-      <ul>
-        {/* Row memo: mỗi lần gõ filter, Row nào không đổi item sẽ bỏ qua render */}
-        {/* Vì sao key=id: key ổn định để React + memo nhận đúng Row nào là nào sau lọc */}
-        {visible.map((i) => (
-          <Row key={i.id} item={i} />
-        ))}
-      </ul>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -159,6 +118,8 @@ Log giữ tham chiếu và làm Profiler khó đọc; production dùng DevTools 
 
 Với code tuân rules, Compiler sinh memo cho `visible` và từng Row mà không cần viết. Ví dụ giữ `memo`/`useMemo` để minh họa + bảo hiểm ngoài vùng — đọc comment để biết đâu là "dạy", đâu là "cần thật".
 
+> **Tóm gọn 1 câu:** Chuỗi lãng phí "cha vẽ → lọc lại → Row vẽ lại" bị cắt ở ba điểm: `useMemo` chặn tính lại, `memo` chặn vẽ lại, Compiler lo cả hai khi code tuân rules.
+
 ## So sánh (nếu có)
 
 ### Memo tay vs Compiler
@@ -169,25 +130,19 @@ Tay: dev quyết định ở đâu (sót, sai deps, khó review). Máy: tự đ�
 
 Memo là miếng dán cho render thừa; sửa gốc (hạ state xuống gần nơi dùng, tách slice Zustand, `children` composition) bền hơn. List re-render vì state đặt ở root quá cao → hạ state xuống List là khỏi bệnh, không cần memo. Đo trước khi chọn: dán nhanh nhưng bệnh còn; mổ gốc lâu nhưng khỏi.
 
+> **Tóm gọn 1 câu:** Memo là miếng vá nhanh, Compiler là tự động hóa, còn sửa kiến trúc là chữa gốc bệnh — đo xong mới chọn vũ khí.
+
 ## Lỗi thường gặp / Chống chỉ định
+
+Mục này là danh sách 5 cách "tiền mất tật mang" khi tối ưu — đọc trước để không nếm thử.
 
 ### 1. Mutate props/state → Compiler skip hoặc sai
 
-```tsx
-// ❌ SAI: đẩy trực tiếp vào mảng state — mutate, Compiler bỏ qua
-items.push(moi); setItems(items);
-// ✅ ĐÚNG: bản sao — Compiler cache được, React phát hiện đổi
-setItems([...items, moi]);
-```
+> 📄 **Code ví dụ:** [`examples/04-1-mutate-props-state-compiler-skip-hoac-sai.tsx`](examples/04-1-mutate-props-state-compiler-skip-hoac-sai.tsx)
 
 ### 2. `useMemo` deps thiếu/trống → stale
 
-```tsx
-// ❌ SAI: deps [] mà dùng filter — đổi filter không lọc lại, UI cũ
-const v = useMemo(() => items.filter((i) => i.name.includes(filter)), []);
-// ✅ ĐÚNG: deps đủ — hay hơn để Compiler tự làm nếu tuân rules
-const v = useMemo(() => items.filter((i) => i.name.includes(filter)), [items, filter]);
-```
+> 📄 **Code ví dụ:** [`examples/05-2-usememo-deps-thieu-trong-stale.tsx`](examples/05-2-usememo-deps-thieu-trong-stale.tsx)
 
 ### 3. `memo` bừa cho component nhẹ → tốn hơn lợi
 
@@ -195,16 +150,13 @@ So sánh props mỗi lần + giữ bộ nhớ cho component vài text là lỗ. 
 
 ### 4. Tạo function/object mới mỗi render trước `memo` con → memo công cốc
 
-```tsx
-// ❌ SAI: onClick mới mỗi lần — Row memo so props luôn khác
-{list.map((i) => <Row key={i.id} item={i} onChon={() => chon(i.id)} />)}
-// ✅ ĐÚNG: useCallback ổn định (hoặc Compiler lo) + Row memo mới có tác dụng
-const chon = useCallback((id: number) => chonThat(id), []);
-```
+> 📄 **Code ví dụ:** [`examples/06-4-tao-function-object-moi-moi-render-truoc.tsx`](examples/06-4-tao-function-object-moi-moi-render-truoc.tsx)
 
 ### 5. Chống chỉ định: app 3 màn hình, props inline không memo
 
 App nhỏ bật Compiler vẫn ổn nhưng đừng thêm memo tay. Component nhận object inline mỗi lần mà không `useMemo` thì memo vô dụng — sửa gốc (ổn định reference) trước khi bọc.
+
+> **Tóm gọn 1 câu:** Mutate là kẻ thù số một của Compiler, còn memo bừa cho component nhẹ là "trả lương bảo vệ gác cửa kho" — cả hai đều nên tránh.
 
 ## Câu hỏi thường gặp
 
@@ -244,7 +196,11 @@ List > 100 row, tính đắt > 1ms, props ngoài vùng compiler — giữ và gh
 
 Hạ state, tách slice, composition trước. Không mutate, không hook trong loop — Compiler tối đa khi code clean. Log "skipped" là todo list, không phải nhiễu để bỏ qua. Cài eslint plugin ngay khi bật. Test hành vi trước khi bật để bắt hồi quy. Lib ngoài giữ `memo` tường minh. Lưu baseline Profiler vào tài liệu.
 
+> **Tóm gọn 1 câu:** Nguyên tắc vàng: viết trần cho Compiler lo, giữ `memo` tay như ngoại lệ có lý do ghi rõ, và mọi thay đổi phải đi kèm số đo trước/sau.
+
 ## Bài tập nhỏ
+
+Mục này cho bạn một thí nghiệm 5 bước tự đo bằng tay — làm xong là "thấy mắt thấy tai" Compiler giúp được bao nhiêu và mutate phá được bao nhiêu.
 
 1. Tạo `List` 1.000 Row (id + tên ngẫu nhiên).
 2. Đo Profiler bản (1): bật Compiler, không memo — gõ filter không trúng, ghi render count Row.

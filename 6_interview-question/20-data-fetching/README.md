@@ -24,21 +24,7 @@
 
 ### 2. `useEffect` + `fetch` — contract 4 điểm (nói được 4 điểm = ăn điểm)
 
-```tsx
-useEffect(() => {
-  const ctrl = new AbortController();                       // (a) bộ hủy
-  fetch(url, { signal: ctrl.signal })
-    .then((r) => {                                          // (b) fetch KHÔNG reject HTTP lỗi
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    })
-    .then(setData)
-    .catch((e: Error) => {                                  // (c) abort ≠ lỗi thật
-      if (e.name !== "AbortError") setError(String(e));
-    });
-  return () => ctrl.abort();                                 // (d) cleanup khi unmount/url đổi
-}, [url]);
-```
+> 📄 **Code ví dụ:** [`examples/01-2-useeffect-fetch-contract-4-iem-noi-uoc.tsx`](examples/01-2-useeffect-fetch-contract-4-iem-noi-uoc.tsx)
 
 - (a)+(d): không có là request "treo" khi component unmount hoặc `url` đổi → **race** (cái chậm về sau ghi đè cái mới) + tốn băng thông.
 - (b): `fetch` chỉ reject khi **mạng/CORS** — 404/500 vẫn `resolve` với `ok: false`. Không check là hiện trang lỗi như data đúng.
@@ -48,17 +34,7 @@ useEffect(() => {
 
 ### 3. TanStack Query — quản lý, không viết tay
 
-```tsx
-const { data, isPending, error, refetch } = useQuery({
-  queryKey: ["users", page],            // địa chỉ cache + dedupe (cùng key = 1 request)
-  queryFn: () => fetch(`/api/users?page=${page}`).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);   // vẫn phải throw
-    return r.json();
-  }),
-  staleTime: 30_000,   // 30s "tươi": remount trong 30s = hiện cache ngay, không fetch
-  retry: 2,            // lỗi mạng tự retry (không retry AbortError)
-});
-```
+> 📄 **Code ví dụ:** [`examples/02-3-tanstack-query-quan-ly-khong-viet-tay.tsx`](examples/02-3-tanstack-query-quan-ly-khong-viet-tay.tsx)
 
 | Tính năng | `useEffect` + `fetch` (tự viết) | TanStack Query |
 |---|---|---|
@@ -67,6 +43,8 @@ const { data, isPending, error, refetch } = useQuery({
 | Lỗi mạng | Tự viết retry/backoff | `retry` + `retryDelay` |
 | User focus lại tab | Không | `refetchOnWindowFocus` (refetch nền nếu stale) |
 | Phân trang mượt | Skeleton mỗi lần đổi page | `placeholderData: keepPreviousData` |
+
+> **Cách đọc bảng này:** mỗi dòng là một tình huống thật khi lấy data — cột giữa cho thấy tự viết sẽ chịu hàng gì, cột phải cho thấy Query đã trả thay; đọc 5 dòng là đủ lý do "sao prod dùng Query".
 
 **`QueryClient` tạo 1 lần** (module/`main.tsx`) — tạo trong render là cache chết mỗi lần, mọi query loading mãi.
 
@@ -81,6 +59,8 @@ const { data, isPending, error, refetch } = useQuery({
 | Guard/resolver (chờ data trước route) | router loader (`queryClient.fetchQuery`) / `use()` + Suspense | Data sẵn trước khi vẽ route |
 
 > **Nói đúng câu chốt**: "Angular tự động hóa bằng **stream** (unsubscribe, switchMap tự hủy request cũ); React tự động hóa bằng **query state có sẵn trong Query** (abort, dedupe, cache). Cùng mục tiêu, hai cơ chế khác nhau."
+
+> **Tóm gọn 1 câu:** Tự viết fetch là tự làm đầu bếp mọi món từ đầu để học nghề; lên production thì giao bếp TanStack Query — cache, chống gọi trùng, thử lại đã có người lo, bạn chỉ đặt món.
 
 ## Bẫy khi phỏng vấn
 

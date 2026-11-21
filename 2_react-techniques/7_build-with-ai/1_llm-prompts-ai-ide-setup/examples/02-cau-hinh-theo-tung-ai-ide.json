@@ -1,0 +1,6 @@
+// .vscode/settings.json — gợi ý riêng cho Copilot trong workspace
+{
+  "github.copilot.chat.codeGeneration.instructions": [
+    { "text": "React 19 + TypeScript strict. Tailwind v4. Không dùng kiến thức React < 18." }
+  ]
+}

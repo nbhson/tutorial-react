@@ -11,10 +11,16 @@
 - Dùng thuộc tính `reactFragments` để chia sẻ một `IntersectionObserver` cho nhiều Fragment.
 
 ## Vấn đề giải quyết
-- Muốn đo tổng chiều cao 3 `<li>` hoặc focus item đầu mà **không muốn thêm `<div>` bọc ngoài** (sẽ phá flex/grid/table semantics).
+
+Mục này mô tả "bế tắc đặt ref": nhóm sibling không có parent DOM chung, và component con không expose ref. Đọc để hiểu vì sao Fragment (trước đây "vô hình") giờ có thể chạm tới được.
+
+- Muốn đo tổng chiều cao 3 `<li>` hoặc focus item đầu mà **không muốn thêm `<div>` bọc ngoài** (sẽ phá flex/grid/table semantics). Ví von: như muốn buộc dây cảnh báo quanh 3 thùng hàng đứng cạnh nhau mà không được dựng kệ chung — Fragment ref cho phép buộc "vòng dây vô hình" mà không đụng vào cách bày hàng.
 - Muốn gắn behavior (event, observer) lên một nhóm element, kể cả khi component con không expose `ref`. Cách cũ: ref từng child rồi gom tay (không được nếu con không nhận ref), hoặc thêm wrapper div thừa.
 
 ## Khái niệm cốt lõi
+
+Mục này là "cẩm nang method" của `FragmentInstance`: làm được gì, tác động tới con cấp 1 hay đệ quy sâu. Hãy hình dung FragmentInstance như người quản gia của một dãy phòng: gõ cửa từng phòng cấp 1 (event, observe, đo), nhưng khi được lệnh "tìm người" (focus) thì ông ấy chịu đi sâu vào tận phòng trong cùng.
+
 - **`FragmentInstance`** hoạt động trên DOM con **theo nhóm**, không đổi cấu trúc DOM. Các method:
   - **Event**: `addEventListener(type, listener, options?)`, `removeEventListener(...)`, `dispatchEvent(event)`.
   - **Focus**: `focus(options?)`, `focusLast(options?)`, `blur()`.
@@ -26,26 +32,7 @@
 
 ## Cú pháp / API
 
-```tsx
-import { Fragment, useRef, useEffect } from 'react';
-
-function Group({ children, onClick }: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  const fragmentRef = useRef<React.ComponentRef<typeof Fragment>>(null);
-
-  useEffect(() => {
-    const instance = fragmentRef.current;
-    if (!instance) return;
-    instance.addEventListener('click', onClick);
-    return () => instance.removeEventListener('click', onClick);
-  }, [onClick]);
-
-  // PHẢI dùng <Fragment> (không dùng <>...</>) khi truyền ref
-  return <Fragment ref={fragmentRef}>{children}</Fragment>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 Bảng method nhanh:
 
@@ -60,57 +47,22 @@ Bảng method nhanh:
 | `compareDocumentPosition` | Fragment vs node khác | Trả bitmask |
 | `scrollIntoView` | Con cấp 1 | Nhận boolean, **không** nhận options |
 
+> **Cách đọc bảng này:** cột "Tác động lên" là quan trọng nhất — phân biệt "Con DOM cấp 1" (chỉ tầng đầu) với "depth-first" (đi sâu); đọc cột "Ghi chú" để tránh truyền sai tham số.
+
 ## Luồng hoạt động (Flow)
+
+Mục này theo một FragmentInstance từ lúc tạo tới lúc tự cập nhật khi con đổi — 4 bước cho thấy lifecycle gắn với cây DOM động.
+
 1. React render `<Fragment ref={ref}>`, tìm các DOM con cấp 1 (xuyên qua component wrapper) và tạo `FragmentInstance`.
 2. React gán `ref.current = instance` (khi mount/commit) và `null` khi Fragment unmount.
 3. Bạn gọi method trên `instance` — thường trong `useEffect`/`useLayoutEffect` hoặc event handler.
 4. Khi con được thêm/gỡ động, `FragmentInstance` tự cập nhật listener/observer tương ứng.
 
+> **Tóm gọn 1 câu:** `<Fragment ref>` cho nhóm sibling một "tay cầm chung" — thao tác cả nhóm mà không thêm một div nào, listener/observer tự bám theo con khi con thêm/gỡ.
+
 ## Ví dụ chi tiết
 
-```tsx
-// example.tsx — đo + cuộn tới card đầu, focus con đầu tiên, không có div bọc
-import { Fragment, useRef } from 'react';
-
-export default function FragmentRefDemo() {
-  // ref trỏ tới một FragmentInstance (không phải mảng DOM node!)
-  const ref = useRef<React.ComponentRef<typeof Fragment>>(null);
-
-  function measureAndScroll() {
-    const instance = ref.current;
-    if (!instance) return;
-    const rects = instance.getClientRects();          // DOMRect[] của con cấp 1
-    if (rects.length === 0) return alert('Fragment không có DOM con!');
-    const totalH = rects.reduce((sum, r) => sum + r.height, 0);
-    instance.scrollIntoView();                        // boolean, KHÔNG truyền options
-    alert(`Fragment có ${rects.length} nodes, tổng cao ≈ ${Math.round(totalH)}px`);
-  }
-
-  function focusFirst() {
-    ref.current?.focus();   // tìm element focusable đầu tiên theo depth-first
-  }
-
-  return (
-    <div>
-      <h2>Fragment refs (React 19.3)</h2>
-      {/* Không có div bọc — DOM phẳng, ref gom 3 article */}
-      <Fragment ref={ref}>
-        <article style={{ border: '1px solid #ccc', padding: 8 }}>
-          Card 1 <button>Chọn</button>
-        </article>
-        <article style={{ border: '1px solid #ccc', padding: 8 }}>Card 2</article>
-        <article style={{ border: '1px solid #ccc', padding: 8 }}>Card 3</article>
-      </Fragment>
-      <button onClick={measureAndScroll} style={{ marginTop: 8 }}>
-        Đo + cuộn tới card đầu
-      </button>
-      <button onClick={focusFirst} style={{ marginTop: 8, marginLeft: 8 }}>
-        Focus con đầu tiên
-      </button>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - `useRef<React.ComponentRef<typeof Fragment>>(null)` — kiểu chính xác là `FragmentInstance | null`. Ở đây dùng helper type của React để không phải import type nội bộ.
@@ -121,6 +73,8 @@ export default function FragmentRefDemo() {
 
 ## So sánh với cách làm cũ
 
+Bảng dưới đối chiếu 4 giải pháp "còn đường" trước 19.3 với Fragment ref. Đọc theo hàng: mỗi dòng là một vòng lách luật DOM từng phải đi.
+
 | Cách cũ | Cách mới (Fragment ref) | Lợi ích |
 |---|---|---|
 | Thêm `<div>` bọc để gắn ref | `<Fragment ref>` không thêm DOM | Không phá layout/flex/grid/table |
@@ -128,19 +82,30 @@ export default function FragmentRefDemo() {
 | Buộc con phải forward `ref` | Hoạt động với con không expose ref | Dùng được cả component thư viện |
 | Tự quản `IntersectionObserver` cho từng node | `observeUsing` + `reactFragments` | Chia sẻ observer, nhẹ hơn |
 
+> **Cách đọc bảng này:** đọc cột "Cách cũ" để dò codebase của mình còn pattern nào; hàng đầu là lợi ích "cấu trúc" (không phá layout), ba hàng sau là lợi ích "tiện dụng".
+
 ## Lỗi thường gặp
+
+Mục này là 5 bẫy của Fragment ref — đứng đầu là dùng shorthand `<>` (số 1) và hiểu sai `scrollIntoView` chỉ nhận boolean (số 3).
 1. **Truyền ref vào `<>...</>`** → không có tác dụng/lỗi. Vì sao: shorthand không nhận prop. Fix: import `Fragment` và dùng `<Fragment ref={ref}>`.
 2. **Coi `ref.current` là mảng/iterable rồi `[...ref.current]`** → sai kiểu. Vì sao: ref là `FragmentInstance`. Fix: gọi method (`getClientRects`, `focus`, ...).
 3. **`scrollIntoView({ behavior: 'smooth' })`** → throw. Vì sao: `FragmentInstance.scrollIntoView` chỉ nhận boolean. Fix: dùng `scrollIntoView(true/false)` và set `scroll-behavior` bằng CSS.
 4. **Mong `addEventListener` bắt sự kiện ở con cháu sâu** → không được. Vì sao: event method chỉ nhắm con **cấp 1**. Fix: gắn listener ở nơi có con cấp 1, hoặc dùng `focus` (đệ quy sâu) nếu mục đích là focus.
 5. **`observeUsing` trên Fragment chỉ toàn text** → React cảnh báo. Vì sao: observer không hoạt động trên text node. Fix: bọc con trong element.
 
+> **Tóm gọn 1 câu:** Nhớ 2 chữ: "cấp 1" (event/observe/đo) và "đầy đủ cú pháp" (`<Fragment ref>` chứ không phải `<>`) — hết 80% bẫy của API này.
+
 ## Khi nào dùng / Khi nào không
 - **Dùng**: đo layout/scroll nhiều node; focus nhóm input; gắn event/observer cho nhóm element mà không đổi DOM; dùng component con không forward ref; table/flex/grid cần DOM phẳng.
 - **Không dùng**: khi đã có một element cha tự nhiên (dùng `ref` trên chính element đó đơn giản hơn); khi cần style/animate như một khối — cân nhắc `<ViewTransition>`; không phải để thay thế state logic.
 
 ## Bài tập nhỏ
+
+Bài tập xây một hook thực dụng `InView` — sản phẩm phụ dùng được ngay trong dự án, và là phép thử cho observer chia sẻ qua `reactFragments`.
+
 - Viết `InView({ onChange, children })` dùng `<Fragment ref>` + `observeUsing(new IntersectionObserver(...))`. Khi có ít nhất một con cấp 1 nằm trong viewport thì gọi `onChange(true)`, ngược lại `onChange(false)`. Nhớ `unobserveUsing` trong cleanup. Kiểm tra bằng cách bọc vài `<Card>` và cuộn: màu nền đổi khi card vào/ra viewport, mà **không** cần thêm `<div>` bọc.
+
+> **Tóm gọn 1 câu:** Card đổi màu theo viewport mà DOM phẳng như cũ — Fragment ref đã làm đúng nhiệm vụ "vòng dây vô hình".
 
 ## Reference
 - [React 19.3 Release — Fragment Refs](https://react.dev/blog/2026/09/09/react-19-3)

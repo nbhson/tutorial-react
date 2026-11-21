@@ -2,7 +2,7 @@
 
 > Nguồn: https://react.dev/learn/render-and-commit — https://react.dev/reference/react/useDeferredValue — https://react.dev/learn/react-compiler
 
-Nhóm này cover **tối ưu hiệu năng render & tải** cho app React 19: memoization tự động bằng React Compiler, render cửa sổ cho list khổng lồ, chia nhỏ bundle, và lập lịch render theo ưu tiên. Triết lý chung: **đo trước, tối ưu đúng chỗ**, ưu tiên sửa cấu trúc (state/render thừa) trước khi đắp cache/memo.
+Nhóm này cover **tối ưu hiệu năng render & tải** cho app React 19: memoization tự động bằng React Compiler, render cửa sổ cho list khổng lồ, chia nhỏ bundle, và lập lịch render theo ưu tiên. Triết lý chung: **đo trước, tối ưu đúng chỗ**, ưu tiên sửa cấu trúc (state/render thừa) trước khi đắp cache/memo. Ví von: giống như khám bệnh — nghe mô tả triệu chứng, chạy xét nghiệm (Profiler), rồi mới kê thuốc, thay vì bấm bụng mua bổ dưỡng về uống.
 
 ## Nhóm này giải quyết gì
 
@@ -31,6 +31,8 @@ Bốn triệu chứng hiệu năng điển hình, mỗi bài nhắm một nguyê
 | 3 | [3-code-splitting/](3-code-splitting/README.md) | **Code-splitting**: tách bundle theo route (`lazy`) + vendor (`manualChunks`), prefetch theo hover/link, cân bằng số chunk, đo bằng `vite-bundle-visualizer`, mục tiêu < 200KB gzip. Giữ critical route (login/home) trong main bundle. |
 | 4 | [4-deferred-transition/](4-deferred-transition/README.md) | **useDeferredValue + useTransition**: ưu tiên update urgent/non-urgent, input responsive khi filter list lớn, `isPending`, kết hợp memo/virtualization, so sánh với debounce. Nguyên tắc: "input urgent, output deferred". |
 
+> **Cách đọc bảng này:** mỗi dòng là một bài con, xếp theo "cơn đau" nó chữa (cột #), cột Nội dung tóm tắt kỹ thuật trong bài; đang gặp triệu chứng nào thì đọc bài có nguyên nhân tương ứng ở mục "Khi nào cần" phía trên.
+
 ## Thứ tự đọc gợi ý
 
 ```
@@ -43,6 +45,8 @@ Bốn triệu chứng hiệu năng điển hình, mỗi bài nhắm một nguyê
 - **4 (deferred/transition)**: tinh chỉnh cảm giác mượt khi render phải chờ.
 
 Đo trước/sau mỗi bước bằng React DevTools Profiler.
+
+> **Tóm gọn 1 câu:** Bốn bài bốn "cơn đau" — re-render thừa, list khổng lồ, bundle béo, input lag — và chung một phương pháp: đo trước, sửa cấu trúc trước, đắp kỹ thuật sau.
 
 ## Liên quan tới bài nào khác
 

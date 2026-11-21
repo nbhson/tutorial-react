@@ -2,7 +2,11 @@
 
 > Nguồn: https://react.dev/learn/render-and-commit — https://web.dev/vitals/
 
+App chạy "cảm giác chậm" nhưng không biết chậm ở đâu? Bài này dạy nguyên tắc số 1 của hiệu năng: **đo trước khi sửa** — rồi mới tới các vũng tối ưu kinh điển (re-render, bundle, assets, data).
+
 ## Mục tiêu
+
+Mục này nêu 3 mục tiêu: đo lường, giảm re-render, và tối ưu tải. Đọc để có bản đồ của cả bài.
 
 ### 1. Đo trước khi tối ưu: Core Web Vitals (LCP, INP, CLS) + React Profiler
 
@@ -18,17 +22,27 @@
 
 **Vì sao:** render nhanh mà bundle 3MB thì LCP vẫn 4s (chưa tải xong lấy gì render). Lazy route + vendor riêng đưa critical < 200KB gzip. Ảnh `avif/webp` + `loading="lazy"` + cỡ trước (chống CLS) + font `swap` + preload — assets hay bị bỏ quên mà chiếm nửa LCP trang media.
 
+> **Tóm gọn 1 câu:** Ba mục tiêu: có số trước khi sửa (CWV + Profiler), render ít nhờ 4 công cụ, và tải nhanh nhờ bundle + assets gọn.
+
 ## Tổng quan
+
+Mục này phác vòng lặp hiệu năng và lúc nào nên áp dụng. Đọc để có tư duy đúng: không số là không sửa.
 
 - Hiệu năng đi từ **đo → nghi ngờ → xác nhận → sửa → đo lại**, không tối ưu bừa. Mỗi sửa phải có số trước/sau (Profiler duration, LCP, bundle KB) — không số là cảm giác.
 - React hiện đại nhắm INP < 200ms, LCP < 2.5s, CLS < 0.1. Với React 19 + Compiler, bớt memo tay; tập trung render ít + bundle nhỏ + assets gọn.
 - Áp dụng khi app lớn dần, devtools-perf (bài 6/4) chỉ ra render thừa, hoặc trước release quan trọng. App nhỏ đo nhanh một vòng Lighthouse là đủ — đừng over-engineer.
 
+Tối ưu không đo giống **uống thuốc không khám**: có khi khỏi bệnh thật, có khi uống nhầm thuốc — mà vẫn tốn tiền. Profiler và Lighthouse là máy chụp X-quang của app.
+
+> **Tóm gọn 1 câu:** Hiệu năng là vòng lặp đo → sửa → đo lại, mỗi thay đổi phải có số trước/sau — app nhỏ thì đừng chữa quá bệnh.
+
 ## Khái niệm cốt lõi
+
+Mục này định nghĩa 7 khái niệm theo trật tự từ cơ chế (render & commit) đến từng hướng tối ưu. Đọc tuần tự — hiểu khái niệm 1 là hiểu các khái niệm sau.
 
 ### 1. Render & Commit — tính toán (pure) rồi mới chạm DOM
 
-Render = gọi component tính JSX (phải thuần để so sánh); Commit = cập nhật DOM thật. Parent re-render kéo con nếu không memo (con "bị vẽ theo" dù props giống). Hiểu để biết Profiler đỏ ở đâu là render thừa (tính lại vô ích) chứ không phải DOM chậm.
+Render = gọi component tính JSX (phải thuần để so sánh); Commit = cập nhật DOM thật. Parent re-render kéo con nếu không memo (con "bị vẽ theo" dù props giống). Hiểu để biết Profiler đỏ ở đâu là render thừa (tính lại vô ích) chứ không phải DOM chậm. Ví von: render là **vẽ phác trên giấy nháp**, commit là **tô lên tranh thật** — giấy nháp rẻ, tranh đắt; mọi kỹ thuật tối ưu đều nhằm vẽ lại ít hơn.
 
 ### 2. React Compiler — memo tự động cho code sạch; `memo` tay cho ngoài vùng
 
@@ -36,15 +50,9 @@ Code sạch (không mutate — bài 8/1) thì compiler lo rộng rãi miễn ph�
 
 ### 3. State gần nơi dùng — phạm vi render theo vị trí state
 
-State ở root: đổi là cả cây vẽ. Hạ xuống List: đổi chỉ List vẽ. Colocation (đặt state cạnh nơi đọc) là sửa gốc rẻ nhất — rẻ hơn mọi memo. Nhìn cây mà state nằm quá cao so với nơi đọc là mùi.
+State ở root: đổi là cả cây vẽ. Hạ xuống List: đổi chỉ List vẽ. Colocation (đặt state cạnh nơi đọc) là sửa gốc rẻ nhất — rẻ hơn mọi memo. Nhìn cây mà state nằm quá cao so với nơi đọc là mùi. Giống **công tắc điện**: đặt công tắc ở phòng nào thì bật tắt chỉ ảnh hưởng phòng đó; cứ gom hết công tắc về phòng khách thì mỗi lần bật đèn toilet cả nhà phải đứng dậy.
 
-```tsx
-// ❌ SAI: query ở App — gõ phím vẽ cả App (Sidebar/Header vô can cũng vẽ)
-function App() { const [q, setQ] = useState(''); return <><Header /><List q={q} /></>; }
-// ✅ ĐÚNG: query ở List — gõ chỉ List vẽ
-function App() { return <><Header /><List /></>; }
-function List() { const [q, setQ] = useState(''); /* ... */ }
-```
+> 📄 **Code ví dụ:** [`examples/01-3-state-gan-noi-dung-pham-vi-render.tsx`](examples/01-3-state-gan-noi-dung-pham-vi-render.tsx)
 
 ### 4. `useDeferredValue`/`useTransition` — input nhạy, nặng hoãn
 
@@ -52,7 +60,7 @@ Gõ nhanh + list 50k: input đọc gốc (urgent), list đọc trễ (non-urgent
 
 ### 5. Bundle — lazy route, vendor riêng, bớt polyfill, visualizer
 
-`React.lazy` + `Suspense` từng route sau login; `manualChunks` vendor nặng riêng; xóa lib không dùng (moment → date-fns là bỏ được cả chunk); visualizer treemap để biết khối nào phình. Critical < 200KB gzip là đích.
+`React.lazy` + `Suspense` từng route sau login; `manualChunks` vendor nặng riêng; xóa lib không dùng (moment → date-fns là bỏ được cả chunk); visualizer treemap để biết khối nào phình. Critical < 200KB gzip là đích. Hãy hình dung bundle như **vali đi máy bay**: lazy là gói mỗi ngày một túi nhỏ, visualizer là cán cân cân hành lý — cân xong mới biết túi nào thừa.
 
 ### 6. Assets — ảnh `avif/webp` + lazy + cỡ trước; font `swap` + preload
 
@@ -60,9 +68,13 @@ Gõ nhanh + list 50k: input đọc gốc (urgent), list đọc trễ (non-urgent
 
 ### 7. Data — `staleTime`, pagination/infinite, Query cache
 
-`staleTime` theo tần suất đổi (tĩnh `Infinity`, giá `0` + interval). Tải hết 10k thì pagination/infinite + virtualize — không tải hết rồi render hết. Query dedupe + cache để 2 component chung key chỉ 1 request.
+`staleTime` theo tần suất đổi (tĩnh `Infinity`, giá `0` + interval). Tải hết 10k thì pagination/infinite + virtualize — không tải hết rồi render hết. Query dedupe + cache để 2 component chung key chỉ 1 request. Giống **tủ lạnh gia đình**: nấu một lần, cả nhà ăn chung — chứ không mỗi đứa một mâm (dedupe), và đồ ăn cũ còn ngon thì đừng nấu lại (staleTime).
+
+> **Tóm gọn 1 câu:** Bảy khái niệm cho bảy mặt trận: vẽ ít (render/state), tính ít (memo/deferred), tải ít (bundle/assets), và xin ít (data cache).
 
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là quy trình 6 bước của vòng lặp hiệu năng, bắt đầu và kết thúc bằng đo lường. Đi tuần tự — bước 6 chốt việc bằng số liệu trước/sau.
 
 ### Bước 1. Đo: Lighthouse (LCP/CLS) + Profiler (re-render) + Performance (long task)
 
@@ -88,77 +100,25 @@ Tĩnh hiếm đổi `staleTime` dài; realtime `setQueryData` từ socket thay p
 
 LCP/INP/CLS + Profiler + bundle KB. Cải thiện < 10% thì revert (phức tạp không xứng). Ghi vào release note để lần sau có mốc.
 
+> **Tóm gọn 1 câu:** 6 bước của vòng tròn: đo → sửa render → sửa bundle → sửa assets → sửa data → đo lại — cải thiện dưới 10% thì trả hàng (revert).
+
 ## Ví dụ chi tiết
+
+Mục này trỏ tới các file ví dụ mirror 1-1. Đọc kèm để thấy từng kỹ thuật thành code thật.
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn):
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-// Checklist thu nhỏ: memo item + deferred query + useMemo lọc — 3 lớp re-render trong một file
-import { memo, useDeferredValue, useMemo, useState } from 'react';
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
-// Item memo: chỉ render lại khi `v` đổi — list 100+ không phải render theo từng lần gõ
-// Vì sao memo ở đây: FastFilter re-render mỗi phím; không memo thì 100 Item vẽ lại dù chữ không đổi
-export const Item = memo(function Item({ v }: { v: string }) {
-  return <li>{v}</li>;
-});
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
-export function FastFilter({ data }: { data: string[] }) {
-  const [q, setQ] = useState('');
-  // Giữ ô input phản hồi ngay (đọc q gốc); kết quả lọc hoãn theo dq (đọc trễ) khi gõ nhanh
-  // Vì sao deferred: filter hàng nghìn + render là non-urgent — hoãn để gõ không lag (INP thấp)
-  const dq = useDeferredValue(q);
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.html`](examples/04-vi-du-chi-tiet.html)
 
-  // useMemo: tránh tính lại filter khi component render vì lý do khác (cha vẽ lại) mà dq chưa đổi
-  const visible = useMemo(
-    () => data.filter((d) => d.toLowerCase().includes(dq.toLowerCase())).slice(0, 100),
-    [data, dq], // deps data + trễ — q gốc đổi mà dq chưa kịp thì không tính thừa
-  );
-
-  return (
-    <div>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Lọc nhanh…" />
-      <ul>
-        {visible.map((v) => (
-          <Item key={v} v={v} /> // key ổn định + memo → Item nào v không đổi thì bỏ qua
-        ))}
-      </ul>
-    </div>
-  );
-}
-```
-
-```tsx
-// Lazy route — mirror từ README gốc: bundle từng trang riêng, tải khi truy cập
-import { lazy, Suspense } from 'react';
-
-// Vì sao lazy ở đây: Checkout/Orders nặng, ít vào cùng lúc — First Load không gánh cả hai
-const CheckoutPage = lazy(() => import('./pages/Checkout'));
-const OrdersPage = lazy(() => import('./pages/Orders'));
-
-// Trong router: bọc Suspense, fallback skeleton nhẹ (không spinner nhỏ gây nhảy layout)
-export function RouteFallback() {
-  return (
-    <Suspense fallback={<div>Đang tải trang…</div>}>
-      <CheckoutPage />
-    </Suspense>
-  );
-}
-```
-
-```html
-<!-- Ảnh: định cỡ trước (chống CLS) + lazy-load khi vào viewport (mirror từ README gốc) -->
-<!-- Vì sao 3 thuộc tính: width/height giữ chỗ (không nhảy khi ảnh về), lazy đỡ LCP đầu, alt cho a11y -->
-<img
-  src="/img/product.webp"
-  width="400"
-  height="300"
-  loading="lazy"
-  alt="Ảnh sản phẩm"
-/>
-```
+> **Tóm gọn 1 câu:** Bộ ví dụ hiện thực 3 kỹ thuật chính: deferred + memo + slice cho list lớn, lazy từng route, và HTML chuẩn cho ảnh/font.
 
 ## Giải thích từng phần
+
+Mục này bóc từng dòng code trong ví dụ để bạn hiểu cơ chế và cách kiểm chứng. Đọc khi cần chỉnh kỹ thuật theo dữ liệu của mình.
 
 ### `useDeferredValue(q)` — input ngay, list hoãn, không block gõ
 
@@ -180,7 +140,11 @@ Critical chỉ shell + route đầu; route nặng tải khi vào. Giữ login/ho
 
 Không cỡ: ảnh về muộn đẩy chữ nhảy (CLS cao). Dưới fold mà không lazy: tải lúc đầu, LCP chậm oan.
 
+> **Tóm gọn 1 câu:** Mỗi dòng ví dụ trả lời một câu hỏi hiệu năng: gõ có lag không, tính lại mấy lần, parent có kéo con không, và ảnh/font có cản LCP không.
+
 ## Lỗi thường gặp / Chống chỉ định
+
+Mục này liệt kê 5 lỗi tối ưu hay gặp nhất — phần lớn đều là "làm thừa". Đọc để đỡ phức tạp hóa code không đáng.
 
 ### 1. Memo bừa/`useCallback` vô nghĩa → phức tạp không nhanh
 
@@ -202,11 +166,17 @@ Luôn cỡ trước (hoặc `aspect-ratio`). Ảnh trong virtual row cũng chừ
 
 `staleTime` hợp lý + tắt `refetchOnWindowFocus` khi không cần. Socket đẩy thì `setQueryData`, không polling 2s.
 
+> **Tóm gọn 1 câu:** Năm lỗi đều là "thuốc quá liều": memo bừa, memo cả cây, lazy mọi nơi, quên cỡ ảnh, refetch liên tục — chữa thừa cũng hại như chữa thiếu.
+
 ## Best practices / Mẹo
+
+Mục này gom các nguyên tắc vận hành hiệu năng về một chỗ. Đọc để có checklist ngắn nhớ được khi làm thật.
 
 ### Đo trước; LCP > INP > CLS; Compiler + sạch là memo miễn phí; font swap + picture; budget CI
 
 Chưa số chưa sửa. Mở được (LCP) trước, bấm mượt (INP) sau, ổn định (CLS) cuối. Compiler + code sạch (bài 8/1) là memo rộng rãi — đừng tô memo tay. Font `swap` + preload heading; ảnh `<picture>` đa format. `size-limit` trong CI để bundle tăng là đỏ.
+
+> **Tóm gọn 1 câu:** Mẹo gọn: chưa số chưa sửa, ưu tiên theo LCP → INP → CLS, code sạch để Compiler lo memo, và CI là đèn đỏ khi bundle béo lên.
 
 ## Bài tập nhỏ
 

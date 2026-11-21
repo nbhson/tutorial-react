@@ -5,25 +5,22 @@
 > Mọi template React (Vite, Next.js) đều bọc app bằng StrictMode — nó thực sự làm gì, và vì sao bật sẵn?
 > Nó ảnh hưởng gì đến production build không?
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- **StrictMode là "chế độ soi lỗi" chỉ chạy ở dev**: nó cố tình chạy render/effect 2 lần để lộ bug ẩn — effect không cleanup, tính toán bừa trong lúc render, id ngẫu nhiên mỗi lần vẽ.
+
+Mục này là câu trả lời "30 giây" — ba gạch đầu dòng trả lời trọn cả ba vế của câu hỏi: làm gì, có chạy production không, vì sao bật sẵn.
+
+- **StrictMode là "chế độ soi lỗi" chỉ chạy ở dev**: nó cố tình chạy render/effect 2 lần để lộ bug ẩn — effect không cleanup, tính toán bừa trong lúc render, id ngẫu nhiên mỗi lần vẽ. Ví von: như bác sĩ bảo bạn "kêu ối đau thử xem" để tìm chỗ ẩn bệnh.
 - **Production không bị gì**: bản build bỏ hết, không tốn hiệu năng, không chạy lại.
 - **Vì sao bật sẵn**: code qua được StrictMode thì kiểu vẽ mới (tạm dừng/chạy lại/bỏ dở) mới an toàn. Chỗ nào double-invoke mà sai thì chỗ đó sẽ vỡ ở bản React mới.
+
+> **Tóm gọn 1 câu:** StrictMode là "soi gương phóng đại" chỉ bật ở dev — cố tình chạy 2 lần để lộ bug, prod thì không đụng đến.
 
 ## Trả lời chi tiết
 
 ### 1. StrictMode làm gì, chính xác (dev-only)
 
-```tsx
-// main.tsx — template Vite/Next mặc định
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+Mục này liệt kê chính xác từng hành vi "nhân đôi" của StrictMode ở dev — bảng này là căn cứ để trả lời mọi câu hỏi chi tiết sau đó.
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
-```
+> 📄 **Code ví dụ:** [`examples/01-1-strictmode-lam-gi-chinh-xac-dev-only.tsx`](examples/01-1-strictmode-lam-gi-chinh-xac-dev-only.tsx)
 
 Ở **dev**, với mỗi component trong cây:
 
@@ -36,40 +33,26 @@ createRoot(document.getElementById("root")!).render(
 
 Ở **production build**: StrictMode là no-op hoàn toàn — không double-invoke, không log.
 
+> **Cách đọc bảng này:** mỗi hàng là một thứ StrictMode "nhân đôi" ở dev — nhớ cả 4 để trả lời chính xác, đặc biệt hàng cuối (warning deprecated) vì hay bị bỏ quên.
+
 ### 2. Tại sao lại cần (gốc rễ: concurrent)
+
+Mục này trả lời câu "vì sao phải nhân đôi oan uổng thế?" — gốc rễ nằm ở concurrent rendering. Đọc để trả lời được tầng "vì sao" chứ không chỉ tầng "làm gì".
 
 React 18+ có thể **interrupt** render (chưa nói ở [`02-react-18-vs-19`](../02-react-18-vs-19)). Hệ quả: **không gì đảm bảo render function hay effect chạy đúng 1 lần**. Code an toàn phải thỏa:
 
 - **Render tinh khiết (pure)**: cùng input → cùng output, không side-effect.
 - **Effect idempotent + có cleanup đúng**.
 
-StrictMode mô phỏng chính xác điều concurrent có thể làm ở runtime thật (chạy lại, unmount/remount), để bạn sửa **trên dev** chứ không để user production "phát hiện".
+StrictMode mô phỏng chính xác điều concurrent có thể làm ở runtime thật (chạy lại, unmount/remount), để bạn sửa **trên dev** chứ không để user production "phát hiện". Ví von: StrictMode như buổi diễn tập có "đạo diễn cố tình ngắt giữa chừng" — diễn được trọn vẹn cả khi bị ngắt thì lên sóng live mới an toàn.
 
-```tsx
-// ❌ KHÔNG an toàn — StrictMode (và concurrent) làm lộ ngay:
-function Search() {
-  const [id] = useState(() => Math.random()); // initializer chạy 2 lần ở dev → ID lệch
-  useEffect(() => {
-    const sub = subscribe(store);       // mount chạy 2 lần → 2 subscription
-    // không có cleanup → state lệch, memory leak
-  }, []);
-  return <p>id: {id}</p>;
-}
-
-// ✅ An toàn — StrictMode "không còn phàn nàn" (đặt import ở đầu file thật):
-function Search() {
-  const id = useId(); // import { useId } từ "react" — ID tất định (React 18), không random
-  useEffect(() => {
-    const sub = subscribe(store);
-    return () => sub.unsubscribe();       // cleanup đúng → double-mount không hại gì
-  }, []);
-  return <p>id: {id}</p>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-tai-sao-lai-can-goc-re-concurrent.tsx`](examples/02-2-tai-sao-lai-can-goc-re-concurrent.tsx)
 
 Tương tự với fetch: `useEffect(() => fetch(...), [])` chạy 2 lần ở dev là **chính xác như hành vi có thể xảy ra ở production** (StrictMode chỉ mô phỏng) — nếu bạn chưa có cancellation (AbortController) hay cache (TanStack Query), bạn đã thấy "double request" ngay trên dev console.
 
 ### 3. Vì sao KHÔNG dùng làm "fix" bằng cách bỏ StrictMode
+
+Mục này chặn trước phản xạ sai phổ biến nhất: gặp log gấp đôi là bọc bỏ StrictMode. Đọc để biết vì sao đó là "gỡ đèn báo đỏ thay vì sửa phanh".
 
 Nhiều project gặp log gấp đôi (2 fetch, 2 effect) rồi **bọc bỏ `<StrictMode>` để "im tiếng"** — sai, vì:
 
@@ -78,6 +61,8 @@ Nhiều project gặp log gấp đôi (2 fetch, 2 effect) rồi **bọc bỏ `<S
 3. Bỏ StrictMode còn mất luôn các warning deprecated (string ref, `findDOMNode`, `UNSAFE_componentWillMount`...) giúp migrate an toàn lên React 19+ (đã dẹp các API này — xem Q2).
 
 ## Bẫy khi phỏng vấn
+
+Mục này là 4 cách trả lời sai hay gặp — đặc biệt bẫy số 4 (initializer useState chạy 2 lần) ai cũng từng dính.
 
 1. **"StrictMode làm app dev chạy chậm/đặc biệt"** → không phải "bug": dev double-invoke là *đặc biệt* (intentional). Production build thì zero impact (dead-code eliminate bằng `process.env.NODE_ENV !== 'production'`).
 2. **Nhầm StrictMode với "chỉ dev" nghĩa là bỏ đi là hết vấn đề** → vấn đề thực là code không pure; StrictMode chỉ là đèn cảnh báo.

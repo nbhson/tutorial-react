@@ -1,0 +1,5 @@
+// package.json — script check chạy bằng bun run (gắn vào pipeline build/CI)
+"scripts": {
+  "build": "vite build",
+  "bundle:check": "node scripts/check-bundle.mjs" // đọc dist/assets, gzip đo, vượt 200kB → exit 1
+}

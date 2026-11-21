@@ -14,16 +14,7 @@
 
 ### 1. Case A: manual, viết ĐÚNG (abort trong cleanup)
 
-```tsx
-useEffect(() => {
-  const ctrl = new AbortController();
-  fetch(url, { signal: ctrl.signal })
-    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    .then(setData)
-    .catch((e: Error) => { if (e.name !== "AbortError") setError(String(e)); });
-  return () => ctrl.abort();   // ← user navigate đi: cleanup chạy, request HỦY
-}, [url]);
-```
+> 📄 **Code ví dụ:** [`examples/01-1-case-a-manual-viet-ung-abort-trong.tsx`](examples/01-1-case-a-manual-viet-ung-abort-trong.tsx)
 
 Hành vi khi user đi: (1) component unmount → cleanup → `ctrl.abort()`; (2) `fetch` reject với `AbortError`; (3) catch **lọc bỏ** AbortError (không hiện "Lỗi: AbortError" giả); (4) **không** có `setState` trên component đã chết. Giá: **data không được lưu ở đâu** — quay lại trang là fetch mới (vì state nằm trong component, chết cùng component).
 
@@ -35,15 +26,7 @@ Request **vẫn chạy tới hết** (AbortController chưa từng được tạ
 
 ### 3. Case C: TanStack Query (hành vi MẶC ĐỊNH, khác A/B)
 
-```tsx
-// Unmount component gọi useQuery(["posts", limit]) — request KHÔNG bị abort
-// (đang active thì QueryClient giữ cho chạy tới khi settle, kết quả vào cache)
-const { data, isPending } = useQuery({
-  queryKey: ["posts", limit],
-  queryFn: fetchPosts,
-  gcTime: 5 * 60_000,   // giữ cache 5' sau unmount (mặc định)
-});
-```
+> 📄 **Code ví dụ:** [`examples/02-3-case-c-tanstack-query-hanh-vi-mac.tsx`](examples/02-3-case-c-tanstack-query-hanh-vi-mac.tsx)
 
 Trình tự user "đang tải → click sang trang khác → quay lại":
 
@@ -66,6 +49,8 @@ Promise truyền xuống component đang suspend: component unmount → **prompt
 | Data khi quay lại | Fetch mới | Fetch mới | **Cache ngay** (≤ gcTime) |
 | Muốn hủy request nền | Đã hủy | — | `cancelQueries` (thủ công) |
 
+> **Cách đọc bảng này:** ba cột là ba kịch bản cho cùng câu hỏi "user đi rồi sao nữa" — đọc ngang từng dòng để so hành vi; cột TanStack Query khác hai cột còn lại ngay từ dòng đầu, đó chính là ý chính.
+
 ### 6. Đối chiếu Angular (điểm ăn điểm cho người từ Angular)
 
 | Angular | React | Ghi chú |
@@ -75,6 +60,8 @@ Promise truyền xuống component đang suspend: component unmount → **prompt
 | **Không có** "chạy tiếp sau destroy" (unsubscribe là xong) | **Query chạy tiếp + cache** | Khác nhau chính: data "sống" ngoài component (cache) vs chết cùng component (state) |
 
 > **Nói đúng câu chốt**: "Angular mặc định **dọn dẹp theo vòng đời component** (unsubscribe = hủy); React prod (Query) **tách vòng đời data khỏi vòng đời component** — request + cache sống trong QueryClient, unmount không giết. Đó là khác nhau lớn nhất, không phải bug."
+
+> **Tóm gọn 1 câu:** Tự viết fetch thì component chết là request bị "kéo theo chết" (abort trong cleanup); TanStack Query thì request sống tiếp và gửi kết quả vào kho (cache) chờ chủ quay lại.
 
 ## Bẫy khi phỏng vấn
 

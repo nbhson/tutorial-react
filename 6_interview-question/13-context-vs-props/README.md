@@ -15,31 +15,7 @@
 
 ### 1. Vì sao Context tồn tại (vấn đề "prop drilling")
 
-```tsx
-// Không Context: App → Page → Card → Button phải truyền theme qua 3 tầng
-<App theme={t}>
-  <Page theme={t}>
-    <Card theme={t}>
-      <Button theme={t} />
-    </Card>
-  </Page>
-</App>
-// Page, Card "đỡ" theme (mặc dù không dùng) — mỗi tầng "đục lỗ" 1 prop
-
-// Có Context: Provider ở App, Button đọc trực tiếp — Page/Card không "biết" theme tồn tại
-<ThemeProvider>
-  <Page>
-    <Card>
-      <ThemedButton />
-    </Card>
-  </Page>
-</ThemeProvider>
-
-function ThemedButton() {
-  const { theme, toggle } = useTheme(); // "đọc" ở "sâu" cũng "được"
-  return <button onClick={toggle}>{theme}</button>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-vi-sao-context-ton-tai-van-e.tsx`](examples/01-1-vi-sao-context-ton-tai-van-e.tsx)
 
 **Vì sao nên Context khi sâu (3–4+ tầng)?** Vì "đục lỗ" props qua từng tầng trung gian → (1) mỗi tầng "biết" một value không phải việc mình; (2) đổi tên prop phải sửa cả chuỗi; (3) code "nặng" hơn.
 
@@ -47,30 +23,7 @@ function ThemedButton() {
 
 ### 2. Ba mảnh bắt buộc (tạo → cấp → đọc)
 
-```tsx
-// (1) TẠO (1 lần khi module load) — default null để "ép" "check"
-const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null);
-
-// (2) CẤP (Provider giữ state, "bọc" "subtree")
-function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
-  const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light"));
-  return <ThemeCtx.Provider value={{ theme, toggle }}>{children}</ThemeCtx.Provider>;
-}
-// React 19: "rút gọn" <ThemeCtx value={...}> "thay" <ThemeCtx.Provider value> (tương đương)
-
-// (3) ĐỌC (consumer "sâu" "mấy" "tầng" "cũng" "được" — "bọc" "vùng")
-function ThemedButton() {
-  const { theme, toggle } = useTheme();
-  return <button onClick={toggle}>{theme}</button>;
-}
-
-function useTheme() {
-  const ctx = useContext(ThemeCtx);
-  if (!ctx) throw new Error("useTheme cần <ThemeProvider>"); // "lỗi" "sớm", "clear"
-  return ctx;
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-ba-manh-bat-buoc-tao-cap-oc.tsx`](examples/02-2-ba-manh-bat-buoc-tao-cap-oc.tsx)
 
 **Tầng trung gian không đọc** context **không re-render** vì value đổi — chỉ **consumer** (component gọi `useContext`) mới render lại.
 
@@ -81,14 +34,7 @@ function useTheme() {
 
 **Hậu quả cần biết**: Nếu 1 context "ôm" 10 field (theme + user + locale + cart) mà 1 field đổi → **mọi consumer của context đó render lại** dù chỉ dùng field khác.
 
-```tsx
-// ❌ Một context "ôm" "tất cả" — "đổi" "theme" "kéo" "locale" "render" "lẫn"
-const AppCtx = createContext<{ theme: Theme; locale: string; user: User }>(...);
-
-// ✅ Tách "theo" "mối quan tâm" — "đổi" "cái nào render" "cái" "đó"
-const ThemeCtx = createContext<Theme>(...);
-const LocaleCtx = createContext<string>(...);
-```
+> 📄 **Code ví dụ:** [`examples/03-3-iem-an-iem-quan-trong-re-render.tsx`](examples/03-3-iem-an-iem-quan-trong-re-render.tsx)
 
 **Lưu ý kèm** (nếu bị hỏi tiếp): `value={{ theme, toggle }}` (object literal) **mới mỗi lần Provider render** → consumer "re-render" theo dù theme không đổi. Fix: bật **React Compiler** (auto-memo), hoặc `useMemo` value, hoặc tách value + actions thành 2 context (xem [`10-memo-format`](../../3_react-tutorial/10-memo-format)).
 
@@ -100,6 +46,8 @@ const LocaleCtx = createContext<string>(...);
 | **3+ tầng**, ít đổi (theme, locale, auth) | **Context** | Tránh "đục lỗ" nhiều tầng; consumer "sâu" đọc trực tiếp |
 | **Đổi thường xuyên** (input, cart, stream) | **Store (Zustand/Redux)** | Mỗi lần value đổi, mọi consumer render — "đắt" hơn cần thiết; "selector" của store giới hạn được |
 | **Nhiều domain thông tin** (user + theme + locale) | **Tách nhiều Context** hoặc **Store** | Một context "ôm tất cả" khiến "mọi" consumer "render" "lẫn" |
+
+> **Cách đọc bảng này:** cột "Đặc điểm" mô tả data của bạn (số tầng, tần suất đổi, số domain), cột "Dùng cái nào" là đáp án — đọc từ trên xuống như một thang quyết định, dừng ở dòng đầu tiên khớp.
 
 ### 5. Đối chiếu Angular (điểm ăn điểm cho người từ Angular)
 
@@ -121,6 +69,8 @@ const LocaleCtx = createContext<string>(...);
 | Default `null` "nhưng" "không guard" (dùng `?.`) | **"Bọc" `useContext` "trong custom hook" (throw)** — "lỗi sớm, clear", không UI "câm" |
 | Object literal `value={{...}}` "mới" "mỗi render" | **Bật Compiler** hoặc `useMemo` value — tránh consumer "re-render" "thừa" |
 | Lẫn Context "và Store" (dùng Context cho cart) | **Context** = "ít đổi" (theme); **Store** = "động + nhiều" (cart) — "nhầm phạm vi" là "đắt" "không cần" |
+
+> **Tóm gọn 1 câu:** Context là đường ống dẫn nước dùng cho gia đình ít xài — xài liên tục thì tra hoá đơn (re-render) đắt hơn cả chuyền ống (props), nên nước sinh hoạt nặng chuyển hẳn qua bơm riêng (store).
 
 ## Bẫy khi phỏng vấn
 

@@ -9,6 +9,9 @@
 - Xử lý chuỗi tiếng Việt đúng thứ tự bằng `localeCompare("vi")`.
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này nói về cách thay `orderBy` bằng `Array.sort` an toàn: copy trước khi sort, quản cột/chiều bằng state, và xử lý chuỗi tiếng Việt. Đọc để tránh hai lỗi "mất mảng gốc" và "sai thứ tự tiếng Việt".
+
 - AngularJS: `ng-repeat="x in items | orderBy:'name'"` — Angular sort ngay trong template; chiều giảm = prefix `-`: `orderBy:'-name'`.
 - React: không có template filter — sắp xếp bằng JS trong `render()`:
   1. **Copy mảng**: `items.slice()` — vì `Array.sort()` sắp xếp **tại chỗ (mutate)**; gọi trực tiếp lên `this.state.items` sẽ đổi state → vi phạm immutable.
@@ -17,10 +20,17 @@
 - Chuỗi tiếng Việt: so sánh `>` theo mã Unicode có thể sai thứ tự từ điển (vd "Đà" vs "Bình"). Dùng **`localeCompare("vi")`** cho đúng bảng chữ cái.
 - State `sortKey`/`sortDir` là ví dụ điển hình của "derived state": dữ liệu hiển thị `sorted` được **suy ra** từ `items` + cấu hình sort, không lưu riêng.
 
+Ví von: `Array.sort()` giống người dọn bàn ăn xếp lại đĩa *ngay trên bàn* (mutate); muốn giữ bàn nguyên thì trước tiên phải bưng nguyên bộ sang một bàn phụ (`slice()`) rồi xếp trên đó. Còn so sánh chuỗi tiếng Việt bằng `>` giống xếp sách theo bảng chữ cái tiếng Anh — "Đ" cứ bị nhét trước "B" oan uổng; `localeCompare("vi")` mới là thủ thư hiểu tiếng Việt.
+
+> **Tóm gọn 1 câu:** Sort trong React = `slice()` copy trước, sort trên bản sao, cột/chiều nằm trong state — chuỗi tiếng Việt dùng `localeCompare("vi")`.
+
 ### Keyword chính
 `sort()` · `slice()` · `immutable` · `comparator` · `localeCompare` · `sortKey/sortDir` · `orderBy`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này chạy một vòng bấm tiêu đề cột: cùng cột bấm lại là đảo chiều, đổi cột là quay về tăng dần — kết hợp với cách render tính lại `sorted` từ state.
+
 1. `SortDemo` khởi tạo `{ sortKey: "name", sortDir: "asc", items: [3 thuật toán] }`.
 2. Bấm tiêu đề cột → `sortBy(key)` → nếu cùng cột đang `asc` thì đảo `desc`, ngược lại set `asc`; cập nhật `sortKey` + `sortDir`.
 3. `render()`: `sorted = items.slice().sort(comparator)` — copy → so sánh theo `sortKey`/`sortDir` (string dùng `localeCompare("vi")`, số dùng `>`).
@@ -30,63 +40,7 @@
 **Chạy:** mở `index.html`, bấm tiêu đề cột để đổi thứ tự.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY class — đối chiếu AngularJS orderBy.
-class SortDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      sortKey: "name",
-      sortDir: "asc",
-      items: [
-        { id: 1, name: "Merge sort", price: 300 },
-        { id: 2, name: "Quick sort", price: 100 },
-        { id: 3, name: "Bubble sort", price: 200 }
-      ]
-    };
-    this.sortBy = this.sortBy.bind(this);
-  }
-  sortBy(key) {
-    this.setState(function (prev) {
-      // bấm lại cùng cột → đảo chiều (↔ orderBy toggle: 'name' ↔ '-name')
-      const dir = prev.sortKey === key && prev.sortDir === "asc" ? "desc" : "asc";
-      return { sortKey: key, sortDir: dir };
-    });
-  }
-  render() {
-    const key = this.state.sortKey, dir = this.state.sortDir;
-    // slice() tạo BẢN SAO trước khi sort (sort mutate tại chỗ) — giữ state nguyên vẹn
-    const sorted = this.state.items.slice().sort(function (a, b) {
-      let r;
-      // string → localeCompare("vi") cho đúng thứ tự tiếng Việt và không phân biệt hoa thường
-      if (typeof a[key] === "string") r = a[key].localeCompare(b[key], "vi");
-      else r = a[key] > b[key] ? 1 : -1; // number → so sánh thường
-      return dir === "asc" ? r : -r;     // asc giữ nguyên, desc đảo dấu
-    });
-    // Mũi tên chỉ cột đang sort: ▲ asc / ▼ desc
-    const arrow = function (k) { return key === k ? (dir === "asc" ? " ▲" : " ▼") : ""; };
-    const self = this;
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Sort (≈ orderBy)</h2>
-        <table border="1" cellPadding="8" style={{ margin: "0 auto" }}>
-          <thead>
-            <tr>
-              <th><button onClick={function () { self.sortBy("name"); }}>Tên{arrow("name")}</button></th>
-              <th><button onClick={function () { self.sortBy("price"); }}>Giá{arrow("price")}</button></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map(function (x) {
-              return <tr key={x.id}><td>{x.name}</td><td>{x.price}</td></tr>;
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`this.state.items.slice().sort(...)`**: `slice()` (không đối số) nhân bản mảng — sort trên bản sao, `items` gốc không đổi. Đây là điểm khác biệt quan trọng nhất so với `orderBy` (Angular tự lo copy).
@@ -96,6 +50,9 @@ class SortDemo extends React.Component {
 - **`function(){ self.sortBy("name"); }`**: closure để truyền tham số cột vào handler — vì `onClick={this.sortBy}` không tự truyền key.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này đối chiếu `orderBy` với sort thủ công từng khía cạnh — quan trọng nhất là dòng "tự bảo vệ mảng gốc".
+
 | AngularJS | React legacy | Ghi chú |
 |---|---|---|
 | `\| orderBy:'name'` | `items.slice().sort(comparator)` | JS thuần thay vì template |
@@ -104,12 +61,21 @@ class SortDemo extends React.Component {
 | Sort so theo Unicode | `localeCompare("vi")` | Đúng thứ tự tiếng Việt |
 | Không có khái niệm cột state | state `sortKey` + `sortDir` | Chủ động quản lý UI |
 
+> **Cách đọc bảng này:** dòng 3 là dòng "nuốt chửng" — Angular tự bảo toàn mảng còn React bắt bạn `slice()` trước; các dòng còn lại dịch cú pháp chiều sort và locale.
+
+> **Tóm gọn 1 câu:** `orderBy:'-name'` thành `slice().sort(comparator)` — Angular lo copy giúp bạn, React phải tự lo, bù lại đúng thứ tự tiếng Việt nhờ `localeCompare`.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Lỗi nguy hiểm nhất nằm ở dòng đầu tiên: mutate state — hậu quả là "unsort không về được".
+
 - **Gọi `items.sort()` trực tiếp trên state** → mảng state bị mutate → re-render dữ liệu gốc đã đổi, "unsort" không về được. → Luôn `slice()` trước.
 - **So sánh chuỗi bằng `>`** → "Đà Nẵng" đứng trước "Bình" sai thứ tự; phân biệt hoa thường. → `localeCompare("vi", {sensitivity:"base"})` nếu cần.
 - **Comparator trả về sai dấu** (0 cho phần tử bằng nhau bị bỏ qua) → thứ tự không ổn định với mảng lớn. → Trả `1 / -1` như ví dụ (hoặc dùng `a[key].localeCompare(...)` vốn đã trả đúng dấu).
 - **Lưu `sorted` vào state** → thêm bước setState thừa, dễ lệch khi items đổi. → Tính mỗi lần render từ nguồn gốc.
 - **Không dùng key trong tbody map** → cảnh báo + diff sai. → `key={x.id}` trên `<tr>`.
+
+> **Tóm gọn 1 câu:** Nhạc điệu của sort: copy → sort → map — bỏ bước copy là mất mảng gốc, so chuỗi bằng `>` là sai bảng chữ cái tiếng Việt.
 
 ## Best practices / Mẹo
 - Nhớ: sort = copy → sort → (filter nếu có) → map. Giữ thứ tự pipeline rõ ràng.
@@ -117,6 +83,9 @@ class SortDemo extends React.Component {
 - Dùng `localeCompare` với option `{sensitivity:"base"}` nếu muốn bỏ qua dấu tiếng Việt khi tìm/so.
 
 ## Bài tập nhỏ
+
+Bài số 2 là đỉnh của bài: ghép filter + sort để mô phỏng đúng pipeline `ng-repeat | filter | orderBy` của AngularJS.
+
 1. Thêm cột "Độ khó" (string như "dễ/trung bình/khó") và sắp xếp theo nó — dùng `localeCompare` và quan sát thứ tự.
 2. Sắp xếp **kết hợp filter** (lấy từ bài filter-search): lọc `query` rồi sort kết quả, mô phỏng `ng-repeat="x in items | filter:q | orderBy:'name'"`.
 

@@ -7,12 +7,16 @@
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
 
+Mục này là "bản nói 30 giây" — nêu được nguyên tắc "đi từng nấc, không nhảy cóc" là đã ăn điểm ngay câu đầu; phần chi tiết bên dưới là checklist từng nấc.
+
 - **Nguyên tắc: đi từng nấc 17 → 18 → 19 → 19.x, không nhảy cóc** — mỗi nấc có một breaking change / checklist ăn theo, sửa xong nấc đó, test xanh rồi mới lên tiếp. Chạy codemod của team React trước khi sửa tay.
 - **4 điểm vỡ theo nấc**: (1) **17 → 18**: `ReactDOM.render` bắt buộc đổi sang `createRoot` — không đổi thì concurrent/batching không chạy. (2) **Lên 18**: auto-batching + StrictMode double-effect lộ bug cũ (effect fetch 2 lần, subscription rò rỉ). (3) **18 → 19**: dọn API deprecated — string ref, `defaultProps` cho function component, `forwardRef` không còn bắt buộc (`ref` thành prop thường). (4) **19.x (19.2/19.3)**: không breaking, nhưng có checklist "ăn theo" — `<Activity>` thay hack giữ state, `useEffectEvent` tách logic non-reactive, `cacheSignal` abort fetch RSC, `<ViewTransition>`/Fragment ref chỗ hợp lý.
 - **Riêng React Compiler (10/2025)**: migration kiểu tooling — `react-compiler-healthcheck` → ESLint plugin v6 sạch → cấu hình đúng theo bundler → rollout từng route → dọn `useMemo`/`useCallback`/`memo` thủ công.
 - **Điểm ăn điểm**: "StrictMode là radar migration" — bật StrictMode ở dev, chỗ nào double-invoke mà sai là chỗ đó sẽ vỡ ở bản mới. Sửa cho StrictMode xanh trước khi nâng version thật.
 
 ## Trả lời chi tiết
+
+Mục này là "hướng dẫn leo cầu thang" từng nấc version kèm checklist vỡ gì ở mỗi nấc — đọc để có ngay kế hoạch migration khả thi thay vì trả lời chung chung "cẩn thận là được".
 
 ### 1. Checklist trước khi động vào version
 
@@ -22,15 +26,7 @@
 
 ### 2. Nấc 17 → 18: đổi root, nhận batching
 
-```tsx
-// ❌ 17: API cũ — lên 18 vẫn chạy nhưng mất concurrent + warning
-import ReactDOM from "react-dom";
-ReactDOM.render(<App />, document.getElementById("root"));
-
-// ✅ 18+: root mới là bắt buộc
-import { createRoot } from "react-dom/client";
-createRoot(document.getElementById("root")!).render(<App />);
-```
+> 📄 **Code ví dụ:** [`examples/01-2-nac-17-18-oi-root-nhan-batching.tsx`](examples/01-2-nac-17-18-oi-root-nhan-batching.tsx)
 
 - **Auto-batching**: `setState` trong Promise/timeout giờ gộp thành 1 render (trước đây mỗi cái 1 render). UI ít render hơn — nhưng code nào đếm số lần render hoặc đọc DOM ngay sau `setState` trong timeout sẽ thấy khác.
 - **StrictMode double-effect ở dev**: effect chạy mount → cleanup → mount lại. Effect không có cleanup đúng (fetch không abort, subscription không unsubscribe) sẽ lộ ngay — sửa bằng cleanup chuẩn, không tắt StrictMode để "cho qua".
@@ -45,13 +41,13 @@ createRoot(document.getElementById("root")!).render(<App />);
 | `forwardRef` | Bắt buộc để nhận ref | Không cần — `ref` là prop thường: `function Input({ ref })` |
 | `findDOMNode` / `UNSAFE_*` | Warning | Bỏ hẳn |
 
+> **Cách đọc bảng này:** mỗi dòng là một API cũ; cột giữa là cách viết vẫn chạy ở 18 nhưng vỡ/bị bỏ ở 19, cột Sau là thay thế chuẩn — dọc cột giữa như "danh sách đồ phải đóng thùng" trước khi chuyển nhà.
+
 Chạy codemod trước, sửa tay phần còn lại:
 
-```bash
-npx codemod@latest react/19/migration-recipe
-```
+> 📄 **Code ví dụ:** [`examples/02-3-nac-18-19-don-deprecated-nhan-api.sh`](examples/02-3-nac-18-19-don-deprecated-nhan-api.sh)
 
-- Sau codemod vẫn phải review tay: codemod đổi cú pháp, không sửa được logic (ví dụ effect thiếu cleanup, ref type sai).
+- Sau codemod vẫn phải review tay: codemod đổi cú pháp, không sửa được logic (ví dụ effect thiếu cleanup, ref type sai). Ví von: codemod như máy gặt đập hợp lực — thu hoạch xong 80% ruộng bằng máy, nhưng còn lại những thửa gập ghềnh (logic) vẫn phải vào tay.
 - API mới (Actions, `use()`, `useOptimistic`) là **cộng thêm, không bắt buộc** — migration xong app chạy đã, rồi mới refactor từng form sang Actions sau (xem Q2).
 
 ### 3b. Checklist 19.0 → 19.2 → 19.3: các nấc nhỏ nhưng có bẫy riêng
@@ -65,6 +61,8 @@ npx codemod@latest react/19/migration-recipe
 | **19.2 (RSC)** | Fetch trong `cache()` nên gắn `cacheSignal()` để abort khi cache hết hạn | Fetch "ma" chạy tiếp sau khi render hủy — lãng phí, treo server |
 | **19.2 → 19.3** | `ref` trên Fragment (`<Fragment ref>`) thay code đo DOM từng item; `<ViewTransition>` thay transition tự viết | Code animation imperative cũ không hưởng auto animation; dual run 2 cơ chế |
 | **19.3** | Component "browser-only" opt-out SSR bằng `use(browser())` thay vì gate `typeof window` thủ công | Kiểm tra `typeof window` rải rác trong render vẫn là anti-pattern và vi phạm Rules of React khi bật Compiler |
+
+> **Cách đọc bảng này:** mỗi dòng là một nấc minor (19.0 → 19.3) xếp theo thứ tự nâng cấp; cột "Việc phải làm" là checklist, cột "Rủi ro nếu bỏ qua" là cái giá phải trả — đọc theo đúng nấc bạn chuẩn bị đi, không cần học cả bảng một lần.
 
 Chi tiết từng API: [`3_react-19-2`](../../4_react-new-feature/3_react-19-2/README.md) và [`4_react-19-3`](../../4_react-new-feature/4_react-19-3/README.md).
 
@@ -93,6 +91,8 @@ App không chỉ có `react`/`react-dom`. Checklist phần "vệ tinh":
 | react-hook-form / RHF resolver | Đã tương thích 19 từ bản 7.5x+; test lại `ref` forwarding vì ref giờ là prop thường |
 | `eslint-plugin-react-hooks` | v6+ cần cho rule của 19 + Compiler; flat config mặc định |
 | Next.js / framework | Framework quyết định version React được nhúng — không tự bump react/react-dom trong Next project |
+
+> **Cách đọc bảng này:** mỗi dòng là một "vệ tinh" đi kèm React; cột phải là việc phải làm ở đúng package đó khi lên 19 — đọc theo các dòng bạn thực sự dùng trong `package.json`, và nhớ thứ tự an toàn nằm ngay dưới bảng.
 
 **Thứ tự an toàn**: nâng types trước (thấy hết warning chỗ dùng API cũ), rồi runtime, rồi framework.
 
@@ -162,6 +162,8 @@ Trả lời mẫu (thể hiện tư duy rollback, không phải việc "thử l�
 | Đã 19.x | Checklist "ăn theo" (Activity/effectEvent/ViewTransition) làm dần theo PR refactor, không blocking |
 | Cân nhắc Compiler | Sau khi 19.x ổn định — healthcheck + ESLint trước, rollout từng route |
 
+> **Cách đọc bảng này:** mỗi dòng là một tình trạng codebase hiện tại; cột Khuyến nghị là lộ trình tương ứng — dò đúng dòng mô tả app của bạn rồi làm theo, đừng áp lộ trình của dòng khác cho app mình.
+
 Nguyên tắc chung: **nâng version là hạ tầng, refactor là feature** — hai việc, hai PR, hai vòng đánh giá rủi ro.
 
 ### 11. Câu hỏi drill-down sau câu chính
@@ -171,7 +173,11 @@ Nguyên tắc chung: **nâng version là hạ tầng, refactor là feature** —
 - **"Codemod chạy xong có cần review không?"** — có: codemod đổi cú pháp (forwardRef → ref prop, bỏ defaultProps) chứ không hiểu nghiệp vụ; diff vẫn phải review + chạy test nền.
 - **"Compiler bật sau hay trước khi nâng lên 19?"** — sau, và coi là migration tooling riêng: nó chạy được cả trên 17/18, nhưng nâng 19 xong code đã sạch deprecated thì healthcheck của compiler ít vi phạm hơn hẳn.
 
+> **Tóm gọn 1 câu:** Migration là leo cầu thang từng bậc 17 → 18 → 19 — mỗi bậc một PR, codemod gặt phần máy móc, StrictMode là đèn pin soi lộ nợ, và xanh từng bậc rồi mới bước tiếp.
+
 ## Bẫy khi phỏng vấn
+
+Mục này là "bản đồ mìn": 8 câu trả lời nghe hợp lý nhưng sai — migration là chủ đề có nhiều "chắc chắn" sai bét nhất.
 
 1. **"Nhảy thẳng 17 → 19 cho nhanh"** → **sai**: mỗi nấc có breaking change riêng, gộp lại không biết vỡ do đâu. Đi từng nấc, test xanh từng nấc.
 2. **"Chạy codemod là xong"** → **sai**: codemod chỉ đổi cú pháp, không sửa logic (effect thiếu cleanup, batching đổi hành vi đọc state). Phải review + test.
@@ -182,7 +188,11 @@ Nguyên tắc chung: **nâng version là hạ tầng, refactor là feature** —
 7. **"Bật React Compiler là xong migration 19"** → **sai lần 2**: compiler là build plugin độc lập với version; bật được cả trên 17/18 (qua preset target) — nó không "kết thúc" migration, chỉ dọn memo thủ công.
 8. **"Healthcheck xanh 100% mới được bật compiler"** → **chưa đúng**: component bị skip vẫn chạy đúng (chỉ không auto-memo). Bật dần, đo thực tế, sửa vi phạm dần.
 
+> **Tóm gọn 1 câu:** Bẫy lớn nhất là nhảy cóc và trộn việc — nhảy version nhiều bậc một lần là vỡ không biết do đâu, còn trộn refactor vào PR migration là lỗi không biết do version hay do code mới.
+
 ## Gợi ý câu chốt
+
+Mục này gói cả bài thành một đoạn trả lời mẫu — đọc để tập nói trọn một hơi rồi diễn đạt lại bằng giọng của mình.
 
 > "Migration React em đi **17 → 18 → 19 từng nấc**: trước hết khoanh API cũ (render cũ, string ref, defaultProps, findDOMNode) + bật StrictMode cho xanh + test nền xanh. Nấc 18 đổi **createRoot**, sửa effect lộ do double-invoke và batching mới. Nấc 19 chạy **codemod**, dọn deprecated (ref là prop thường, bỏ forwardRef/defaultProps). Sau đó 19.2/19.3 là checklist *ăn theo* minor: `<Activity>` thay hack giữ state, `useEffectEvent` tách logic non-reactive, `cacheSignal` abort fetch RSC, `<ViewTransition>`/Fragment ref chỗ hợp lý. Riêng **React Compiler** làm như migration tooling riêng: healthcheck → ESLint plugin v6 sạch → cấu hình đúng theo bundler (Vite 8: `react({ compiler: true })` hoặc `@rolldown/plugin-babel`; Next: flag `reactCompiler`) → rollout từng route → dọn memo thủ công. Mỗi nấc một PR, deploy canary, không trộn refactor nghiệp vụ. StrictMode xanh ở dev là tín hiệu lên version an toàn."
 

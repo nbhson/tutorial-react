@@ -15,42 +15,13 @@
 
 ### 1. Bài toán gốc: keystroke vs list (urgent vs non-urgent)
 
-```tsx
-// ❌ SAI: 1 state cho cả input lẫn list — mỗi phím = render cả list (giật)
-function Search() {
-  const [q, setQ] = useState("");
-  const filtered = DATA.filter((d) => d.includes(q)); // 10.000 item, mỗi phím
-  return <><input value={q} onChange={(e) => setQ(e.target.value)} />
-         <ul>{filtered.map((s) => <li key={s}>{s}</li>)}</ul></>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-bai-toan-goc-keystroke-vs-list-urgent.tsx`](examples/01-1-bai-toan-goc-keystroke-vs-list-urgent.tsx)
 
 Mỗi phím gõ: `setQ` (urgent, phải nhanh) **+** lọc 10k + render list (nặng, non-urgent) — **gộp trong 1 render** = input giật. Cần tách: input **urgent**, list **non-urgent**.
 
 ### 2. Cách 1: `useTransition` (bọc phía "sản xuất" — nơi bạn gọi `setState`)
 
-```tsx
-import { useTransition } from "react";
-
-function Search() {
-  const [q, setQ] = useState("");            // q "gốc" (urgent, input đọc cái này)
-  const [isPending, startTransition] = useTransition();
-  const [query, setQuery] = useState("");    // query "bản chạy" (non-urgent, list đọc)
-
-  const onChange = (e) => {
-    setQ(e.target.value);                    // URGENT: input hiện ngay (không hoãn)
-    startTransition(() => setQuery(e.target.value)); // NON-URGENT: list lọc hoãn
-  };
-
-  return (
-    <div>
-      <input value={q} onChange={onChange} />
-      {isPending && <p>Đang lọc…</p>}         // indicator (giữ UX, không chặn input)
-      <Results query={query} />               // list đọc "bản chạy" (trễ)
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-cach-1-usetransition-boc-phia-san-xuat.tsx`](examples/02-2-cach-1-usetransition-boc-phia-san-xuat.tsx)
 
 - `startTransition` = nói với React "update này **được hoãn**": urgent (gõ chữ sau) tới trước, transition **bỏ dở + làm lại từ giá trị mới nhất** (gõ 5 chữ = chỉ render bản "abcde", không stack 5).
 - `isPending` = `true` khi transition đang chạy → hiện indicator (mờ list / "đang lọc") **mà không chặn input**.
@@ -59,22 +30,7 @@ function Search() {
 
 ### 3. Cách 2: `useDeferredValue` (bọc phía "tiêu thụ" — bạn không kiểm soát việc gọi)
 
-```tsx
-import { useDeferredValue } from "react";
-
-function Search() {
-  const [q, setQ] = useState("");              // 1 state (input đọc q gốc)
-  const dq = useDeferredValue(q);              // dq = "bản trễ" (list đọc dq)
-  const filtered = DATA.filter((d) => d.includes(dq.toLowerCase()));
-  return (
-    <>
-      <input value={q} onChange={(e) => setQ(e.target.value)} />
-      {q !== dq && <p>Đang lọc…</p>}           // so q gốc vs bản trễ (giữa chừng)
-      <ul>{filtered.slice(0, 100).map((s) => <li key={s}>{s}</li>)}</ul>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-3-cach-2-usedeferredvalue-boc-phia-tieu-thu.tsx`](examples/03-3-cach-2-usedeferredvalue-boc-phia-tieu-thu.tsx)
 
 - **1 state** (gọn hơn `useTransition`), `dq` tự "trễ" theo `q`. Chọn khi **giá trị đến từ prop/state của component khác** mà bạn chỉ muốn **trễ nó khi render con** (không muốn sửa mọi chỗ gọi `setState`).
 
@@ -88,6 +44,8 @@ function Search() {
 | **Kể từ** | 18 | 18 | 18 |
 | **Bỏ dở khi urgent tới** | **Có** (làm lại từ giá trị mới nhất) | **Có** | **Có** (giữ render cũ tới khi bản mới xong) |
 
+> **Cách đọc bảng này:** ba cột sau hàng tiêu đề là ba API — so từng dòng ngang để thấy chúng chỉ khác nhau ở **vị trí bọc** (sản xuất vs tiêu thụ) và **có sẵn `isPending` hay không**; hai dòng cuối là dòng quyết định khi chọn.
+
 **Chọn (quy tắc 1 câu)**: đang **cùng component, bạn gọi `setState`** → `useTransition` (được `isPending`); giá trị **từ prop/component khác, chỉ render con** → `useDeferredValue`.
 
 ### 5. Kết hợp Suspense (transition = "giữ UI cũ, không nháy fallback")
@@ -99,6 +57,8 @@ Khi đổi route/widget có `<Suspense>` + data chậm, `startTransition` quanh 
 - **Giữ render cũ** (không giảm node): list 50k item → deferred chỉ **hoãn thời điểm** render nặng; node DOM **vẫn 50k**. List khổng lồ cần **virtualization** (Q30) + deferred **cùng lúc** (một cái "hoãn khi nào", một cái "vẽ bao nhiêu node").
 - **`useDeferredValue` trả "trễ 1 nhịp"**: render giữa chừng có thể thấy `q` đã đổi mà `dq` chưa (hình "giữa chừng" = `q !== dq`). Muốn "chỉ render khi ổn định" → debounce thêm (không phải deferred).
 - **Compiler (2026)**: auto-memo giúp "viết tự nhiên" (Q16) — nhưng **urgent vs non-urgent là quyết định UI (product)**, không phải việc compiler tự lo — transition vẫn viết tay (giữ input nhạy + list nặng).
+
+> **Tóm gọn 1 câu:** `useTransition`/`useDeferredValue` xếp việc lọc list vào "hàng chờ thư giãn" cho phím gõ đi trước — gõ liên tục thì việc cũ bị bỏ dở lấy việc mới, nhưng DOM vẫn nặng đúng mức: list khổng lồ vẫn phải virtualize.
 
 ## Bẫy khi phỏng vấn
 

@@ -1,124 +1,80 @@
 # DAY 1: JSX & HIỂN THỊ DỮ LIỆU
 
+Ngày đầu tiên "nói chuyện" với React: JSX là gì, đưa dữ liệu vào màn hình bằng đường nào, và nhận sự kiện người dùng thế nào. Bài này đối chiếu luôn với Angular (`{{ }}`, `[src]`, `[(ngModel)]`) để bạn thấy bản đồ 1:1 giữa hai framework.
+
 ## Mục tiêu bài học
+
+Mục này nêu 3 đích của DAY 1. Đọc để biết cuối bài bạn làm được gì.
+
 - Nắm JSX là cú pháp mở rộng của TS cho phép viết HTML trong logic render, và `{expression}` là cửa ngõ duy nhất đưa dữ liệu TS vào JSX.
 - Hiểu 4 chiều bind data: interpolation `{}`, attribute binding, event binding (`on*`), và two-way binding qua controlled input.
 - Đối chiếu trực tiếp với Angular: `{{ }}`, `[src]`, `(click)`, `[(ngModel)]` đều có bản đồ 1:1 trong React.
 
+> **Tóm gọn 1 câu:** Cuối DAY 1 bạn biết cả 4 "đường dây" nối TS với JSX: interpolation, attribute, event, và controlled input — cùng bản đồ dịch từ Angular.
+
 ## Khái niệm cốt lõi (Core)
+
+Mục này định nghĩa 7 khái niệm nền của JSX và hiển thị dữ liệu. Đọc tuần tự — mỗi khái niệm dựng trên cái trước.
 
 ### 1. JSX không phải HTML, cũng không phải template string
 Vite (qua esbuild/Babel) biên dịch JSX thành lời gọi `jsx(type, props)`. Về bản chất JSX chỉ là **function call trả về object mô tả UI** (React element), không phải chuỗi HTML, không phải DOM thật.
 
-```tsx
-// Bạn viết thế này:
-const el = <h3>Your name: {name}</h3>;
+> 📄 **Code ví dụ:** [`examples/01-1-jsx-khong-phai-html-cung-khong-phai.tsx`](examples/01-1-jsx-khong-phai-html-cung-khong-phai.tsx)
 
-// Vite biên dịch gần tương đương thế này (giản lược):
-const el = jsx("h3", { children: ["Your name: ", name] });
-// el là object thuần { type: "h3", props: {...} } — React đọc object để dựng DOM.
-```
-
-Vì sao quan trọng? Vì JSX là JS nên bạn được dùng toàn bộ sức mạnh JS: biến, hàm, toán tử, import. Angular template là DSL riêng (cần học `*ngIf`, `| pipe`), còn JSX không có cú pháp mới — biết JS là biết JSX. Hệ quả: mọi logic `if`/`for`/`format` nằm ở phần JS trên đầu component, phần `return` chỉ còn "vẽ". Nếu bạn nhét `if` statement vào trong `{}` sẽ lỗi, vì `{}` chỉ nhận *expression* (giá trị), không nhận *statement* (câu lệnh).
+Vì sao quan trọng? Vì JSX là JS nên bạn được dùng toàn bộ sức mạnh JS: biến, hàm, toán tử, import. Angular template là DSL riêng (cần học `*ngIf`, `| pipe`), còn JSX không có cú pháp mới — biết JS là biết JSX. Hệ quả: mọi logic `if`/`for`/`format` nằm ở phần JS trên đầu component, phần `return` chỉ còn "vẽ". Nếu bạn nhét `if` statement vào trong `{}` sẽ lỗi, vì `{}` chỉ nhận *expression* (giá trị), không nhận *statement* (câu lệnh). Ví von: JSX là **bản vẽ mô hình nhỏ** chứ không phải ngôi nhà — vẽ sai vật liệu thì compiler chặn ngay lúc duyệt bản vẽ, không đợi đến lúc xây.
 
 ### 2. Một chiều dữ liệu rõ ràng
 Dữ liệu đi từ TS → JSX qua `{}` (interpolation/attribute). Sự kiện đi từ JSX → TS qua props `on*` (`onClick`, `onChange`). Không có auto two-way như `[(ngModel)]` — hai chiều được mô hình hóa thành "cha cho giá trị + con báo sự kiện".
 
-```tsx
-// Một chiều xuống: state -> UI
-<p>Your name: {name}</p> // name đổi -> dòng này đổi, không chiều ngược lại
+> 📄 **Code ví dụ:** [`examples/02-2-mot-chieu-du-lieu-ro-rang.tsx`](examples/02-2-mot-chieu-du-lieu-ro-rang.tsx)
 
-// Một chiều lên: UI -> state qua event
-<input value={name} onChange={(e) => setName(e.target.value)} />
-// Người gõ -> onChange fire -> setName -> state đổi -> <p> vẽ lại
-```
-
-Vì sao một chiều tốt? Vì luồng dữ liệu luôn truy vết được: muốn biết `<p>` hiện gì, chỉ cần nhìn `name`. Không có trạng thái "DOM và state lệch nhau". Nếu bạn bỏ `onChange` mà giữ `value`, input "đóng băng" (gõ không vào) — đó không phải bug React, đó là hệ quả đúng của một chiều: UI chỉ phản ánh state, state không đổi thì UI đứng im.
+Vì sao một chiều tốt? Vì luồng dữ liệu luôn truy vết được: muốn biết `<p>` hiện gì, chỉ cần nhìn `name`. Không có trạng thái "DOM và state lệch nhau". Nếu bạn bỏ `onChange` mà giữ `value`, input "đóng băng" (gõ không vào) — đó không phải bug React, đó là hệ quả đúng của một chiều: UI chỉ phản ánh state, state không đổi thì UI đứng im. Hãy hình dung một chiều như **máy chiếu trình chiếu slide**: máy chiếu (UI) chỉ hiện đúng trang slide (state) — muốn đổi hình thì đổi slide, chứ gõ lên màn chiếu không được.
 
 ### 3. Interpolation `{}` chứa mọi JS expression
 Biến, phép toán, gọi hàm, ternary, template string — mọi thứ trả về giá trị đều dùng được. Chỉ cần nhớ: *expression* được, *statement* (`if`, `for`, `switch`) không được.
 
-```tsx
-const user = { name: "Son Nguyen", age: 30 };
-// (1) Biến thuần — dòng này minh họa trong example.tsx
-<h3>Your name: {name}</h3>
-// (2) Phép toán ngay trong JSX — không cần biến trung gian
-<p>Next year: {user.age + 1}</p>
-// (3) Ternary — rẽ nhánh 2 nhánh ngay trong JSX (chi tiết DAY 2)
-<p>{user.age >= 18 ? "Người lớn" : "Vị thành niên"}</p>
-// (4) Gọi hàm format — đây chính là "pipe" của React (chi tiết DAY 10)
-<p>{new Intl.NumberFormat("vi-VN").format(120000)}</p>
-```
+> 📄 **Code ví dụ:** [`examples/03-3-interpolation-chua-moi-js-expression.tsx`](examples/03-3-interpolation-chua-moi-js-expression.tsx)
 
-```tsx
-// ❌ SAI: statement trong {} — lỗi cú pháp
-<p>{if (age > 18) { return "lớn"; }}</p>
-// ✅ ĐÚNG: expression tương đương
-<p>{age > 18 ? "lớn" : "nhỏ"}</p>
-```
+> 📄 **Code ví dụ:** [`examples/04-3-interpolation-chua-moi-js-expression.tsx`](examples/04-3-interpolation-chua-moi-js-expression.tsx)
 
 Nếu render object trực tiếp (`{user}`), React ném "Objects are not valid as a React child". Vì sao? Vì object không có cách hiển thị mặc định. Fix: chọn field cụ thể (`{user.name}`). `true`/`false`/`null`/`undefined` bị bỏ qua khi render — đó là nền tảng của pattern `{cond && <X/>}` ở DAY 2.
 
 ### 4. Controlled input = single source of truth
 `<input value={state} onChange={e => setState(...)} />`: `value` lấy từ state, `onChange` ghi ngược lại state. DOM và state luôn khớp. Đây là cách React thay thế hoàn toàn `[(ngModel)]`.
 
-```tsx
-// example.tsx dùng đúng pattern này:
-const [name, setName] = useState("Son Nguyen");
-<input value={name} onChange={(e) => setName(e.target.value)} />
-// Gõ "x" -> onChange("Son Nguyenx") -> setName -> re-render -> input hiện "Son Nguyenx"
-```
+> 📄 **Code ví dụ:** [`examples/05-4-controlled-input-single-source-of-truth.tsx`](examples/05-4-controlled-input-single-source-of-truth.tsx)
 
-Cơ chế chi tiết: mỗi phím gõ fire `onChange` với `e.target.value` là text hiện tại trong ô. `setName` báo React state đổi → React re-render component → JSX đánh giá lại `value={name}` với giá trị mới → DOM cập nhật. React còn gộp (batch) nhiều `setState` trong cùng event thành một lần re-render để tối ưu. Nếu bạn bỏ `value`, input thành uncontrolled — DOM tự giữ, state không biết, hai nguồn sự thật lệch nhau.
+Cơ chế chi tiết: mỗi phím gõ fire `onChange` với `e.target.value` là text hiện tại trong ô. `setName` báo React state đổi → React re-render component → JSX đánh giá lại `value={name}` với giá trị mới → DOM cập nhật. React còn gộp (batch) nhiều `setState` trong cùng event thành một lần re-render để tối ưu. Nếu bạn bỏ `value`, input thành uncontrolled — DOM tự giữ, state không biết, hai nguồn sự thật lệch nhau. Controlled input giống **quầy thu ngân giữ sổ chính**: mọi tiền khách đưa phải ghi vào sổ (state), màn hình chỉ đọc từ sổ — không có "két riêng" nào lệch số được.
 
 ### 5. Uncontrolled input (ít dùng)
 Chỉ dùng `defaultValue`/`ref`, DOM tự giữ giá trị, React không kiểm soát mỗi phím. Hữu ích cho form lớn cần hiệu năng (không re-render mỗi phím) hoặc tích hợp thư viện DOM thuần.
 
-```tsx
-// Uncontrolled: React chỉ đọc 1 lần khi submit, không kiểm soát lúc gõ
-import { useRef } from "react";
-function Quick() {
-  const ref = useRef<HTMLInputElement>(null); // trỏ vào DOM thật sau mount
-  const submit = () => alert(ref.current?.value); // đọc khi cần, không state
-  return <input ref={ref} defaultValue="Son" />;
-}
-```
+> 📄 **Code ví dụ:** [`examples/06-5-uncontrolled-input-it-dung.tsx`](examples/06-5-uncontrolled-input-it-dung.tsx)
 
 Vì sao controlled vẫn được khuyên? Vì uncontrolled khó validate live, khó disable nút theo input, khó reset. Chỉ dùng uncontrolled khi form hàng chục field và đo được controlled gây lag (chi tiết DAY 11 với react-hook-form dùng uncontrolled + ref để giảm re-render).
 
 ### 6. `{}` không render được object/boolean trực tiếp
 `{someObject}` lỗi; `true`/`false`/`null`/`undefined` bị bỏ qua (không vẽ gì). Đây không phải thiếu sót mà là thiết kế để pattern điều kiện gọn.
 
-```tsx
-const user = { name: "Son" };
-// ❌ SAI: render object — crash "Objects are not valid as a React child"
-<p>{user}</p>
-// ✅ ĐÚNG: chọn field
-<p>{user.name}</p>
-
-// Lợi dụng "bỏ qua": chỉ hiện khi đúng
-{unread > 0 && <span>Bạn có {unread} tin nhắn</span>}
-// unread = 0 -> biểu thức là false -> React bỏ qua, không vẽ gì
-```
+> 📄 **Code ví dụ:** [`examples/07-6-khong-render-uoc-object-boolean-truc-tiep.tsx`](examples/07-6-khong-render-uoc-object-boolean-truc-tiep.tsx)
 
 Cạm bẫy nổi tiếng: `{count && <X/>}` khi `count = 0` sẽ in ra "0" vì `0` là giá trị render được (khác `false`). Fix: `{count > 0 && <X/>}` để vế trái luôn boolean.
 
 ### 7. Event handler nhận SyntheticEvent
 React bọc event trình duyệt thành `SyntheticEvent` thống nhất: có `preventDefault`/`stopPropagation`, hoạt động giống nhau mọi browser. Bạn không cần lo `window.event` hay prefix hãng.
 
-```tsx
-// e tự suy kiểu React.ChangeEvent<HTMLInputElement> — không cần khai tay
-<input onChange={(e) => setName(e.target.value)} />
-// Form submit: bắt buộc preventDefault nếu không trang reload, app React chết
-<form onSubmit={(e) => { e.preventDefault(); save(); }}>
-```
+> 📄 **Code ví dụ:** [`examples/08-7-event-handler-nhan-syntheticevent.tsx`](examples/08-7-event-handler-nhan-syntheticevent.tsx)
 
 Vì sao `onClick={() => alert(...)}` mà không phải `onClick={alert(...)}`? Vì JSX cần *tham chiếu hàm* để gọi sau khi click. `alert(...)` gọi ngay lúc render (truyền kết quả `undefined` vào onClick). Bọc arrow `() => alert(...)` tạo hàm mới, click mới chạy.
 
 ### Keyword chính
 `JSX`, `{expression}`, `interpolation`, `onClick`, `onChange`, `controlled input`, `event`, `fragment`. Thêm `className`, `style object`, `SyntheticEvent` khi đọc code thật.
 
+> **Tóm gọn 1 câu:** Bảy khái niệm chốt một triết lý: JSX là code (không phải template), dữ liệu một chiều từ state ra UI, và state là nguồn sự thật duy nhất.
+
 ## Luồng hoạt động (Flow)
+
+Mục này đi qua 12 bước vòng đời của demo: từ lần render đầu, gõ input, đến bấm nút. Đọc để thấy mọi khái niệm trên "chạy" thế nào trong một component thật.
 1. Component `App` chạy render lần đầu: tạo object `user` (`name`, `age`), đọc `name` khởi tạo state, đọc `isActive = true`.
 2. JSX được đánh giá: `{name}` → "Son Nguyen"; `{user.age + 1}` → 31; `alt={name}` → alt text; `className={isActive ? "active" : ""}` → "active". Kết quả là một cây object (React element tree), chưa phải DOM.
 3. React chuyển element tree thành DOM thật (`<h3>`, `<p>`, `<img>`, `<input>`, `<button>`), hiển thị nội dung.
@@ -132,69 +88,25 @@ Vì sao `onClick={() => alert(...)}` mà không phải `onClick={alert(...)}`? V
 11. React gộp các `setState` trong cùng một event thành một lần re-render (batching) để tối ưu hiệu năng — gõ nhanh 5 phím không phải 5 lần vẽ full cây.
 12. Sau khi commit DOM, React chạy effect (nếu có) — nhưng ở DAY 1 chưa cần effect, chỉ cần state. Effect dành cho hệ thống ngoài (timer/DOM/socket), không phải để tính `{user.age + 1}`.
 
+> **Tóm gọn 1 câu:** 12 bước kể trọn vòng đời: vẽ lần đầu → gõ phím → setName → re-render → diff → vá đúng chỗ — và mọi biến chứng đều là hệ quả của một chiều.
+
 ## Ví dụ chi tiết
+
+Mục này trỏ tới 2 file code khớp 1-1 với `example.tsx` cùng thư mục. Đọc kèm để thấy lý thuyết thành code chạy được.
+
 Code dưới đây khớp 1-1 với `example.tsx` cùng thư mục:
 
-```tsx
-// example.tsx — DAY 1: JSX data display (controlled input + các kiểu binding)
-// Mục đích: chứng minh JSX chỉ là JS expression — mọi dữ liệu TS vào JSX qua {},
-// mọi sự kiện ra qua props on*. Không có ngModel 2 chiều tự động.
-import { useState } from "react"; // (1) Import hook giữ state — input controlled đọc/ghi qua state này
-
-type User = { name: string; age: number }; // (2) Type "hợp đồng" dữ liệu — IDE gợi ý, TS chặn sai kiểu
-
-export default function App() {
-  // (3) Dữ liệu tĩnh demo: object user — minh họa {user.age + 1} tính ngay trong JSX
-  const user: User = { name: "Son Nguyen", age: 30 };
-  // (4) State "name": single source of truth — <h3>, <input>, alert đều đọc từ đây.
-  // Vì sao cần state mà không dùng biến thường? Vì setName mới báo React vẽ lại.
-  const [name, setName] = useState(user.name);
-  // (5) State phụ để minh họa class/style động theo boolean
-  const [isActive, setIsActive] = useState(true);
-
-  return (
-    // (6) Fragment gom nhiều element mà không thêm <div> thừa (tương đương ng-container)
-    <>
-      {/* (7) Interpolation: {name} đọc state — mỗi lần setName, đúng dòng này cập nhật */}
-      <h3>Your name: {name}</h3>
-      {/* (8) Mọi biểu thức JS đều hợp lệ trong {}: phép cộng, gọi hàm, ternary */}
-      <p>Next year: {user.age + 1}</p>
-      {/* (9) Attribute binding: src={...} thay cho [src]="..." của Angular */}
-      <img src="https://picsum.photos/120" alt={name} width={120} />
-      {/* (10) Class/style động: className + object camelCase — tương đương [class.active]/[style.color] */}
-      <div className={isActive ? "active" : ""} style={{ color: isActive ? "green" : "red" }}>
-        Trạng thái: {isActive ? "Đang hoạt động" : "Tạm nghỉ"}
-      </div>
-      <button onClick={() => setIsActive((a) => !a)}>Đảo trạng thái</button>
-      {/* (11) Controlled input: value đọc state + onChange ghi ngược state — thay [(ngModel)] */}
-      {/* e là React.ChangeEvent<HTMLInputElement>, e.target.value là text vừa gõ */}
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Gõ tên..." />
-      {/* (12) Event binding: truyền THAM CHIẾU hàm via arrow — KHÔNG gọi ngay lúc render */}
-      {/* Vì sao bọc arrow? Để click mới gọi alert với name mới nhất từ closure render hiện tại */}
-      <button onClick={() => alert(`Hello ${name}`)}>Click me!</button>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/09-vi-du-chi-tiet.tsx`](examples/09-vi-du-chi-tiet.tsx)
 
 Các biến thể binding hay dùng (đã có một phần trong `example.tsx`, liệt kê đầy đủ để tra cứu):
 
-```tsx
-// Attribute binding (giống [src], [alt]): mọi thuộc tính nhận {} thay vì ngoặc vuông
-<img src={user.avatarUrl} alt={user.name} width={120} />
+> 📄 **Code ví dụ:** [`examples/10-vi-du-chi-tiet.tsx`](examples/10-vi-du-chi-tiet.tsx)
 
-// Conditional text (giống ternary trong template Angular)
-<p>{user.age >= 18 ? "Người lớn" : "Vị thành niên"}</p>
-
-// Class/style động — className là chuỗi, style là object camelCase
-<div className={isActive ? "active" : ""} style={{ color: "red", backgroundColor: "#fff" }} />
-
-// Label/input liên kết: htmlFor thay vì for (vì for là keyword JS)
-<label htmlFor="email">Email</label>
-<input id="email" onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
-```
+> **Tóm gọn 1 câu:** Hai file ví dụ: bản demo chính khớp `example.tsx`, và bảng biến thể binding đầy đủ để tra cứu nhanh.
 
 ## Giải thích từng phần
+
+Mục này bóc từng dòng code trong `example.tsx` kèm "vì sao". Đọc khi muốn hiểu sâu từng quyết định viết code thay vì chỉ copy.
 - Dòng `import { useState } from "react"`: lấy hook giữ state. Vì sao cần? Vì biến thường mất sau mỗi render, state do React giữ qua các lần render và `setName` là cách duy nhất báo React "dữ liệu đổi, vẽ lại đi".
 - Dòng `type User = { name: string; age: number }`: định nghĩa shape dữ liệu. Vì sao type ở đây? Để `user.age` được IDE gợi ý, gõ sai `user.agge` TS báo ngay lúc compile thay vì trắng trang lúc chạy.
 - Dòng `const user: User = { name: "Son Nguyen", age: 30 }`: object tĩnh tạo mỗi render. Vì sao không `useState` cho `user`? Vì `user` không đổi theo thời gian trong demo — dùng biến thường là đủ, chỉ `name` (người dùng sửa) mới cần state. Đây là bài học "đừng state hóa mọi thứ".
@@ -210,7 +122,12 @@ Các biến thể binding hay dùng (đã có một phần trong `example.tsx`, 
 - Dòng `<button onClick={() => alert(...)}}`: arrow bọc để truyền tham chiếu. Khác `onClick={alert(...)}` (gọi ngay lúc render, truyền `undefined` vào onClick). Quy tắc: cần tham số → bọc arrow; không tham số → truyền tên hàm.
 - Quy tắc `{}` không render object: phải chọn field (`{user.name}`), không `{user}`. Boolean/null bị bỏ qua nên `{isActive && <span/>}` là pattern chuẩn sang DAY 2.
 
+> **Tóm gọn 1 câu:** Mỗi dòng code đều có "vì sao" riêng — từ state tách nhỏ, fragment thay div, đến arrow bọc handler: đọc mục này như bản chú thích của ví dụ.
+
 ## Bảng so sánh Angular ↔ React
+
+Mục này là từ điển dịch Angular → React cho các kiểu binding phổ biến. Đọc khi quen Angular và cần "đổi hồ sơ" sang cách viết React.
+
 | Angular | React | Ghi chú |
 |---|---|---|
 | `{{ expr }}` | `{expr}` | Ngoặc nhọn đơn; JSX đọc từ scope TS của hàm, không phải template context |
@@ -225,145 +142,82 @@ Các biến thể binding hay dùng (đã có một phần trong `example.tsx`, 
 | `for` (label) | `htmlFor` | `for` là keyword JS nên JSX đổi tên |
 | `tabindex` | `tabIndex` | Mọi attribute DOM đều camelCase trong JSX |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp "dịch thuật" Angular → React. Cột Angular cho bạn biết bạn đang cần làm gì (nếu quen Angular), cột React là cách viết tương đương, cột Ghi chú nêu điểm khác biệt dễ sập bẫy của cặp đó.
+
+> **Tóm gọn 1 câu:** Bảng này là cuốn từ điển Anh–Việt cho template: tra cú pháp Angular quen thuộc, đọc ra cú pháp React tương đương ngay lập tức.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Mục này liệt kê 9 lỗi kinh điển của DAY 1, mỗi lỗi có ví dụ chạy được. Đọc để biết "sểnh" ở đâu trước khi tự té.
 
 ### 1. `onClick={showInfo()}` thay vì `onClick={showInfo}`
 Mô tả: hàm chạy *ngay lúc render*, không phải lúc click. Nút bấm không còn tác dụng, alert hiện khi mở trang.
 
-```tsx
-// ❌ SAI: gọi hàm lúc render, truyền kết quả (undefined) vào onClick
-function App() {
-  const showInfo = () => alert("hi");
-  return <button onClick={showInfo()}>Bấm</button>; // alert hiện ngay khi mở trang
-}
-```
+> 📄 **Code ví dụ:** [`examples/11-1-onclick-showinfo-thay-vi-onclick-showinfo.tsx`](examples/11-1-onclick-showinfo-thay-vi-onclick-showinfo.tsx)
 
-```tsx
-// ✅ ĐÚNG: truyền tham chiếu; cần tham số thì bọc arrow
-function App() {
-  const showInfo = () => alert("hi");
-  const greet = (n: string) => alert(`hi ${n}`);
-  return (
-    <>
-      <button onClick={showInfo}>Bấm</button>
-      <button onClick={() => greet("Son")}>Chào Son</button>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/12-1-onclick-showinfo-thay-vi-onclick-showinfo.tsx`](examples/12-1-onclick-showinfo-thay-vi-onclick-showinfo.tsx)
 
 ### 2. Dùng `if`/`for` bên trong `{}`
 Mô tả: `if`/`for` là statement, `{}` chỉ nhận expression → lỗi cú pháp.
 
-```tsx
-// ❌ SAI: statement trong JSX — SyntaxError
-return <p>{if (age > 18) { "lớn" } else { "nhỏ" }}</p>;
-return <ul>{for (const x of list) { <li>{x}</li> }}</ul>;
-```
+> 📄 **Code ví dụ:** [`examples/13-2-dung-if-for-ben-trong.tsx`](examples/13-2-dung-if-for-ben-trong.tsx)
 
-```tsx
-// ✅ ĐÚNG: ternary / && / .map() — đều là expression trả giá trị
-return <p>{age > 18 ? "lớn" : "nhỏ"}</p>;
-return <ul>{list.map((x) => <li key={x}>{x}</li>)}</ul>;
-```
+> 📄 **Code ví dụ:** [`examples/14-2-dung-if-for-ben-trong.tsx`](examples/14-2-dung-if-for-ben-trong.tsx)
 
 ### 3. Quên `onChange` → input đóng băng
 Mô tả: giữ `value` mà không có `onChange`, gõ không vào, tưởng browser hỏng.
 
-```tsx
-// ❌ SAI: controlled nhưng không có đường ghi — input đứng im
-const [name, setName] = useState("Son");
-return <input value={name} />; // gõ phím nào cũng không hiện
-```
+> 📄 **Code ví dụ:** [`examples/15-3-quen-onchange-input-ong-bang.tsx`](examples/15-3-quen-onchange-input-ong-bang.tsx)
 
-```tsx
-// ✅ ĐÚNG: luôn cặp value + onChange, hoặc chuyển uncontrolled có chủ đích
-return <input value={name} onChange={(e) => setName(e.target.value)} />;
-// Hoặc uncontrolled: <input defaultValue="Son" ref={ref} />
-```
+> 📄 **Code ví dụ:** [`examples/16-3-quen-onchange-input-ong-bang.tsx`](examples/16-3-quen-onchange-input-ong-bang.tsx)
 
 ### 4. Set state từ giá trị cũ không dùng hàm
 Mô tả: `setName(name + "!")` trong update nhanh (double-click, interval) có thể mất update vì `name` là snapshot cũ của render đó.
 
-```tsx
-// ❌ SAI: đọc snapshot cũ — bấm nhanh 2 lần chỉ tăng 1
-<button onClick={() => { setCount(count + 1); setCount(count + 1); }}>+2?</button> // chỉ +1
-```
+> 📄 **Code ví dụ:** [`examples/17-4-set-state-tu-gia-tri-cu-khong.tsx`](examples/17-4-set-state-tu-gia-tri-cu-khong.tsx)
 
-```tsx
-// ✅ ĐÚNG: functional update đọc giá trị mới nhất do React đảm bảo
-<button onClick={() => { setCount((c) => c + 1); setCount((c) => c + 1); }}>+2</button> // +2 đúng
-```
+> 📄 **Code ví dụ:** [`examples/18-4-set-state-tu-gia-tri-cu-khong.tsx`](examples/18-4-set-state-tu-gia-tri-cu-khong.tsx)
 
 ### 5. Render object trực tiếp
 Mô tả: `{user}` ném "Objects are not valid as a React child", trang trắng.
 
-```tsx
-// ❌ SAI
-const user = { name: "Son", age: 30 };
-return <p>{user}</p>;
-```
+> 📄 **Code ví dụ:** [`examples/19-5-render-object-truc-tiep.tsx`](examples/19-5-render-object-truc-tiep.tsx)
 
-```tsx
-// ✅ ĐÚNG: chọn field cụ thể, hoặc stringify để debug
-return <p>{user.name} — {user.age} tuổi</p>;
-// Debug: <pre>{JSON.stringify(user, null, 2)}</pre>
-```
+> 📄 **Code ví dụ:** [`examples/20-5-render-object-truc-tiep.tsx`](examples/20-5-render-object-truc-tiep.tsx)
 
 ### 6. Dùng `class` thay vì `className`
 Mô tả: React cảnh báo `Invalid DOM property 'class'. Did you mean 'className'?`, style không áp dụng đúng.
 
-```tsx
-// ❌ SAI
-<div class="active">Hi</div>
-```
+> 📄 **Code ví dụ:** [`examples/21-6-dung-class-thay-vi-classname.tsx`](examples/21-6-dung-class-thay-vi-classname.tsx)
 
-```tsx
-// ✅ ĐÚNG
-<div className="active">Hi</div>
-```
+> 📄 **Code ví dụ:** [`examples/22-6-dung-class-thay-vi-classname.tsx`](examples/22-6-dung-class-thay-vi-classname.tsx)
 
 ### 7. `style="color:red"` (chuỗi)
 Mô tả: TS lỗi type, runtime React bỏ qua.
 
-```tsx
-// ❌ SAI
-<div style="color:red">Hi</div>
-```
+> 📄 **Code ví dụ:** [`examples/23-7-style-color-red-chuoi.tsx`](examples/23-7-style-color-red-chuoi.tsx)
 
-```tsx
-// ✅ ĐÚNG: object camelCase, giá trị string/number
-<div style={{ color: "red", backgroundColor: "#fff", marginTop: 12 }}>Hi</div>
-```
+> 📄 **Code ví dụ:** [`examples/24-7-style-color-red-chuoi.tsx`](examples/24-7-style-color-red-chuoi.tsx)
 
 ### 8. `{count && ...}` khi count = 0 in ra "0"
 Mô tả: `0` là giá trị render được, không bị bỏ qua như `false`.
 
-```tsx
-// ❌ SAI: count = 0 -> hiện số 0 lạc lõng trước nội dung
-{count && <span>Bạn có tin nhắn</span>}
-```
+> 📄 **Code ví dụ:** [`examples/25-8-count-khi-count-0-in-ra-0.tsx`](examples/25-8-count-khi-count-0-in-ra-0.tsx)
 
-```tsx
-// ✅ ĐÚNG: ép boolean rõ ràng
-{count > 0 && <span>Bạn có {count} tin nhắn</span>}
-```
+> 📄 **Code ví dụ:** [`examples/26-8-count-khi-count-0-in-ra-0.tsx`](examples/26-8-count-khi-count-0-in-ra-0.tsx)
 
 ### 9. `useState` đặt trong `if`
 Mô tả: vi phạm rules of hooks — "Rendered more hooks than during the previous render" khi điều kiện đổi.
 
-```tsx
-// ❌ SAI: số lượng hook đổi theo render
-if (user) { const [x, setX] = useState(0); }
-```
+> 📄 **Code ví dụ:** [`examples/27-9-usestate-at-trong-if.tsx`](examples/27-9-usestate-at-trong-if.tsx)
 
-```tsx
-// ✅ ĐÚNG: hook luôn top-level, điều kiện nằm BÊN TRONG hoặc sau hook
-const [x, setX] = useState(0);
-if (!user) return null;
-```
+> 📄 **Code ví dụ:** [`examples/28-9-usestate-at-trong-if.tsx`](examples/28-9-usestate-at-trong-if.tsx)
+
+> **Tóm gọn 1 câu:** Chín lỗi đều có chung mẫu số: viết "theo bản năng HTML/JS" thay vì theo luật của JSX — mỗi lỗi có file ví dụ để chạy và tự thấy.
 
 ## Best practices / Mẹo
+
+Mục này gom 8 mẹo viết JSX sạch và bền. Đọc sau khi nắm khái niệm để nâng chất lượng code ngay từ DAY 1.
 - Đưa **logic format ra ngoài JSX** (biến/hàm trên đầu component) để JSX đọc như HTML sạch. Vì sao? Vì JSX lẫn logic dày đặc khó review; biến đặt tên tốt (`nextYear`, `isAdult`) tự tài liệu. Format nặng gộp vào `Intl`/hàm thuần (DAY 10).
 - Dùng **derived data** thay vì state trùng lặp: `nextYear = user.age + 1` tính mỗi render là rẻ — đừng `useState` giá trị tính được. Vì sao? Vì hai nguồn (state + gốc) dễ lệch; derived luôn đúng.
 - Tận dụng TS: type cho `user` và props; `onChange` tự suy kiểu, đừng khai `React.FormEvent` thủ công trừ khi cần. Vì sao? Để compile chặn sai kiểu sớm, IDE gợi ý đủ.
@@ -372,6 +226,8 @@ if (!user) return null;
 - Giữ handler ngắn; handler phức tạp tách hàm đặt tên (`handleSubmit`) để dễ đọc và test. Vì sao? Vì JSX chỉ nên "vẽ", logic đặt tên ở trên dễ unit test.
 - Đặt `aria-label`/`htmlFor` cho input/button — vừa a11y vừa giúp test `getByRole` (DAY 21). Vì sao? Vì query theo role/label bền trước refactor class/style.
 - Giữ mỗi phần tử JSX đủ nhỏ để tách component khi nó bắt đầu phình to (quy tắc ngón tay: >80 dòng cân nhắc tách). Vì sao? Vì component nhỏ dễ memo, dễ test, dễ tái dùng.
+
+> **Tóm gọn 1 câu:** Tám mẹo chung một hướng: JSX chỉ nên "vẽ" — logic tính trước, state không trùng lặp, TS chặn lỗi sớm, còn Compiler lo memo giúp bạn.
 
 ## Bài tập nhỏ
 1. Thêm `{user.name.length}` và một ô input thứ 2 để sửa `age` (state riêng) — xem cả 2 dòng cập nhật đồng bộ. Vì sao cần state riêng cho `age` mà không sửa `user.age` trực tiếp?

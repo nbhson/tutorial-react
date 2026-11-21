@@ -21,49 +21,24 @@
 | Lighthouse / WebPageTest | **LCP** — bundle lớn = LCP cao | Chốt trước release |
 | Script check size (gzip dist) trong CI (chạy `bun run`) | **Budget** (vượt = đỏ) | Mọi release |
 
+> **Cách đọc bảng này:** bốn công cụ xếp theo tần suất dùng — từ "soi hằng ngày" (build report) tới "soi trước release" (Lighthouse) và "gác tự động" (CI budget); cột "Dùng khi" cho biết nhịp chạy.
+
 > **Gzip/brotli là size người dùng THẬT** (trình duyệt nhận) — đánh giá bằng size đó, không phải size file thô. (Visualizer `gzipSize: true` để thấy đúng.)
 
 ### 2. Code splitting: `React.lazy` + `Suspense` (chunk chỉ tải khi cần)
 
-```tsx
-// Vite thấy import() động → tách file thành chunk riêng; index chỉ còn shell
-import { lazy, Suspense } from "react";
-
-const ChartPage = lazy(() => import("./pages/Chart")); // Chart-[hash].js riêng
-
-<Suspense fallback={<p>Đang tải…</p>}>
-  <ChartPage />
-</Suspense>
-```
+> 📄 **Code ví dụ:** [`examples/01-2-code-splitting-react-lazy-suspense-chunk-chi.tsx`](examples/01-2-code-splitting-react-lazy-suspense-chunk-chi.tsx)
 
 - Chunk **chỉ tải lần đầu render** (không phải lúc `lazy()` gọi), sau đó cache theo URL (remount không tải lại).
 - **Route-level với Router v7** (không viết tay Suspense mỗi trang):
 
-```tsx
-const router = createBrowserRouter([
-  { path: "/chart", lazy: () => import("./pages/Chart") }, // Router tự split + Suspense
-]);
-```
+> 📄 **Code ví dụ:** [`examples/02-2-code-splitting-react-lazy-suspense-chunk-chi.tsx`](examples/02-2-code-splitting-react-lazy-suspense-chunk-chi.tsx)
 
 - **Split theo route trước, widget nặng sau** (chart, editor, map) — route là chunk lớn nhất và ít vào cùng lúc. **Không lazy component nhỏ** (< ~20KB): request nhỏ tràn lan, TTFB tệ — hơn thiệt ngược.
 
 ### 3. Vendor riêng: `manualChunks` (cache lâu, sửa app không tải lại vendor)
 
-```ts
-// vite.config.ts
-export default defineConfig({
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          // chunk hash ổn định (vendor hiếm đổi) → browser cache lâu
-        },
-      },
-    },
-  },
-});
-```
+> 📄 **Code ví dụ:** [`examples/03-3-vendor-rieng-manualchunks-cache-lau-sua-app.ts`](examples/03-3-vendor-rieng-manualchunks-cache-lau-sua-app.ts)
 
 - **Vì sao đáng tiền**: sửa 1 dòng code app → chỉ app chunk đổi hash; `react-vendor` giữ nguyên → trình duyệt **không tải lại 140KB react** (bài Vite trong techniques).
 - **Quy tắc**: gom nhóm **≥ ~20KB** (mỗi lib 1 chunk 5KB = phí request + cache kém — quá mịn là phản tác dụng, Vite 7 có `advancedChunks` gom gọn hơn).
@@ -89,18 +64,9 @@ export default defineConfig({
 
 ### 6. Budget CI — giữ không phình lại (điểm "quản lý" của câu hỏi)
 
-```jsonc
-// package.json — script check chạy bằng bun run (gắn vào pipeline build/CI)
-"scripts": {
-  "build": "vite build",
-  "bundle:check": "node scripts/check-bundle.mjs" // đọc dist/assets, gzip đo, vượt 200kB → exit 1
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-6-budget-ci-giu-khong-phinh-lai-iem.jsonc`](examples/04-6-budget-ci-giu-khong-phinh-lai-iem.jsonc)
 
-```js
-// scripts/check-bundle.mjs — ngắn gọn: gzip size critical chunk > budget là đỏ
-// (đọc file dist, compress zlib gzip, so threshold; CI run: bun run build && bun run bundle:check)
-```
+> 📄 **Code ví dụ:** [`examples/05-6-budget-ci-giu-khong-phinh-lai-iem.js`](examples/05-6-budget-ci-giu-khong-phinh-lai-iem.js)
 
 - Không budget = tối ưu 1 tuần, phình lại 1 tháng sau (lib mới ai đó import). **CI đỏ khi vượt** = quản lý dài hạn.
 
@@ -115,6 +81,8 @@ export default defineConfig({
 | Budget trong `angular.json` (warning/error theo size) | Script check size trong CI (bun run) | Cả hai đều **CI guard** — ý tưởng giống, công cụ khác |
 
 > **Nói đúng câu chốt**: "Angular tối ưu bundle bằng **strategy router có sẵn** (preload/lazy module); React tối ưu bằng **bundler + tín hiệu** (code splitting tự động theo `import()`, vendor chunks theo cache, preloading theo hover/idle). Cùng mục tiêu critical-path nhỏ; khác ở 'ai giữ' — Angular framework nắm giữ, React bạn nắm giữ (library, Q1)."
+
+> **Tóm gọn 1 câu:** Giảm bundle giống giảm cân: cân trước (visualizer), cắt theo thứ tự rẻ-trước-đắt-sau, và có cán cân CI đứng gác để không béo lại sau một tháng.
 
 ## Bẫy khi phỏng vấn
 

@@ -2,9 +2,11 @@
 
 > Nguồn: https://react.dev/learn — đối chiếu Angular `8_best-practices/`
 
-Nhóm này chốt lại **cách viết code React "đúng chuẩn"**: quy ước & style (nhất quán cho người và AI), accessibility (dùng được với mọi người), xử lý lỗi (không vỡ trắng trang), và hiệu năng (đo trước khi tối ưu).
+Nhóm này chốt lại **cách viết code React "đúng chuẩn"**: quy ước & style (nhất quán cho người và AI), accessibility (dùng được với mọi người), xử lý lỗi (không vỡ trắng trang), và hiệu năng (đo trước khi tối ưu). Đây là lớp "kiểm định chất lượng cuối" trước khi code ra tới tay người dùng.
 
 ## Nhóm này giải quyết gì
+
+Mục này nêu 4 vấn đề chất lượng điển hình và bài nào giải nó. Đọc để định vị vấn đề của bạn trước khi chọn bài.
 
 Đây là lớp "chất lượng cuối cùng" trước khi code ra tới người dùng. Bốn trụ:
 
@@ -13,14 +15,24 @@ Nhóm này chốt lại **cách viết code React "đúng chuẩn"**: quy ước
 3. **Vỡ trắng trang khi có lỗi** — một lỗi con làm sập cả app → error boundary nhiều tầng.
 4. **Tối ưu cảm tính** — không có checklist đo lường → performance guide theo Core Web Vitals.
 
+Hãy hình dung 4 bài như **4 vòng kiểm định trước khi ô tô ra khỏi nhà máy**: kiểm tra thiết kế (style), kiểm tra ghế an toàn cho mọi hành khách (a11y), túi khí khi va chạm (error boundary), và thử tiêu hao nhiên liệu (performance).
+
+> **Tóm gọn 1 câu:** Bốn trụ cột chất lượng: nhất quán, ai cũng dùng được, không sập khi lỗi, và nhanh có số liệu — mỗi bài con giữ một trụ.
+
 ## Khi nào cần
+
+Mục này chỉ thời điểm áp mỗi bài trong chu kỳ làm việc. Đọc để biết chèn bài nào vào bước nào của quy trình.
 
 - **Trước khi mở PR / review**: style guide (1) và a11y (2) là tiêu chí bắt buộc.
 - **Mọi app có network/API**: error boundary (3) bảo vệ trải nghiệm khi sự cố.
 - **Trước mỗi release**: performance guide (4) là vòng lặp đo–sửa cuối.
 - **Dùng AI sinh code**: style guide (1) là "luật" cho prompt ở nhóm `7_build-with-ai`.
 
+> **Tóm gọn 1 câu:** Style + a11y chặn ở cổng PR, error boundary gắn sẵn mọi app có API, performance đo trước release — còn style guide thì AI cũng phải theo.
+
 ## Các bài con
+
+Mục này liệt kê 4 bài trong nhóm kèm mapping sang Angular. Dùng như mục lục để nhảy thẳng tới bài cần.
 
 | # | Folder | Mapping Angular | Nội dung |
 |---|---|---|---|
@@ -29,7 +41,13 @@ Nhóm này chốt lại **cách viết code React "đúng chuẩn"**: quy ước
 | 3 | [3_error-boundary/](3_error-boundary/README.md) | `/best-practices/error-handling` | 3 tầng lỗi: render (boundary), data (query), toàn cục (log + fallback). Phân biệt lỗi mạng vs 4xx. |
 | 4 | [4_performance-guide/](4_performance-guide/README.md) | `/guide/performance` | Checklist CWV: đo → render ít → bundle nhỏ → asset tối ưu. Gắn với nhóm 3_performance-optimization. |
 
+> **Cách đọc bảng này:** mỗi dòng là một bài con, xếp theo thứ tự nên đọc; cột "Nội dung" tóm tắt đủ để chọn — muốn chi tiết bấm vào Folder, còn cột "Mapping Angular" để ai quen docs Angular đối chiếu nhanh.
+
+> **Tóm gọn 1 câu:** Bốn bài bốn trụ: style guide đặt luật, a11y mở cửa cho mọi người, error boundary giữ app không sập, performance guide chốt bằng số liệu.
+
 ## Mô tả chi tiết từng bài
+
+Mục này kể dài hơn về từng bài so với bảng trên. Đọc khi cần hiểu phạm vi của mỗi trụ trước khi đào sâu.
 
 ### 1. Style Guide (React 19 + Compiler)
 Quy tắc đặt tên + cấu trúc để team và AI sinh code nhất quán: file/component `PascalCase.tsx`, hook `useX.ts`, folder `kebab-case`; function component + TS; default qua destructuring (không `defaultProps`); không mutate props/state (Compiler-safe); 1 component/1 file; barrel `index.ts` chỉ ở `shared/ui`; thứ tự import cố định. Nền tảng Airbnb, loại bỏ phần lỗi thời với React 19.
@@ -43,7 +61,11 @@ Ba tầng lỗi: **render** (Error Boundary bắt lỗi con), **data** (TanStack
 ### 4. Performance Guide
 Checklist hiệu năng: **đo trước** (Core Web Vitals: LCP < 2.5s, INP < 200ms, CLS < 0.1 + Profiler), **render ít** (Compiler + `memo` đúng chỗ, state gần nơi dùng, `useDeferredValue`/`useTransition`), **bundle nhỏ** (lazy route, `manualChunks`), **assets** (ảnh avif/webp + `loading="lazy"` + kích thước; font swap + preload), **data** (`staleTime`, pagination). Chi tiết sâu hơn ở nhóm `3_performance-optimization` và bài `6_dev-tools/4-devtools-perf`.
 
+> **Tóm gọn 1 câu:** Bài 1 đặt luật, bài 2 mở cửa cho mọi người, bài 3 neo app khi có lỗi, bài 4 đóng gói bằng vòng đo–sửa trước release.
+
 ## Thứ tự đọc gợi ý
+
+Mục này chỉ đường qua 4 bài. Đọc để học có nền — bài sau dựa vào quy ước của bài trước.
 
 ```
 1 (style guide) → 2 (a11y) → 3 (error boundary) → 4 (performance)
@@ -54,14 +76,22 @@ Checklist hiệu năng: **đo trước** (Core Web Vitals: LCP < 2.5s, INP < 200
 - **3**: bảo vệ trải nghiệm khi có sự cố.
 - **4**: vòng lặp đo–sửa cuối cùng trước release.
 
+> **Tóm gọn 1 câu:** Đi đúng hàng 1 → 4: luật trước, người dùng ở giữa, ứng phó sự cố kế, và số liệu hiệu năng chốt hạ.
+
 ## Cách phối hợp / Liên quan tới bài nào khác
+
+Mục này nối 4 bài ra các khu vực khác của repo. Đọc khi muốn kéo kiến thức sẵn có vào quy trình chất lượng.
 
 - **Style guide (1)** là "luật" cho mọi code, được enforce tự động bởi ESLint (`6_dev-tools/2-eslint-flat-hooks`) và dùng làm prompt cho AI (`7_build-with-ai/1`).
 - **a11y (2)** là tiêu chí chất lượng bắt buộc trong review; liên hệ `1_advanced-features/5` (`prefers-reduced-motion`) và `4_security-config/1-xss-escape`.
 - **Error boundary (3)** bảo vệ trải nghiệm khi có sự cố; gắn với remote MF (`5_micro-frontend/1`) và data query (`1_advanced-features/3`).
 - **Performance (4)** là vòng lặp đo–sửa cuối cùng trước release; dùng công cụ ở `6_dev-tools/4` và nội dung sâu ở `3_performance-optimization`.
 
+> **Tóm gọn 1 câu:** Nhóm này là "hầm kiểm định" mà 4 khu khác của repo đều chảy qua — luật cho AI, công cụ đo, dữ liệu và micro-frontend đều liên hệ.
+
 ## Sai lầm thường gặp (tổng hợp)
+
+Mục này gom 6 sai lầm điển hình rải rác ở 4 bài về một chỗ. Đọc như checklist rà nhanh trước khi mở PR.
 
 - **Mỗi dev viết một kiểu** → review tốn thời gian; style guide (1) + ESLint enforce là "luật".
 - **`div onClick` thay `button`** → không dùng được bàn phím/screen reader; ưu tiên semantic HTML (2).
@@ -70,13 +100,19 @@ Checklist hiệu năng: **đo trước** (Core Web Vitals: LCP < 2.5s, INP < 200
 - **Retry mọi lỗi query** → retry cả 4xx là vô nghĩa; chỉ retry lỗi mạng/5xx (3).
 - **Tối ưu khi chưa đo** → bắt đầu bằng Core Web Vitals + Profiler (4).
 
+> **Tóm gọn 1 câu:** Sáu sai lầm, sáu con số quy chiếu (1–4) — thấy đúng lỗi thì vào đúng bài chữa.
+
 ## Câu hỏi thường gặp
+
+Mục này trả lời 5 câu hỏi người mới hay hỏi nhất. Đọc để gỡ nhanh thắc mắc không cần đọc cả bài.
 
 - **Style guide có cần thiết cho team nhỏ?** Ít nhất cho AI + review; càng đông càng quan trọng.
 - **a11y có tốn nhiều thời gian không?** Không nếu làm ngay từ đầu: semantic HTML + label + focus.
 - **ErrorBoundary bắt được lỗi nào?** Chỉ lỗi render của cây con — không bắt event handler, async, hay lỗi ở chính nó.
 - **Core Web Vitals ngưỡng nào?** LCP < 2.5s, INP < 200ms, CLS < 0.1 (tốt).
 - **Bao lâu đo performance một lần?** Trước mỗi release, và sau mỗi thay đổi lớn về render/bundle/asset.
+
+> **Tóm gọn 1 câu:** Đáp ứng nhanh: team nhỏ cũng cần luật, a11y rẻ nếu làm sớm, boundary bắt mỗi lỗi render, CWV nhớ ba ngưỡng 2.5s/200ms/0.1, và đo trước mỗi release.
 
 ## Tham khảo
 - [React — Learn](https://react.dev/learn)

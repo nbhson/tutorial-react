@@ -9,11 +9,16 @@
 > Exhaustive check (`never`) để làm gì? Hook generic và tuple `as const` (mô phỏng `useState`) thì sao?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
+
+Mục này là "bản nói 30 giây" — chốt được khung 3 gạch đầu dòng là đã qua vòng loại; phần chi tiết bên dưới dùng để đỡ khi bị hỏi đào sâu.
+
 - Viết type **một lần** ở Zod schema (runtime), suy ra type TS bằng `z.infer`, dùng xuyên suốt state/props/API. Đổi schema là mọi nơi theo.
 - State máy (idle/loading/success/error) viết dạng union có nhãn thay vì 3 cờ rời: ở nhánh success thì `data` chắc chắn có, khỏi dấu `!`. Thêm check `never` để quên case nào là báo ngay.
 - `as` là "bảo type system nhắm mắt": chỉ chấp nhận ở **biên** (đọc env/JSON từ ngoài vào, và phải qua Zod trước), càng vào sâu logic càng cấm.
 
 ## Trả lời chi tiết
+
+Mục này lần lượt mở từng mảnh: "1 nguồn sự thật" hoạt động thế nào, state máy viết kiểu gì, và dấu `as` khi nào là tội — đọc để trả lời được câu "vì sao" thay vì chỉ liệt kê công cụ.
 
 ### 1. Type safety end-to-end — 1 nguồn sự thật (nói được = ăn điểm)
 
@@ -24,46 +29,23 @@
 | **State / Props / API** | Dùng **type đó** (không "bản thứ 2") | `type User = z.infer<typeof UserSchema>` |
 | **Test / Mock** | **Cùng type** (mock phải đúng shape) | Cùng 1 type |
 
-> **Vì sao "đắt giá"**: 1 schema = **1 type** (mọi tầng dùng lại). Đổi schema (thêm field) = **TS bắt mọi nơi "thiếu"** (prop, state, mock) — "an toàn" **tự động**, không "nhớ sửa 5 chỗ" (Q18: "zodResolver + z.infer").
+> **Cách đọc bảng này:** mỗi dòng là một tầng của app; cột Nguồn type cho biết type ở tầng đó "sinh ra từ đâu" — đọc từ trên xuống để thấy cả 4 tầng cùng uống từ một nguồn duy nhất (schema), không tầng nào tự vẽ type riêng.
+
+> **Vì sao "đắt giá"**: 1 schema = **1 type** (mọi tầng dùng lại). Đổi schema (thêm field) = **TS bắt mọi nơi "thiếu"** (prop, state, mock) — "an toàn" **tự động**, không "nhớ sửa 5 chỗ" (Q18: "zodResolver + z.infer"). Ví von: schema là "bản thiết kế gốc" — mọi tầng chỉ photocopy từ bản gốc chứ không ai tự vẽ lại; sửa bản gốc, mọi bản photocopy cũ lập tức "chéo lệch" và bị phát hiện.
 
 ### 2. Discriminated union (state máy) — vì sao "1 object" thay "3 flag"
 
-```ts
-// SAI: 3 flag rời (isLoading/data/error) — các trạng thái mâu thuẫn có thể tồn tại (loading mà có error?)
-type State = { isLoading: boolean; data: User[] | null; error: string | null };
-// render phải đoán tổ hợp nào hợp lệ — không có type nào "bảo" bạn
-
-// ĐÚNG: discriminated union — mỗi state chỉ có đúng field của nó
-type State =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "success"; data: User[] }   // data chỉ có ở success, không phải null
-  | { status: "error"; error: string };    // error chỉ có ở error
-// TS narrow type theo status — mỗi case "biết" chính xác field nào hiện diện
-```
+> 📄 **Code ví dụ:** [`examples/01-2-discriminated-union-state-may-vi-sao-1.ts`](examples/01-2-discriminated-union-state-may-vi-sao-1.ts)
 
 **Exhaustive check (đắt giá nhất)** — bắt "quên case mới":
 
-```ts
-function renderState(s: State) {
-  switch (s.status) {
-    case "idle":    return <p>Ready</p>;
-    case "loading": return <Spinner />;
-    case "success": return <List data={s.data} />;   // s.data đảm bảo defined, không cần "!"
-    case "error":   return <Alert msg={s.error} />;
-    default: {
-      const _exhaustive: never = s; // thêm state mới mà chưa xử lý → compile error ngay đây
-      return _exhaustive;
-    }
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-discriminated-union-state-may-vi-sao-1.ts`](examples/02-2-discriminated-union-state-may-vi-sao-1.ts)
 
-> **"Ăn điểm"**: thêm case mới (status: "pending") = **TS "báo"** — default không còn type `never`, **phải** xử lý case mới. Nếu dùng "flag rời", bạn **bỏ quên** case mới = **chạy sai về runtime** (không có cảnh báo).
+> **"Ăn điểm"**: thêm case mới (status: "pending") = **TS "báo"** — default không còn type `never`, **phải** xử lý case mới. Nếu dùng "flag rời", bạn **bỏ quên** case mới = **chạy sai về runtime** (không có cảnh báo). Ví von: 3 flag rời như 3 đồng đội mỗi người một tờ giấy nhớ — thêm trạng thái mới chẳng ai bắt cả ba đồng bộ; union có nhãn là một "bảng đèn máy ATM" — chỉ một đèn sáng mỗi lần, đèn nào sáng thì mọi dữ liệu đi kèm chắc chắn đúng khung.
 
 ### 3. `as` — "đánh lừa" type system (biết "sai khi nào" = ăn điểm)
 
-- **`as T` / `as unknown as T`** = nói với TS "tôi biết, cho qua" — **không có kiểm tra** (lỗi type bị che). **Smell** khi dùng để **"đẩy code chạy"** (bỏ qua guard, cast `any`).
+- **`as T` / `as unknown as T`** = nói với TS "tôi biết, cho qua" — **không có kiểm tra** (lỗi type bị che). **Smell** khi dùng để **"đẩy code chạy"** (bỏ qua guard, cast `any`). Ví von: `as` như đóng dấu "hàng hợp lệ" lên kiện hàng mà chẳng mở ra soi — ai đóng dấu đều được qua cửa, dù bên trong là gì.
 - **Đúng ở "biên" (borders)**: data không tin cậy (string env / `JSON.parse` / API raw / `localStorage`) → **Zod** (runtime) **parse rồi dùng `z.infer`** — **không cần `as`** (Q23: "validate ở biên, không rải rác").
 - **Sai "trong" logic**: dùng `as` **để né guard** (if, union), hoặc đặt `any` vì **lười định nghĩa đúng** — **sai từ gốc** (mô hình type sai; sửa model, đừng đánh lừa).
 
@@ -71,35 +53,19 @@ function renderState(s: State) {
 
 ### 4. `z.infer` — nguồn của type (không viết 2 lần)
 
-```ts
-// 1 schema -> 1 type (đổi 1 nơi, mọi chỗ dùng tự cập nhật)
-const UserSchema = z.object({ id: z.string(), name: z.string() });
-type User = z.infer<typeof UserSchema>; // type suy ra từ schema, không viết interface thứ 2
-
-// API raw (string, không tin) -> parse (runtime) -> type đúng
-const user: User = UserSchema.parse(rawJsonFromApi); // parse chặn shape sai ngay ở biên
-```
+> 📄 **Code ví dụ:** [`examples/03-4-z-infer-nguon-cua-type-khong-viet.ts`](examples/03-4-z-infer-nguon-cua-type-khong-viet.ts)
 
 > **Kết hợp Q18** (RHF + Zod + `z.infer`) **và Q23** (validate ở biên): **type = sản phẩm của schema** (1 nguồn), không phải **hình vẽ tay** (2 nguồn, **dễ lệch**).
 
 ### 5. Generic trong custom hook + tuple `as const` (Q16)
 
-```ts
-// (1) generic: hook nhận mọi kiểu data — type-safe cho mọi caller
-function useFetch<T>(url: string): Promise<T> { /* ... */ }
-const users = useFetch<User>("/api/users"); // mọi chỗ dùng đều đúng kiểu, không any chung
-
-// (2) mô phỏng useState: trả tuple cố định, as const chống "mở rộng" mất type
-function useLocalStorage<T>(key: string, initial: T): [T, (v: T) => void] {
-  const [value, setValue] = useState<T>(initial);
-  const save = (v: T) => { setValue(v); localStorage.setItem(key, JSON.stringify(v)); };
-  return [value, save] as const; // tuple cố định [T, setter], không phải Array<T | Function>
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-5-generic-trong-custom-hook-tuple-as-const.ts`](examples/04-5-generic-trong-custom-hook-tuple-as-const.ts)
 
 > **`as const`** (không vi phạm rule "as"): giữ **tuple ổn định** (type `[T, setter]`, không **biến thành** `Array<T | setter>`). **Khác** `as` "đánh lừa" — đây là **củng cố type** (chống widening, **hợp lệ**, Q16 custom hook "tuple + as const").
 
 ## Bẫy khi phỏng vấn
+
+Mục này là "bản đồ mìn": 6 câu trả lời nghe hợp lý nhưng sai — biết trước 6 chỗ ngập là không bao giờ chết máy giữa câu hỏi typing.
 
 1. **Nói "as thì không sao, ai cũng viết"** → **sai**: `as` = **bỏ qua kiểm tra** (đánh lừa type). **Đúng**: ở biên dùng **Zod** (không `as`), **tránh** `as` trong logic (nếu "phải" `as` = type đang sai). Nói được "as = smell" là **điểm ăn điểm**.
 2. **State máy dùng `status: string` (không union)** → mất **discriminate** (TS **không biết** "case nào"). Đúng: **union có discriminator** (`status: "idle" | "loading" | ...`) + **exhaustive** (`never`) (§2).
@@ -108,7 +74,11 @@ function useLocalStorage<T>(key: string, initial: T): [T, (v: T) => void] {
 5. **Cast `as` để "giải quyết" lỗi type (đẩy code chạy)** → **sai** (mô hình type sai). Đúng: **bổ sung guard / union / generic** (type đúng từ gốc), không **cast**.
 6. **`useLocalStorage` trả tuple mà **không** `as const`** → **mất shape** (TS mở rộng thành `Array`), destructuring **sai type** (Q16).
 
+> **Tóm gọn 1 câu:** Type đi xuyên suốt nhờ "một bản thiết kế gốc" (Zod schema) mà mọi tầng photocopy — chỗ nào gặp dữ liệu ngoài thì kiểm duyệt ở cửa, còn `as` dùng lung tung là đóng dấu giả.
+
 ## Gợi ý câu chốt
+
+Mục này gói cả bài thành một đoạn trả lời mẫu — đọc để tập nói trọn một hơi rồi diễn đạt lại bằng giọng của mình.
 
 > "Type safety end-to-end = **Zod schema (runtime) → `z.infer` (type) → state/props/API** — **1 nguồn sự thật** (đổi 1, mọi nơi tự cập nhật; Q18 '1 schema 1 type'). State máy dùng **discriminated union** (không 3 flag rời) + **exhaustive `never`** (bắt case thiếu). **`as` là smell** (đánh lừa type) — **đúng ở biên** (Zod thay vì cast, Q23 'validate ở biên'), **sai trong logic** (nếu phải `as` = type đang sai, sửa model, không cast). Generic cho hook (`useFetch<T>`), tuple **`as const`** (mô phỏng `useState`, Q16). 'Mỗi cast = 1 lần đánh lừa type system'."
 

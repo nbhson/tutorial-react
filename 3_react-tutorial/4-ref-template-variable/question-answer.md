@@ -17,6 +17,8 @@
 - Trong example: `tick` hiển thị `<p>Tick: {tick}</p>` nên phải là state; `idRef` (id của interval)
   không hiển thị nên là ref — dùng state cho nó sẽ re-render thừa mỗi lần tạo timer.
 
+> **Tóm gọn 1 câu:** `useRef` là chiếc hộp `{ current }` im lặng: đổi bên trong không ai (không render) hay biết — dữ liệu cần hiện lên màn hình thì phải về nhà `useState`.
+
 ---
 
 ## 2. `inputRef` và `idRef` trong example có quan hệ gì với nhau?
@@ -36,6 +38,8 @@
 - Điểm chung duy nhất: cả hai đều là "chiếc hộp `{ current }` tồn tại xuyên suốt render mà không gây re-render" —
   đó chính là bản chất của `useRef`.
 
+> **Cách đọc bảng này:** mỗi dòng là một tiêu chí so sánh 2 ref; đọc để thấy chúng khác nhau ở "chứa gì, ai gán, dùng khi nào" — chứ không phải 2 loại hook khác nhau, mà là 2 công dụng của cùng một chiếc hộp.
+
 ---
 
 ## 3. Vì sao `inputRef` khởi tạo `null`? Khi nào `.current` mới có giá trị?
@@ -49,6 +53,8 @@
   không gọi trực tiếp `inputRef.current.focus()` trong render.
 - Code SSR cũng không được dựa vào `ref.current` lúc render — ref chỉ có sau khi client mount.
 
+> **Tóm gọn 1 câu:** `ref.current` là chìa khóa phát sau giờ G (sau commit DOM): trước đó cứ coi như chưa phát — `null` — và luôn chặn bằng `?.`.
+
 ---
 
 ## 4. Vì sao `idRef` không dùng `useState`? Cất timer id vào state thì sao?
@@ -60,6 +66,8 @@
   **một lần re-render vô ích** (và nếu đặt sai chỗ còn dễ loop: render → tạo timer → set state → render...).
 - `idRef.current = setInterval(...)` không render gì, object ref sống suốt vòng đời nên cleanup
   đọc lại đúng id đã tạo: `return () => clearInterval(idRef.current)`.
+
+> **Tóm gọn 1 câu:** Cất timer id vào ref như để chìa khóa vào hộp góc tường: ai cần khóa (cleanup) thì lấy — để vào state là mỗi lần để khóa lại... re-render một lần.
 
 ---
 
@@ -74,6 +82,8 @@
 - Cấm dùng ref để "vẽ UI thay state" (`ref.current.textContent = count`) — phá vỡ diff, StrictMode
   và Compiler đều không bảo vệ được pattern này.
 
+> **Tóm gọn 1 câu:** Ref là "cửa thoát hiểm" (escape hatch): chỉ mở khi React không có lối chính — vẽ UI bằng ref là đi ngược chiều gió của framework.
+
 ---
 
 ## 6. React 19 đổi gì về `ref`? `forwardRef` còn cần không?
@@ -85,6 +95,8 @@
   component con nhận qua destructuring như mọi prop khác.
 - `forwardRef` chỉ còn ý nghĩa **tương thích code cũ/thư viện chưa lên 19**. Code mới viết thẳng,
   không bọc.
+
+> **Tóm gọn 1 câu:** React 19 đã cho `ref` "quyền công dân" prop bình thường — `forwardRef` từ giờ chỉ là đồ lưu niệm của thời trước.
 
 ---
 
@@ -98,6 +110,8 @@
 - Dùng **khiêm tốn**: đa số giao tiếp cha-con giải quyết gọn bằng props/callback (DAY 3).
   Chỉ dùng khi thật sự cần lệnh imperative (focus, mở dialog, phát media) mà props diễn đạt rườm rà.
 
+> **Tóm gọn 1 câu:** `useImperativeHandle` là "quầy dịch vụ công" của con: chỉ mở đúng vài ô window (focus, reset) chứ không mở cả nhà cho cha tự dạo.
+
 ---
 
 ## 8. StrictMode + effect có timer thì sao? Vì sao không bỏ StrictMode?
@@ -109,6 +123,8 @@
   Chính nhờ chạy 2 lần mà effect thiếu cleanup (quên `clearInterval`) lộ ra ngay: timer nhân đôi ở dev.
 - **Đừng bỏ StrictMode để "hết phiền"** — hãy viết effect đúng (setup/cleanup đối xứng, DAY 15).
   Prod chỉ chạy 1 lần nên không ảnh hưởng.
+
+> **Tóm gọn 1 câu:** StrictMode chạy 2 lần như bác sĩ ép chạy lại bài kiểm tra: timer tạo/hủy đúng cách thì chẳng sao, effect dởm lộ ngay — đừng bỏ khám, hãy chữa bệnh.
 
 ---
 
@@ -124,6 +140,8 @@
 | `@ViewChild("myInput")` | `inputRef.current` sau mount | React đọc trực tiếp, không decorator |
 | Gọi method public của con | `useImperativeHandle` | Dùng ít, ưu tiên props/callback |
 | `forwardRef` (React cũ) | `ref` là prop thường (R19) | Code mới không bọc |
+
+> **Cách đọc bảng này:** mỗi dòng là một khái niệm Angular và bản dịch React; đọc nhanh để đối chiếu — điểm cần nhớ nhất nằm ở dòng cuối: React 19 đã gỡ "thủ tục `forwardRef`" cho code mới.
 
 ---
 
@@ -144,6 +162,8 @@
   **đổi data (state), để framework lo DOM**. Muốn hiện `count` thì `{count}` trong JSX,
   không phải `ref.current.textContent = count`.
 
+> **Cách đọc bảng này:** mỗi dòng so sánh khả năng của 2 framework; điểm mấu chốt ở 2 dòng cuối — cả hai đều "sửa được" DOM nhưng đều "không nên" dùng để hiển thị dữ liệu, vì lần render sau framework sẽ ghi đè lên tay bạn.
+
 ---
 
 ## 13. Ref trong thực tế dùng cho việc nào? (Usecase + quy tắc nhận diện)
@@ -159,6 +179,8 @@
 
 **Quy tắc nhận diện:** việc đó dùng state cũng xong thì dùng state; chỉ chạm ref khi "đổi mà không muốn render"
 hoặc "React không có API cho việc này".
+
+> **Tóm gọn 1 câu:** 5 usecase trên đều chung một mùi: "làm gì đó với node thật hoặc nhớ mà không cần hiện" — còn lại, mọi thứ hiển thị đều về nhà state.
 
 ---
 

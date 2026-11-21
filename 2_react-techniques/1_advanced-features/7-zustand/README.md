@@ -4,11 +4,17 @@
 
 ## Mục tiêu track
 
+Mục này nói về những gì mini-track Zustand mang lại: từ lõi store đến cách tổ chức ở production. Đọc để biết lộ trình và đích đến.
+
 - Hiểu Zustand từ lõi (store + subscribe + selector) đến prod (async, middleware, tổ chức slice).
 - Cuối track viết được store đúng chuẩn: selector nhỏ, persist có chọn lọc, tách slice theo domain.
 - Biết **ranh giới Zustand ↔ TanStack Query ↔ Context** — không lạm dụng store cho data không cần thiết.
 
+> **Tóm gọn 1 câu:** Track này biến bạn từ "biết dùng `create`" thành "biết quản căn hộ store một cách kỷ luật" — và biết khi nào căn hộ đó thừa thãi.
+
 ## Bản đồ khái niệm
+
+Mục này nói về 4 bài trong track theo đúng thứ tự nên đọc. Đọc bảng để định vị mình trong hành trình.
 
 | # | Thư mục | Khái niệm | Khi nào dùng |
 |---|---|---|---|
@@ -16,6 +22,8 @@
 | 2 | [2-async-actions/](2-async-actions/README.md) | Action async, cờ loading/error, optimistic | Gọi API nhẹ trong store (nặng thì Query) |
 | 3 | [3-middleware-persist/](3-middleware-persist/README.md) | `persist` + `partialize`/`migrate`, `devtools`, `immer` | Giữ state qua reload, debug |
 | 4 | [4-slices-pattern/](4-slices-pattern/README.md) | Tách slice theo domain, gom store, chia file | Store phình >1 domain |
+
+> **Cách đọc bảng này:** đọc theo thứ tự cột "#" từ 1 đến 4 — cột "Khái niệm" cho biết bài dạy gì, cột "Khi nào dùng" trả lời "bài này có cần cho app của mình không"; nếu chỉ cần nền tảng thì bài 1 là bắt buộc còn 2–4 đọc theo nhu cầu.
 
 ## Thứ tự đọc gợi ý
 
@@ -30,7 +38,11 @@ Lý do từng bước:
 - **`3` bọc ngoài bằng middleware** — `persist` (lưu localStorage/AsyncStorage, `partialize` chọn field, `migrate` khi đổi shape), `devtools` (time-travel), `immer` (viết mutate trong set). Middleware xếp chồng theo thứ tự cụ thể — sai thứ tự là persist lưu trước immer áp dụng.
 - **`4` refactor khi store lớn** — slice pattern tách theo domain rồi gom thành 1 store (hoặc nhiều store riêng). Đọc khi cần, không cần ngay — store < 200 dòng thì một file vẫn ổn.
 
+> **Tóm gọn 1 câu:** Đọc 1 → 2 → 3 → 4 như luyện võ: dựng thế (selector) mới tập đòn (async), rồi mặc áo giáp (middleware), cuối cùng mới phân đội (slice).
+
 ## Khi nào dùng Zustand — khi nào không
+
+Mục này nói về ranh giới của Zustand: nó hợp nhất với loại state nào và "quá tải" với loại nào. Đọc trước khi quyết định kéo store vào dự án.
 
 **Chọn Zustand khi:**
 
@@ -44,9 +56,13 @@ Lý do từng bước:
 - State chỉ dùng trong 1 cây component — `useState`/`useReducer` + props là đủ; store toàn cục cho state cục bộ là đi ngược tính module.
 - Cần cập nhật theo **thời gian thực tần suất cao** (mousemove, websocket 60fps) — cân nhắc store tách nhỏ + subscribe thủ công, hoặc để state nằm cục bộ.
 
-**Vì sao Zustand không cần Provider?** Store là module-level singleton (`create()` gọi ngoài component), hook `useStore` subscribe trực tiếp qua `useSyncExternalStore` — không đi qua React Context. Đây cũng là lý do selector của nó không bị "mất re-render khi Context đổi" như Context API.
+**Vì sao Zustand không cần Provider?** Store là module-level singleton (`create()` gọi ngoài component), hook `useStore` subscribe trực tiếp qua `useSyncExternalStore` — không đi qua React Context. Đây cũng là lý do selector của nó không bị "mất re-render khi Context đổi" như Context API. Ví von: Context là loa phát thanh chung tòa nhà (ai bọc trong Provider mới nghe), Zustand là radio cá nhân cầm trực tiếp đài phát.
+
+> **Tóm gọn 1 câu:** Zustand hợp cho client state cần đọc ngoài React — còn server cache, state cục bộ, hay cập nhật 60fps thì đó không phải việc của nó.
 
 ## Quy ước chung cả track
+
+Mục này nói về "luật chơi" áp dụng cho mọi bài trong track. Đọc một lần rồi giữ suốt khi viết store.
 
 - Component luôn đọc qua **selector nhỏ** — không `useStore()` trần (trả cả store ⇒ re-render mọi thay đổi).
 - Server data để Query lo (bài 3) — Zustand giữ client state + kết quả đã xử lý.
@@ -57,27 +73,13 @@ Lý do từng bước:
 
 ## Trọng tâm cần nắm theo từng bài
 
+Mục này nói về điểm "phải thuộc" của từng bài — dùng như danh sách ôn tập sau mỗi bài.
+
 ### Bài 1 — create & selectors
 
 `const useBearStore = create<State>()((set, get) => ({ ... }))` — `set` (partial merge), `get` (đọc hiện tại trong action). Đọc ngoài React: `useBearStore.getState()` / `.subscribe()` / `.setState()` — nền cho guard + interceptor. Selector so kết quả bằng `Object.is` → trả primitive hoặc dùng `useShallow`.
 
-```ts
-// store.ts — store ở module scope, KHÔNG đặt trong component
-const useCartStore = create<CartState>()((set, get) => ({
-  items: [] as Item[],
-  addItem: (item) => set((s) => ({ items: [...s.items, item] })), // immutable — KHÔNG push
-  clear: () => set({ items: [] }),
-}));
-
-// Trong component — selector nhỏ, trả primitive
-const count = useCartStore((s) => s.items.length); // chỉ re-render khi items đổi
-
-// Nhiều field — useShallow tránh re-render thừa
-const { items, coupon } = useCartStore(useShallow((s) => ({ items: s.items, coupon: s.coupon })));
-
-// Ngoài React (axios interceptor, router guard):
-if (useCartStore.getState().coupon) { /* đọc state không cần hook */ }
-```
+> 📄 **Code ví dụ:** [`examples/01-bai-1-create-selectors.ts`](examples/01-bai-1-create-selectors.ts)
 
 Sai lầm hay gặp ở bài này: `create()` đặt trong component (tạo store mới mỗi render) và selector trả object mới không có `useShallow` (re-render vô hạn).
 
@@ -85,54 +87,23 @@ Sai lầm hay gặp ở bài này: `create()` đặt trong component (tạo stor
 
 Action async = hàm thường: `set({ loading: true })` → fetch → `set({ items, loading: false })` hoặc `set({ error })`. Optimistic update: `set` trước, fetch sau, lỗi thì rollback + `get()` đọc state trước đó. Race condition: throttle/abort ở tầng gọi (hoặc để Query lo).
 
-```ts
-applyCoupon: async (code) => {
-  const prev = get().discount;       // rollback point
-  set({ discount: code, checking: true }); // optimistic
-  try {
-    const res = await checkCoupon(code);
-    if (!res.valid) set({ discount: prev, couponError: res.reason });
-  } catch {
-    set({ discount: prev, couponError: "mạng lỗi" });
-  } finally {
-    set({ checking: false });
-  }
-},
-```
+> 📄 **Code ví dụ:** [`examples/02-bai-2-async-actions.ts`](examples/02-bai-2-async-actions.ts)
 
 ### Bài 3 — middleware
 
 `persist` với `partialize` (chỉ persist phần dữ liệu, không persist loading/error) + `version`/`migrate` khi đổi shape; `devtools` cho time-travel; `immer` cho update lồng sâu. Thứ tự gợi ý: `persist(...)` bọc ngoài, `immer` trong.
 
-```ts
-const useStore = create<State>()(
-  persist(
-    immer((set) => ({ /* ... */ })),
-    {
-      name: "cart",
-      version: 2,                       // đổi shape => bump version
-      migrate: (old, v) => (v === 2 ? { ...old, coupon: null } : old),
-      partialize: (s) => ({ items: s.items }), // KHÔNG persist loading/error
-    }
-  )
-);
-```
+> 📄 **Code ví dụ:** [`examples/03-bai-3-middleware.ts`](examples/03-bai-3-middleware.ts)
 
 ### Bài 4 — slices pattern
 
 Mỗi domain 1 file export "creator" `(set, get) => ({...})`, gom bằng spread trong `create(...)`. Chia theo **domain dữ liệu** (cart, auth), không theo kỹ thuật (actions/state tách file kiểu Redux cũ). Store lớn có thể tách nhiều store riêng thay vì gom một store khổng lồ.
 
-```ts
-// slices/cart.ts
-export const createCartSlice: StateCreator<AppStore, [], [], CartSlice> = (set, get) => ({ /*...*/ });
-// store.ts
-export const useAppStore = create<AppStore>()<StateCreator<AppStore>[]>()((...a) => ({
-  ...createCartSlice(...a),
-  ...createAuthSlice(...a),
-}));
-```
+> 📄 **Code ví dụ:** [`examples/04-bai-4-slices-pattern.ts`](examples/04-bai-4-slices-pattern.ts)
 
 ## Lỗi lặp lại ở cả track
+
+Mục này nói về 5 lỗi lặp đi lặp lại đến mức phải gom riêng một mục — đọc để tránh "dính chưởng" quen thuộc.
 
 1. **`useStore()` trần** — trả cả store ⇒ component re-render khi *bất kỳ* field nào đổi; luôn chọn field qua selector.
 2. **Selector tạo object/array mới mỗi lần chạy** — `Object.is` thất bại ⇒ re-render mãi; dùng `useShallow` hoặc tách selector từng field.
@@ -140,9 +111,11 @@ export const useAppStore = create<AppStore>()<StateCreator<AppStore>[]>()((...a)
 4. **Persist nhầm dữ liệu thoáng qua** — persist cả loading/error/thời gian ⇒ reload vào thấy app "kẹt" trạng thái cũ; `partialize` chỉ chọn field bền.
 5. **Tạo store trong component** — `create()` phải gọi ở module scope 1 lần.
 
-## Self-check trước khi coi là "xong track"
+> **Tóm gọn 1 câu:** Năm lỗi quen thuộc đều xoay quanh một chủ đề: khoan giếng đúng chỗ — selector đúng lát, store đúng loại state, persist đúng field.
 
 ## So sánh nhanh trong track (tự rút kết luận)
+
+Mục này nói về việc ghép tình huống thực tế với giải pháp đúng trong track. Đọc bảng rồi tự trả lời trước khi xem cột phải.
 
 | Tình huống | Giải pháp trong track |
 |---|---|
@@ -152,7 +125,11 @@ export const useAppStore = create<AppStore>()<StateCreator<AppStore>[]>()((...a)
 | Request HTTP GET list | Cân nhắc TanStack Query thay vì store tự viết |
 | Cần đọc store trong axios interceptor | `useStore.getState()` — không dùng hook ngoài component |
 
+> **Cách đọc bảng này:** cột trái là tình huống bạn sẽ gặp thật trong dự án, cột phải là đáp án — che cột phải và tự trả lời trước, đáp sai thì quay lại bài tương ứng.
+
 ## Self-check trước khi coi là "xong track"
+
+Mục này nói về danh sách kiểm tra cuối track — đủ 5 ý là bạn nắm chắc, thiếu ý nào quay lại bài đó.
 
 1. Viết store + selector + `useShallow` đúng, giải thích được vì sao không `useShallow` thì re-render thừa.
 2. Viết action async với optimistic update + rollback khi lỗi.
@@ -160,9 +137,15 @@ export const useAppStore = create<AppStore>()<StateCreator<AppStore>[]>()((...a)
 4. Chỉ ra chỗ `useStore()` trần gây re-render thừa và sửa bằng selector nhỏ.
 5. Giải thích tại sao Zustand không cần Provider mà Context cần.
 
+> **Tóm gọn 1 câu:** Tự trả lời được "vì sao không `useShallow` là re-render thừa" và "vì sao không cần Provider" — hai câu hỏi này là thước đo bạn đã hiểu Zustand thật.
+
 ## Bài tập tổng hợp track
 
+Mục này nói về bài thực hành gộp cả 4 bài thành một app hoàn chỉnh — làm xong là bạn có template store dùng được cho dự án thật.
+
 Dựng app "Giỏ hàng": store `cart` (items + discount code), action async `applyCoupon` (gọi API, optimistic, rollback khi lỗi), persist `items` nhưng không persist cờ loading, slice `auth` riêng tách domain. Mọi component đọc qua selector nhỏ — mở React DevTools chứng minh thêm item chỉ re-render component giỏ hàng.
+
+> **Tóm gọn 1 câu:** App "Giỏ hàng" là bài thi tổng hợp: selector, async + rollback, persist có chọn lọc, slice tách domain — và DevTools là giám khảo.
 
 ## Reference
 

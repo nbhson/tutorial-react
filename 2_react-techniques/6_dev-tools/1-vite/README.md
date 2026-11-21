@@ -8,7 +8,9 @@
 
 **Vì sao:** Webpack dev chậm vì bundle toàn bộ trước khi chạy (đổi 1 file chờ 10s). Vite serve ESM native: trình duyệt `import` trực tiếp, Vite chỉ transform file đang dùng (esbuild pre-bundle dep) — đổi file thấy ngay mili-giây. Production gom + minify + code-split bằng Rollup (Vite 7 thử Rolldown) ra `dist/`. Hiểu luồng để biết chậm ở đâu (transform? plugin? PostCSS?) và tối ưu đúng chỗ.
 
-**Cơ chế dev:** `npm run dev` → server 5173 → HTML nạp `main.tsx` → mỗi `import` là một request transform riêng. Sửa file → WebSocket báo HMR → thay module đó, không reload trang (state giữ). `import.meta.hot` cho custom HMR khi cần. Production: Rollup graph, tree-shake (`sideEffects: false` để bỏ dead export), minify, hash, split chunk.
+**Cơ chế dev:** `npm run dev` → server 5173 → HTML nạp `main.tsx` → mỗi `import` là một request transform riêng. Sửa file → WebSocket báo HMR → thay module đó, không reload trang (state giữ). `import.meta.hot` cho custom HMR khi cần. Production: Rollup graph, tree-shake (`sideEffects: false` để bỏ dead export), minify, hash, split chunk. Ví von: dev Webpack như nấu cả nồi lẩu rồi mới nếm, dev Vite như nêm nếm từng thìa ngay trên bếp.
+
+> **Tóm gọn 1 câu:** Mục tiêu của bài: nắm luồng dev/build của Vite, cấu hình plugin + proxy chuẩn, và biết đo bản production bằng preview + visualizer.
 
 ### 2. Cấu hình plugin cơ bản, proxy API dev, tách bundle bằng `manualChunks`
 
@@ -25,6 +27,8 @@
 - Mọi dự án React mới; thay webpack/gulp khi cần tốc độ + config ngắn gọn. Vite 7 cần Node 20.19+/22.12+ — nâng Vite mà quên Node là build gãy.
 
 ## Khái niệm cốt lõi
+
+Mục này đi qua 7 mảnh ghép của Vite: dev server ESM, HMR, build production, plugin, proxy, env, và tách vendor. Đọc để hiểu "Vite làm gì ở từng chặng" — từ lúc bấm `npm run dev` tới lúc mở trang prod.
 
 ### 1. Dev server — ESM + esbuild pre-bundle + transform theo request
 
@@ -44,11 +48,7 @@ Hash theo nội dung để cache (`index-abc.js` — đổi code mới đổi ha
 
 ### 5. Proxy dev — `/api/*` sang backend, tránh CORS
 
-```ts
-// ✅ ĐÚNG: dev không CORS, code không đổi giữa dev/prod (dùng /api tương đối)
-server: { proxy: { '/api': 'http://localhost:3000' } }
-// fetch('/api/me') ở dev → Vite chuyển sang :3000; ở prod → Nginx/CDN chuyển
-```
+> 📄 **Code ví dụ:** [`examples/01-5-proxy-dev-api-sang-backend-tranh-cors.ts`](examples/01-5-proxy-dev-api-sang-backend-tranh-cors.ts)
 
 **Sai thì sao:** hardcode `http://localhost:3000/api` trong code → prod gọi nhầm local, CORS vỡ. Fix: fetch đường tương đối + proxy dev + rewrite prod.
 
@@ -60,7 +60,11 @@ Chỉ biến `VITE_` mới lộ ra client (tránh lộ secret server). `import.m
 
 Gom `react-vendor` để sửa app không tải lại vendor. Vite 7 `advancedChunks` gom chunk nhỏ gọn hơn `manualChunks` thô. Quá mịn (mỗi lib 1 chunk 5KB) là phí request — gom nhóm ≥ 20KB.
 
+> **Tóm gọn 1 câu:** Vite = dev nhanh nhờ ESM + HMR, prod gọn nhờ Rollup tree-shaking + tách vendor — mọi cấu hình xoay quanh hai mục tiêu đó.
+
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là 5 bước dựng một dự án Vite chuẩn từ scaffold tới tối ưu — đi theo thứ tự thì mỗi thay đổi đều kiểm chứng được.
 
 ### Bước 1. Scaffold `react-ts`
 
@@ -82,72 +86,17 @@ Như Ví dụ chi tiết. `base` rõ ràng. `chunkSizeWarningLimit` hợp lý (k
 
 `rollup-plugin-visualizer` (`gzipSize: true`) — 3 chunk lớn nhất là backlog (thay lib → lazy → tách vendor theo thứ tự rẻ trước đắt sau).
 
+> **Tóm gọn 1 câu:** Scaffold chuẩn → plugin tối thiểu → config gọn → preview trước khi đẩy → visualizer trước khi tối ưu.
+
 ## Ví dụ chi tiết
 
 Mirror đầy đủ với `example.tsx` cùng thư mục (không rút gọn):
 
-```ts
-// vite.config.ts — mirror đầy đủ, khớp config chuẩn dự án React 19 + TS
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react'; // JSX transform + Fast Refresh (HMR React) — bắt buộc
-import tsconfigPaths from 'vite-tsconfig-paths'; // đọc alias @/ từ tsconfig paths — import ngắn, chuyển thư mục không vỡ
-import { visualizer } from 'rollup-plugin-visualizer'; // treemap bundle khi build — biết khối nào phình
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.ts`](examples/02-vi-du-chi-tiet.ts)
 
-export default defineConfig({
-  plugins: [
-    react(), // Fast Refresh: sửa component không mất state (trừ khi export lẫn lộn)
-    tsconfigPaths(), // @/components/... trùng tsconfig — thiếu plugin này mà import @/ là build báo resolve
-    visualizer({ open: false, gzipSize: true }), // gzipSize để thấy size thật user tải, không phải size thô
-  ],
-  server: {
-    port: 5173,
-    // Dev không CORS: /api/... → localhost:3000 (backend) — code fetch('/api') tương đối, prod Nginx chuyển tiếp
-    proxy: { '/api': 'http://localhost:3000' }, // sai port/target là API 404 ở dev — match đúng backend
-  },
-  build: {
-    sourcemap: true, // debug prod — lộ source nên cân nhắc 'hidden' (chỉ upload Sentry, browser không tải)
-    rollupOptions: {
-      output: {
-        // Gom react + phần lớn lib vào vendor → sửa code app không tải lại vendor (cache tốt hơn)
-        // Vì sao: vendor hash ổn định (hiếm đổi) → browser cache lâu; page chunk đổi theo code
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-        },
-      },
-    },
-  },
-});
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
-```tsx
-// src/main.tsx — mirror đầy đủ, khớp từng dòng với example.tsx
-// Entry chuẩn Vite + React 19: createRoot + StrictMode (phát hiện effect 2 lần, mutate ở dev)
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
-
-// Env typed ở client (chi tiết xem nhóm 4_security-config/2-env-config)
-// Vì sao as string: import.meta.env type lỏng — ép + validate ở biên để lỗi thiếu env hiện sớm
-export const apiUrl = import.meta.env.VITE_API_URL as string;
-```
-
-```json
-// package.json — scripts quen thuộc (mirror từ README gốc)
-{
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
-  }
-}
-// Vì sao tsc trước build: bắt lỗi type trước khi bundling — bundle lỗi type là nợ chạy được mà sai
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.json`](examples/04-vi-du-chi-tiet.json)
 
 ## Giải thích từng phần
 
@@ -169,7 +118,7 @@ React 140KB hash giữ qua nhiều deploy → user tải 1 lần. Không tách �
 
 ### `sourcemap: true` vs `hidden` — debug được mà không lộ source
 
-`true`: browser tải `.map`, ai cũng đọc source. `hidden`: không reference map (browser không tải) nhưng vẫn upload Sentry để giải stack prod. Prod công khai dùng `hidden`; nội bộ debug dùng `true`.
+`true`: browser tải `.map`, ai cũng đọc source. `hidden`: không reference map (browser không tải) nhưng vẫn upload Sentry để giải stack prod. Ví von: `true` là để bản đồ kèm kho báu ngoài bãi biển công cộng, `hidden` là cất bản đồ ở két riêng nhưng người của bạn (Sentry) vẫn có bản sao. Prod công khai dùng `hidden`; nội bộ debug dùng `true`.
 
 ## Lỗi thường gặp / Chống chỉ định
 
@@ -193,11 +142,15 @@ Công khai dùng `hidden` + Sentry; chỉ `true` khi debug có kiểm soát. Ki�
 
 Vite 7 cần Node 20.19+/22.12+. `node -v` trước khi nâng; CI pin Node đúng.
 
+> **Tóm gọn 1 câu:** 5 lỗi kinh điển: thiếu plugin alias (build 404), proxy sai port, chunk quá mịn, sourcemap lộ source, nâng Vite quên Node.
+
 ## Best practices / Mẹo
 
 ### `tsc --noEmit` trong build; checker hiện lỗi ở dev; `base` rõ; preview smoke-test; visualizer định kỳ
 
 Type đỏ là đỏ trước khi bundling. Checker để không phải chờ build mới biết sai type. Sub-path deploy mà `base: '/'` là asset 404 — đặt `/app/` đúng. Preview là rehearsal prod (chunk, env, base) — không bỏ. Visualizer + bundle-analyzer định kỳ để phình là biết ngay khối nào.
+
+> **Tóm gọn 1 câu:** `preview` là buổi diễn tập prod, visualizer là máy soi cân nặng bundle — hai thói quen này giữ Vite chạy khỏe lâu dài.
 
 ## Bài tập nhỏ
 

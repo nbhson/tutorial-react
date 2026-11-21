@@ -14,6 +14,9 @@
   re-render với class/style mới → trình duyệt nội suy transition.
 - Trong example: `setOpen` đổi state → `opacity`/`transform` đổi giá trị → CSS `transition: 200ms`
   nội suy mượt. Không có JS animation frame nào chạy — toàn bộ "mượt" là của trình duyệt.
+- Ví von: React không thuê vũ công riêng — bạn đổi trạng thái sân khấu, trình duyệt tự lo chuyển cảnh.
+
+> **Tóm gọn 1 câu:** React không có animation engine — animation chỉ là state đổi rồi trình duyệt nội suy transition.
 
 ---
 
@@ -50,6 +53,10 @@
   thuần là vô ích vì node đã mất trước khi kịp chạy.
 - `<AnimatePresence>` **hoãn việc xóa** đến khi animation `exit` chạy xong: `{open && <motion.div exit={...}/>}`
   tắt → chạy exit → xong mới remove. Đây là mảnh quan trọng nhất khi chuyển từ CSS sang Motion.
+- Ví von: AnimatePresence cho diễn viên đóng xong phân cảnh từ biệt được vài giây trước khi lui hậu trường —
+  không có nó là đạo diễn tắt đèn giữa chừng.
+
+> **Tóm gọn 1 câu:** React gỡ DOM ngay lập tức — AnimatePresence hoãn việc gỡ cho exit chạy xong mới "lui sân khấu" thật.
 
 ---
 
@@ -78,6 +85,8 @@
 | `transform` / `opacity` | Composite (GPU) | Rẻ, 60fps |
 | `width` / `height` / `top` / `margin` | Layout + paint lại | Đắt, giật khi list dài |
 
+> **Cách đọc bảng này:** mỗi dòng là một nhóm thuộc tính animate được — cột giữa cho biết nó chạm tầng nào của trình duyệt, cột Giá trả lời "có đáng không". Quy tắc rút ra: ưu tiên dòng đầu, né dòng hai.
+
 ---
 
 ## 7. Giữ element trong DOM vs `<AnimatePresence>`: hai đường exit khác gì?
@@ -89,27 +98,7 @@
 - **Gỡ khỏi DOM + AnimatePresence** — node tắt thì chạy `exit` xong mới remove, cây gọn, screen reader không thấy nội dung ẩn; giá là phải cài Motion. Hợp cho modal/drawer/list điều kiện, nội dung nặng hoặc cần a11y sạch.
 - Sai thì sao: conditional `{open && <div class="fade">}` + CSS thuần mà mong có exit — DOM gỡ ngay trước khi transition kịp chạy nên tắt là "cụp" liền, không mượt. Fix: hoặc giữ node (opacity), hoặc bọc AnimatePresence — không có đường thứ ba.
 
-```tsx
-import { motion, AnimatePresence } from "motion/react"; // npm i motion
-
-function ExitDemo({ open }: { open: boolean }) {
-  return (
-    // AnimatePresence hoãn xóa node đến khi exit chạy xong (CSS thuần không làm được)
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }} // trạng thái lúc mount
-          animate={{ opacity: 1, y: 0 }} // trạng thái ổn định
-          exit={{ opacity: 0, y: 8 }} // chạy trước khi unmount rồi mới remove
-          transition={{ duration: 0.2 }}
-        >
-          Nội dung có exit mượt
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-7-giu-element-trong-dom-vs-animatepresence-hai.tsx`](examples/01-7-giu-element-trong-dom-vs-animatepresence-hai.tsx)
 
 ---
 
@@ -122,23 +111,7 @@ function ExitDemo({ open }: { open: boolean }) {
 - `staggerChildren`: container khai `transition={{ staggerChildren: 0.05 }}` thì các con hiện **nối đuôi** (mỗi con trễ 0.05s) — hiệu ứng cao cấp cho menu/list mount. Khai ở variants cha, con chỉ cần variants `hidden/show`.
 - Sai thì sao: bật `layout` cho list 500 item mà không đo perf — mỗi lần reorder đo 500 node, mobile giật. Fix: list lớn thì chỉ `layout` cho vùng nhìn thấy, hoặc tắt khi reduced-motion. Kết hợp DAY 20: sortable + `layout` là combo Kanban mượt chuẩn prod.
 
-```tsx
-import { motion } from "motion/react";
-
-function SortablePreview({ items }: { items: string[] }) {
-  return (
-    <ul>
-      {items.map((it) => (
-        // layout: đổi thứ tự mảng là item trượt về vị trí mới, không nhảy cục
-        // key ổn định (DAY 2/20) là bắt buộc để Motion biết item nào đi đâu
-        <motion.li key={it} layout transition={{ duration: 0.2 }}>
-          {it}
-        </motion.li>
-      ))}
-    </ul>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-8-motion-layout-staggerchildren-list-reorder-truot-va.tsx`](examples/02-8-motion-layout-staggerchildren-list-reorder-truot-va.tsx)
 
 ---
 
@@ -151,18 +124,7 @@ function SortablePreview({ items }: { items: string[] }) {
 - **Transition chạy ngay mount đầu**: element mount với giá trị "cuối" (visible) nhưng CSS vẫn nội suy từ giá trị mặc định — trang mở đã thấy fade không mong muốn. Fix Motion: `initial={false}` (bỏ animation lần đầu, chỉ animate từ lần đổi sau); fix CSS: tách class mount (không transition) rồi thêm transition sau 1 frame.
 - Cơ chế chung: animation là **hiệu của 2 render** (cũ→mới) — mount đầu không có "cũ" nên phải định rõ `initial`. Quên là hiệu ứng chạy sai thời điểm.
 
-```tsx
-import { motion } from "motion/react";
-
-function NoMountFlash({ open }: { open: boolean }) {
-  return (
-    // initial={false}: lần mount đầu hiện ngay, chỉ animate từ lần toggle sau
-    <motion.div initial={false} animate={{ opacity: open ? 1 : 0 }} transition={{ duration: 0.2 }}>
-      Nội dung không flash lúc mở trang
-    </motion.div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-9-loi-thuc-chien-key-oi-moi-render.tsx`](examples/03-9-loi-thuc-chien-key-oi-moi-render.tsx)
 
 ---
 
@@ -175,30 +137,9 @@ function NoMountFlash({ open }: { open: boolean }) {
 - Hai tầng: CSS toàn cục `@media (prefers-reduced-motion: reduce)` tắt `transition/animation-duration` cho mọi element (lưới an toàn cho CSS transition như example); JS Motion dùng `useReducedMotion()` trả boolean để bỏ `layout/stagger` và rút `duration` về 0 cho đường Motion.
 - Kiểm thử: DevTools → Rendering → emulate `prefers-reduced-motion: reduce`, toggle UI xem chuyển ngay không mượt; screen reader vẫn đọc đủ nội dung. Đây là checklist a11y bắt buộc trước khi merge animation, không phải nice-to-have.
 
-```tsx
-import { motion, useReducedMotion } from "motion/react";
+> 📄 **Code ví dụ:** [`examples/04-10-prefers-reduced-motion-usereducedmotion-code-va-kiem.tsx`](examples/04-10-prefers-reduced-motion-usereducedmotion-code-va-kiem.tsx)
 
-function RespectfulBox({ open }: { open: boolean }) {
-  const reduce = useReducedMotion(); // true khi user bật giảm chuyển động ở OS
-  return (
-    <motion.div
-      initial={false}
-      // Tôn trọng user: giảm chuyển động thì duration 0 (hiện ngay), đủ nội dung
-      animate={{ opacity: open ? 1 : 0 }}
-      transition={{ duration: reduce ? 0 : 0.2 }}
-    >
-      Nội dung vẫn đủ khi tắt animation
-    </motion.div>
-  );
-}
-```
-
-```css
-/* Lưới an toàn CSS toàn cục: tắt mọi transition khi user yêu cầu */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-10-prefers-reduced-motion-usereducedmotion-code-va-kiem.css`](examples/05-10-prefers-reduced-motion-usereducedmotion-code-va-kiem.css)
 
 ---
 

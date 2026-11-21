@@ -5,7 +5,10 @@
 - Đóng vai trò **điều hướng**: liệt kê từng bài con + tóm tắt 1-2 dòng mỗi feature; mỗi folder có README chi tiết + `example.tsx`.
 
 ## Bối cảnh version
-- Nếu React 18 mang tới **nền concurrent**, React 19 mang tới **API tầng ứng dụng** phía trên nền đó: Actions (mutation + form), `use()` (đọc promise/context), `ref`-as-prop và Document Metadata.
+
+Mục này định vị React 19 trên bản đồ: 18 dựng nền concurrent, 19 xây "nhà" lên trên đó — các API tầng ứng dụng.
+
+- Nếu React 18 mang tới **nền concurrent**, React 19 mang tới **API tầng ứng dụng** phía trên nền đó: Actions (mutation + form), `use()` (đọc promise/context), `ref`-as-prop và Document Metadata. Ví von: 18 là móng và khung sườn, 19 là khi thợ bắt đầu lắp cửa, bếp và biển hiệu nhà.
 - Động lực: trước 19, form/mutation phải tự quản `onSubmit` + pending/error/result; optimistic UI phải tự rollback tay; `forwardRef` đầy boilerplate; `<head>` phải nhờ `react-helmet`/`next/head`. React 19 chuẩn hóa tất cả thành API native.
 - Đây là bản **bước ngoặt cho form và data flow**, là tiền đề để hiểu React 19.2 (`<Activity>`, `useEffectEvent`) và React Server Components (Server Actions).
 - 19.0 là bản major đầu tiên sau 3 năm; hầu hết app React 18 nâng lên được với vài thay đổi nhỏ (xem "Breaking changes").
@@ -29,7 +32,11 @@
 - **ref as prop**: function component nhận `ref` bình thường; ref callback có cleanup.
 - **Document Metadata**: `<title>/<meta>/<link>` hoist lên `<head>`, dedupe, `precedence` cho CSS.
 
+> **Tóm gọn 1 câu:** React 19 là bản "trả nợ thư viện": những việc từng cần react-helmet, thủ công rollback hay forwardRef nay đều có API native.
+
 ## Điều hướng bài học
+
+Mục này là "mục lục" 5 bài con của React 19 — đọc theo thứ tự bảng để đi từ form mutation tới metadata.
 
 | # | Bài | Feature (1-2 dòng) |
 |---|-----|--------------------|
@@ -39,25 +46,26 @@
 | 4 | [ref as prop](4_ref-as-prop/README.md) | Function component nhận `ref` như prop thường, bỏ `forwardRef`; ref callback có cleanup. TS gọn hơn, bớt một tầng wrapper. |
 | 5 | [Document Metadata](5_document-metadata/README.md) | Render `<title>/<meta>/<link>` ngay trong component, React hoist lên `<head>` + dedupe + `precedence`. Bỏ dependency kiểu `react-helmet`. |
 
+> **Cách đọc bảng này:** mỗi hàng là một bài con; cột "Feature" đủ dài để bạn quyết định đọc ngay hay truy vấn sau — bài 1 và 2 đi cặp (form + optimistic), bài 3–5 độc lập hơn.
+
 ## Cú pháp / API (tóm tắt)
 
-```tsx
-const [state, formAction, isPending] = useActionState(action, initial);
-const [optimistic, addOptimistic] = useOptimistic(state, updater);
-const value = use(promiseOrContext);           // có điều kiện được
-function Input({ ref, ...p }: { ref?: React.Ref<HTMLInputElement> }) { /* ... */ }
-<article><title>{t}</title><meta name="description" content={d} /></article>
-<ThemeContext value="dark">{children}</ThemeContext>   // context-as-provider
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api-tom-tat.tsx`](examples/01-cu-phap-api-tom-tat.tsx)
 
 ## Luồng hoạt động (Flow)
+
+Mục này phác "một lượt tương tác hoàn chỉnh" trong app 19: submit → optimistic → suspend → metadata cập nhật.
 
 1. Submit form → React gọi action `(prevState, formData)`, tự `isPending`.
 2. Optimistic update hiện ngay; khi action settle → thay bằng actual hoặc rollback.
 3. Component render có thể `use(promise)` để suspend → Suspense boundary hiện fallback.
 4. Metadata trong cây được hoist/dedupe lên `<head>`; SSR ghi sẵn vào HTML.
 
+> **Tóm gọn 1 câu:** Một tương tác trong React 19 trôi qua cả 4 trạm: action xử lý, optimistic hiện sớm, Suspense chờ data, và metadata tự về head.
+
 ## So sánh với React 18 (cách làm cũ)
+
+Bảng dưới chấm 6 "mặt trận" trước–sau. Đọc theo hàng: mỗi dòng là một việc từng cần thư viện hoặc code tay, giờ là API native.
 
 | Khía cạnh | Trước 19 | React 19 | Lợi ích |
 |---|---|---|---|
@@ -68,7 +76,11 @@ function Input({ ref, ...p }: { ref?: React.Ref<HTMLInputElement> }) { /* ... */
 | Head metadata | `react-helmet`/`next/head` | Metadata native | Bỏ dependency |
 | Provider | `<Ctx.Provider>` | `<Ctx value>` | Cú pháp gọn |
 
+> **Cách đọc bảng này:** mỗi hàng là một khía cạnh so sánh; cột giữa là "đích đến" khuyến nghị — dùng nó để dò xem codebase của mình còn mấy chỗ theo cột "Trước 19".
+
 ## Breaking changes / Deprecations trong React 19
+
+Mục này liệt kê những gì bị gỡ hoặc đổi khuyến nghị khi lên 19 — quan trọng nhất là phần bị gỡ hoàn toàn (render cũ, defaultProps, string ref).
 - **`forwardRef` không còn cần thiết** (deprecate theo nghĩa "không khuyến khích") — `ref` là prop thường. Code cũ vẫn chạy, nhưng nên chuyển dần.
 - **`ReactDOM.render`/`hydrate` bị gỡ** — phải dùng `createRoot`/`hydrateRoot` (đã deprecate từ 18). Đây là breaking lớn nhất khi nhảy từ 17.
 - **`defaultProps` trên function component bị gỡ cảnh báo/không còn hỗ trợ** → dùng default parameter (destructuring) thay thế.
@@ -80,6 +92,9 @@ function Input({ ref, ...p }: { ref?: React.Ref<HTMLInputElement> }) { /* ... */
 - **Error handling**: lỗi không bắt (uncaught) mặc định log; hành vi thay đổi nhỏ so với 18.
 
 ## Nâng cấp từ React 18 cần lưu ý gì
+
+Mục này là "lộ trình 8 bước" nâng cấp — bắt đầu bằng codemod dọn pattern cũ, rồi lần lượt các API mới.
+
 1. **Chạy codemod/thay thế các pattern đã gỡ** trước khi nâng: bỏ `defaultProps`/`propTypes`/string ref/`findDOMNode`; chuyển `ReactDOM.render` → `createRoot`.
 2. **`ref` là prop**: kiểm tra component expose DOM — bỏ `forwardRef` dần, nhưng nhớ **truyền `ref` xuống element** (`ref={ref}`), nếu không `current` sẽ null.
 3. **`useActionState` thay `useFormState`**: `useFormState` (từ canary) đã đổi tên/gộp thành `useActionState` — cập nhật import.
@@ -89,19 +104,30 @@ function Input({ ref, ...p }: { ref?: React.Ref<HTMLInputElement> }) { /* ... */
 7. **Nâng `@types/react`/`@types/react-dom` cùng version** để có type cho `ref`-as-prop và JSX metadata.
 8. Hầu hết app 18 lên 19 chỉ cần các bước trên; lên canary/RC trước ở nhánh riêng để thử.
 
+> **Tóm gọn 1 câu:** Chạy codemod trước, kiểm tra ref được truyền tận nơi, và nhớ đổi tên `useFormState` → `useActionState` — đó là ba việc đáng làm đầu tiên.
+
 ## Lỗi thường gặp
+
+Mục này tóm gọn 5 lỗi "đụng trán" ngay tuần đầu với 19 — hầu hết lặp lại chi tiết từ các bài con, tốt để ôn nhanh.
 1. **Quên `prevState` trong action** → formData rơi sai vị trí → fix: signature `(prev, formData)`.
 2. **Throw để báo lỗi form** → React bắt ở tầng khác → fix: trả `{ ok: false, message }`.
 3. **`use()` với promise tạo trong render** → suspend vô hạn → fix: promise ổn định (module/cache/RSC).
 4. **Khai báo `ref` prop nhưng không truyền xuống element** → `current` null → fix: `ref={ref}` ở host node.
 5. **Trùng metadata, tưởng layout thắng** → element sâu hơn thắng → fix: để page lá khai báo.
 
+> **Tóm gọn 1 câu:** Phần lớn lỗi 19 là "quen tay 18": sai signature action, throw nhầm chỗ, promise không ổn định, ref chưa truyền tới nơi.
+
 ## Khi nào dùng / Khi nào không
 - **Dùng**: mọi dự án React 19+ — Actions cho form, `useOptimistic` cho UX tức thì, `use()` cho RSC/data, metadata theo page.
 - **Không**: Server Actions cần framework (Next.js) — React core chỉ cung cấp `action` phía client; metadata native không thay SEO framework nặng.
 
 ## Bài tập nhỏ
+
+Bài tập tổng hợp cả 5 bài thành một app mini — làm trọn sẽ thấy các API 19 phối hợp với nhau nhịp nhàng thế nào.
+
 - Dựng một "todo CRUD mini": form thêm todo dùng `useActionState` + nút submit dùng `useFormStatus`; danh sách dùng `useOptimistic` để item hiện ngay; mỗi trang đổi `<title>`/`<meta>`; input dùng `ref` prop để focus khi lỗi.
+
+> **Tóm gọn 1 câu:** Một todo app mini đủ 4 API 19 là bằng chứng thực hành tốt hơn mọi ghi chú.
 
 ## Reference
 - [React 19 Release](https://react.dev/blog/2024/12/05/react-19)

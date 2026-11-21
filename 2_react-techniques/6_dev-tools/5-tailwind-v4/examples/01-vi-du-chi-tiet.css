@@ -1,0 +1,18 @@
+/* src/index.css — CSS-first config, không cần tailwind.config.js */
+@import "tailwindcss";
+
+/* Design token → sinh utility Brand (--color-brand → bg-brand/text-brand...) */
+@theme {
+  --color-brand: #4f46e5;
+  --color-brand-dark: #4338ca;
+  --font-display: "Inter", sans-serif; /* → font-display */
+  --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.1); /* → shadow-pop */
+}
+
+/* Dark mode bằng class .dark ở <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Utility riêng chỉ sinh khi được dùng */
+@utility text-balance {
+  text-wrap: balance;
+}

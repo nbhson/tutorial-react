@@ -23,25 +23,11 @@
 
 Gọi `children[0]` khi `children` là **1 element đơn** → **`undefined`** (element không "index" được). Khi là **fragment** → `[0]` là child thứ nhất bên trong fragment, **không nhất định là "child đầu bạn đưa vào"** → sai kết quả mà không báo lỗi.
 
-```tsx
-// ❌ DANG — children không phải mảng
-function FirstChildOnly({ children }: { children: ReactNode }) {
-  return <div>{children[0]}</div>; // ❌ undefined nếu children = 1 element
-}
-// Dùng: <FirstChildOnly><a/><b/></FirstChildOnly> → children = [a, b] → [0] = a (đúng)
-//        <FirstChildOnly><a/></FirstChildOnly>     → children = <a/>   → [0] = undefined (sai!)
-```
+> 📄 **Code ví dụ:** [`examples/01-1-vi-sao-children-0-dang-khong-an.tsx`](examples/01-1-vi-sao-children-0-dang-khong-an.tsx)
 
 ### 2. Cách an toàn: `Children.toArray` (đáp án chuẩn khi thật sự cần lọc)
 
-```tsx
-import { Children } from "react";
-
-function FirstChildOnly({ children }: { children: ReactNode }) {
-  const arr = Children.toArray(children); // flatten + gán key ổn định
-  return <div>{arr[0] ?? null}</div>;     // [0] an toàn (luôn là mảng)
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-cach-an-toan-children-toarray-ap-an.tsx`](examples/02-2-cach-an-toan-children-toarray-ap-an.tsx)
 
 `Children.toArray`:
 - **phẳng hóa** mảng lồng + **fragment** (không giữ node fragment, chỉ giữ children bên trong).
@@ -53,16 +39,7 @@ function FirstChildOnly({ children }: { children: ReactNode }) {
 
 "Chỉ hiện child đầu tiên" nghĩa là **component này chỉ nên nhận MỘT child**. Thay vì "nhận `children` rồi tự lọc", **nên định nghĩa lại**:
 
-```tsx
-// ✅ "đúng nhất" — 1 slot tường minh (1 prop ReactNode), không cần "lọc"
-function Alert({ title }: { title: ReactNode }) {
-  return (
-    <div className="alert">
-      <strong>{title}</strong> {/* "child duy nhất" = title */}
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-3-nhung-ung-nhat-at-cau-hoi-api.tsx`](examples/03-3-nhung-ung-nhat-at-cau-hoi-api.tsx)
 
 **Vì sao "composition tường minh" thắng "lọc children"?**
 
@@ -72,22 +49,13 @@ function Alert({ title }: { title: ReactNode }) {
 | **1 prop `ReactNode`** (đặt lại API) | "đúng" nếu ý đồ là **1 slot** (đa số trường hợp) — type-check, IDE gợi ý, không cần lọc |
 | Named slots (nhiều prop `ReactNode`: `header`, `body`) | Khi muốn nhiều khe (xem DAY 5) |
 
+> **Cách đọc bảng này:** mỗi dòng là một lựa chọn thiết kế API, xếp từ "lọc tại chỗ" lên "đặt lại API tường minh" — càng xuống dưới càng đúng chất React, chọn dòng khớp với ý đồ component của bạn.
+
 > **Tư duy**: "lọc children" là **đưa quyết định vào phần hiển thị** (bên trong component). React ưu tiên **quyết định ở API** (props có tên) — component chỉ "vẽ". Nếu lọc vì component "thông minh", nên **tách API** (props tường minh) thay vì lọc.
 
 ### 4. "Lọc nhiều child" (nếu cần, không chỉ child đầu)
 
-```tsx
-import { Children, isValidElement } from "react";
-
-// Chỉ "hiện" child là element (bỏ string/number) — "gọt" shape
-function OnlyElements({ children }: { children: ReactNode }) {
-  return (
-    <div>
-      {Children.toArray(children).filter(isValidElement)}
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-4-loc-nhieu-child-neu-can-khong-chi.tsx`](examples/04-4-loc-nhieu-child-neu-can-khong-chi.tsx)
 
 - **Gọt child** (filter/clone) — chỉ khi **thư viện** cần linh hoạt.
 - **"Đặt lại API"** (1 prop) — an toàn hơn (type-check, rõ ý đồ).
@@ -103,6 +71,8 @@ function OnlyElements({ children }: { children: ReactNode }) {
 | `cloneElement` (inject prop) | `@ContentChild` + template | Sửa nội dung projected |
 
 > **Lời nói với interviewer**: "React truyền `children` (nhiều child mặc định) vào component, Angular chọn slot cụ thể (`<ng-content select>`). Vì vậy 'lọc child đầu ở chỗ nhận' thường xuyên hơn ở React — và cách đúng nhất vẫn là **đặt lại API bằng props tường minh**."
+
+> **Tóm gọn 1 câu:** `children[0]` là móc đồ trong thùng đồ không nhìn trước — `Children.toArray` là xếp ra khay trước khi móc; nhưng nếu chỉ cần một món, hãy bảo người ta đưa đúng một món (1 prop `ReactNode`).
 
 ## Bẫy khi phỏng vấn
 

@@ -1,0 +1,3 @@
+# Server set cookie khi login (BFF) — HttpOnly + Secure + SameSite
+Set-Cookie: access=...; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=900
+Set-Cookie: refresh=...; HttpOnly; Secure; SameSite=Strict; Path=/auth; Max-Age=2592000

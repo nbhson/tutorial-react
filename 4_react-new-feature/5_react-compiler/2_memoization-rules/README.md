@@ -4,7 +4,9 @@
 
 React Compiler 1.0 (**stable 10/2025**) tự động memoize **component, JSX, computed values và callback** dựa trên phân tích reactivity của code. Nó làm được điều này *chỉ khi* code tuân thủ **Rules of React** — bộ quy tắc đảm bảo component là hàm thuần (pure) và có thể dự đoán.
 
-Đây là bài "hiểu đúng bản chất": compiler không phải phép thuật — nó chỉ an toàn khi code của bạn "sạch" theo các quy tắc dưới đây.
+Hãy hình dung React Compiler như một trợ lý biết đọc ý: bạn viết code bình thường, nó tự âm thầm bọc `useMemo`/`useCallback` ở nơi cần — nhưng trợ lý chỉ dám làm việc khi căn nhà của bạn "gọn gàng", tức code tuân thủ Rules of React. Nhà bừa thì trợ lý... bỏ đi im lặng.
+
+> **Tóm gọn 1 câu:** Compiler tự động memoize giúp bạn — đổi lấy điều kiện code phải "sạch" theo Rules of React.
 
 ## Mục tiêu
 
@@ -14,17 +16,21 @@ React Compiler 1.0 (**stable 10/2025**) tự động memoize **component, JSX, c
 
 ## Vấn đề giải quyết
 
-Trước đây, re-render lan tràn vì những giá trị "mới mỗi render" nhưng thực chất không đổi về mặt ngữ nghĩa:
+Mục này trả lời câu hỏi "thực ra compiler làm gì dưới nắp capo?": Trước đây, re-render lan tràn vì những giá trị "mới mỗi render" nhưng thực chất không đổi về mặt ngữ nghĩa:
 
 - `onClick={() => doSomething(id)}` — callback mới mỗi render ⇒ child bọc `memo` vẫn re-render.
 - `style={{ color }}` / `config={{ theme }}` — object mới mỗi render ⇒ phá vỡ memo.
 - `items.filter(...)` — mảng mới mỗi render ⇒ truyền xuống child gây render thừa.
 
-Viết memo tay cho hàng trăm component là không khả thi và dễ sai. Compiler làm việc này **một cách hệ thống trên toàn codebase**, với điều kiện code tuân thủ Rules of React.
+Viết memo tay cho hàng trăm component là không khả thi và dễ sai — giống như dán tem chống giả thủ công lên từng món hàng trong kho hàng nghìn món. Compiler làm việc này **một cách hệ thống trên toàn codebase**, với điều kiện code tuân thủ Rules of React.
+
+> **Tóm gọn 1 câu:** Vấn đề cũ là "giá trị mới mỗi render" phá memo — compiler giải quyết bằng cách memoize hệ thống thay cho bạn.
 
 ## Khái niệm cốt lõi
 
-Compiler dựng một **đồ thị phụ thuộc** cho mỗi component: giá trị nào sinh ra từ state/props nào. Khi một phần state không đổi, mọi giá trị phụ thuộc chỉ vào state đó được giữ nguyên reference ⇒ child nhận reference cũ và bỏ qua render.
+Mục này nói về cơ chế bên trong: compiler "nhìn" code của bạn như thế nào để quyết định giữ hay vứt reference. Đọc để hiểu vì sao code bẩn khiến compiler từ chối tối ưu.
+
+Compiler dựng một **đồ thị phụ thuộc** cho mỗi component: giá trị nào sinh ra từ state/props nào. Hãy tưởng tượng sơ đồ phả hệ: biết ai là "con" của state nào, thì khi cha không đổi, cả nhánh con đứng yên luôn. Khi một phần state không đổi, mọi giá trị phụ thuộc chỉ vào state đó được giữ nguyên reference ⇒ child nhận reference cũ và bỏ qua render.
 
 Điều kiện để phân tích này *đúng*:
 
@@ -33,16 +39,15 @@ Compiler dựng một **đồ thị phụ thuộc** cho mỗi component: giá tr
 3. **Hook gọi ở top-level**, không trong điều kiện/vòng lặp/hàm lồng — để thứ tự hook luôn cố định.
 4. **Không đọc/ghi DOM, ref.current hay biến bên ngoài trong render** — đó là "non-reactive read", làm kết quả render phụ thuộc thứ ngoài luồng React.
 
-Khi code vi phạm, compiler **skip** component đó (không vỡ build) — nghĩa là bạn tưởng đã tối ưu nhưng thực ra không. Vì vậy ESLint là bạn đồng hành bắt buộc (bài 3).
+Khi code vi phạm, compiler **skip** component đó (không vỡ build) — nghĩa là bạn tưởng đã tối ưu nhưng thực ra không, như tưởng cửa có khóa mà thực ra chỉ hờ. Vì vậy ESLint là bạn đồng hành bắt buộc (bài 3).
+
+> **Tóm gọn 1 câu:** Compiler vẽ "sơ đồ phả hệ" của dữ liệu để giữ nguyên reference phần không đổi — nhưng chỉ khi render thuần túy và không mutate.
 
 ## Cú pháp / API
 
-Compiler không có API mới cho memoization — bạn chỉ cần viết code sạch. Một số directive và nguyên tắc:
+Mục này cho biết bạn cần "viết" gì thêm: câu trả lời là gần như không có gì — compiler không có API mới cho memoization, bạn chỉ cần viết code sạch. Một số directive và nguyên tắc:
 
-```tsx
-'use memo';    // bật compile cho file/component (opt-in)
-'use no memo'; // tắt compile cho file/component (opt-out)
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 Bảng đối chiếu nhanh vi phạm → cách sửa:
 
@@ -53,7 +58,13 @@ Bảng đối chiếu nhanh vi phạm → cách sửa:
 | Hook có điều kiện | `if (x) { useState() }` | đưa hook lên top-level |
 | Non-reactive read | `label = ref.current` trong render | đọc ref trong event/effect |
 
+> **Cách đọc bảng này:** mỗi dòng là một lỗi vi phạm điển hình — đọc cột "Ví dụ sai" để nhận diện code của mình, rồi tra ngay cột "Cách sửa" bên cạnh để khắc phục. Dùng như checklist soát lỗi trước khi build.
+
+> **Tóm gọn 1 câu:** Không có API mới cần học — "cú pháp" của compiler chính là 4 quy tắc viết code sạch ở bảng trên.
+
 ## Luồng hoạt động (Flow)
+
+Mục này đi qua 6 bước compiler xử lý một component, từ lúc đọc code đến lúc quyết định tối ưu hay bỏ qua — hiểu luồng này thì bạn biết code của mình đang rơi vào nhánh nào.
 
 1. Compiler đọc component, xác định state/props là "nguồn" dữ liệu.
 2. Nó theo dõi cách các biến khác được suy ra từ nguồn đó (đạo hàm).
@@ -62,54 +73,17 @@ Bảng đối chiếu nhanh vi phạm → cách sửa:
 5. **Vi phạm** → skip component, giữ code gốc (không tối ưu).
 6. Kết quả: re-render chỉ lan tới nơi dữ liệu thực sự thay đổi.
 
+Hãy ví von quy trình như hải quan kiểm hàng: soi từ gốc (state/props), truy nguồn gốc từng kiện hàng, rồi quyết định thông quan (tối ưu) hay trả về (skip).
+
+> **Tóm gọn 1 câu:** Compiler truy ngược dữ liệu về state gốc, kiểm vi phạm, rồi chọn một trong hai cửa: memo hoặc skip.
+
 ## Ví dụ chi tiết
+
+Mục này đưa code mẫu hoàn chỉnh để bạn thấy các quy tắc trên "sống" ra sao trong thực tế.
 
 Xem [`example.tsx`](example.tsx). Diễn giải đầy đủ:
 
-```tsx
-'use memo'; // Bật compiler cho file này
-
-// ✅ GOOD: render THUẦN — Compiler tự memo `sorted` và callback.
-export function GoodList({
-  items,
-  onPick,
-}: {
-  items: string[];
-  onPick: (v: string) => void;
-}) {
-  // Copy rồi sort ⇒ KHÔNG mutate props `items`.
-  // Compiler nhận ra `sorted` chỉ phụ thuộc `items`.
-  const sorted = [...items].sort();
-
-  return (
-    <ul>
-      {sorted.map((item) => (
-        <li key={item}>
-          {/* Callback inline vẫn ổn: compiler giữ identity ổn định khi cần */}
-          <button onClick={() => onPick(item)}>{item}</button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ❌ BAD: mutate props trong render ⇒ Compiler SKIP + lint báo lỗi.
-// Sửa: const next = [...items, 'x'] rồi render từ `next`.
-export function BadCounter({ items }: { items: string[] }) {
-  // @ts-expect-error — minh họa vi phạm Rules of React
-  items.push('mutated'); // vi phạm: mutate render input
-  return <p>Tổng: {items.length}</p>;
-}
-
-// ✅ Vẫn giữ useMemo cho tính toán ĐẮT (compiler không thay việc này về semantic).
-export function HeavyStats({ rows }: { rows: number[] }) {
-  const stats = (() => {
-    // Giả lập tính nặng trên mảng rows lớn
-    return { sum: rows.reduce((a, b) => a + b, 0) };
-  })();
-  return <p>Tổng: {stats.sum}</p>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -120,6 +94,8 @@ export function HeavyStats({ rows }: { rows: number[] }) {
 
 ## So sánh với cách làm cũ
 
+Mục này đối chiếu những gì bạn từng phải làm tay trước đây với việc compiler giờ lo thay — xem là thấy ngay mình được "trả lại" bao nhiêu dòng code.
+
 | Cách cũ | Cách mới | Lợi ích |
 |---------|----------|---------|
 | `useCallback` cho mọi handler | Compiler giữ identity ổn định tự động | Bớt code, không lo thiếu dep |
@@ -127,7 +103,11 @@ export function HeavyStats({ rows }: { rows: number[] }) {
 | `React.memo` bọc child nặng | Compiler memo child theo reactivity | Chính xác theo giá trị thật |
 | Sợ mutate nhưng không rõ quy tắc | Rules of React tường minh + lint | Viết code an toàn, tự tin hơn |
 
+> **Cách đọc bảng này:** đọc theo từng hàng — cột "Cách cũ" là thói quen cũ của bạn, cột "Cách mới" là thứ compiler đảm nhận thay, cột "Lợi ích" cho biết bạn được gì.
+
 ## Lỗi thường gặp
+
+Mục này liệt kê 5 cách "đạp vào bẫy" phổ biến nhất khi dùng compiler, kèm thuốc chữa ngay sau mỗi lỗi.
 
 1. **Mutate props/state trong render** (`items.push`, `obj.x = 1`) ⇒ compiler skip. *Fix:* tạo bản sao mới (`[...items]`, `{ ...obj }`).
 2. **Hook gọi có điều kiện** (`if (flag) useState()`) ⇒ vi phạm thứ tự hook ⇒ skip + lint. *Fix:* đưa hook lên top-level, xử lý điều kiện trong thân hàm.
@@ -136,6 +116,8 @@ export function HeavyStats({ rows }: { rows: number[] }) {
 5. **Để compiler skip lặng lẽ** ⇒ tưởng tối ưu. *Fix:* bật lint ở mức `error` và đọc log khi build.
 
 ## Khi nào dùng / Khi nào không
+
+Mục này vẽ ranh giới: việc gì compiler gánh được, việc gì vẫn phải tự tay làm — tránh kỳ vọng quá mức vào "phép thuật".
 
 **Dùng để:**
 - Viết component theo hướng pure, bỏ dần memo thủ công.
@@ -148,6 +130,8 @@ export function HeavyStats({ rows }: { rows: number[] }) {
 ## Bài tập nhỏ
 
 Cho `ProductList({ items, onAdd })` truyền `onAdd` inline và `items.filter(p => p.active)` xuống một `ProductRow` có `console.log`. Đầu tiên viết bản **mutate** (`items.sort()` tại chỗ) để thấy compiler skip, sau đó sửa thành pure (`[...items].sort()`) và kiểm chứng `ProductRow` không re-render khi state không liên quan đổi.
+
+> **Tóm gọn 1 câu:** Rules of React là "hộ chiếu" của component — code thuần túy thì compiler tối ưu hết công suất, code bẩn thì bị từ chối nhập cảnh.
 
 ## Reference
 

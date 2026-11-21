@@ -17,42 +17,13 @@
 
 Mỗi lần render, React chạy component từ trên xuống, gặp hook nào là **đăng ký theo thứ tự** vào danh sách state riêng của component đó. Danh sách này **không gắn nhãn** (`useState` thứ 2 không biết mình là "email") — chỉ là **ô 2**.
 
-```tsx
-// Render 1 (user = true):
-if (user) {
-  const [a, setA] = useState(0);   // ô 1
-  const [b, setB] = useState(0);   // ô 2
-}
-// → list: [a, b]
-
-// Render 2 (user = false) — if bỏ qua 2 hook:
-// → list: [] (đỗng)
-
-// Render 3 (user = true lại):
-// React thấy list render 2 có 0 ô, render 3 đòi 2 ô → LỆCH → "Rendered more hooks"
-```
+> 📄 **Code ví dụ:** [`examples/01-1-co-che-goc-state-theo-thu-tu.tsx`](examples/01-1-co-che-goc-state-theo-thu-tu.tsx)
 
 Chính vì **ô số 2 không có "tên"** mà chỉ có **vị trí**, nên vị trí phải **cố định mọi render**. `if` phá vị trí → sai ngay.
 
 ### 2. Cách đúng: điều kiện VÀO TRONG hook, không bao hook
 
-```tsx
-// ❌ SAI: hook trong điều kiện — số hook đổi giữa render
-if (user) {
-  const [x, setX] = useState(0);
-}
-
-// ✅ ĐÚNG (giao diện): hook top-level, điều kiện là RETURN
-const [x, setX] = useState(0);
-if (!user) return null;
-return <button onClick={() => setX(x + 1)}>{x}</button>;
-
-// ✅ ĐÚNG (logic): điều kiện nằm TRONG deps của effect
-useEffect(() => {
-  if (!user) return;                 // early-return, hook vẫn top-level
-  fetchUser(user.id);
-}, [user]);
-```
+> 📄 **Code ví dụ:** [`examples/02-2-cach-ung-ieu-kien-vao-trong-hook.tsx`](examples/02-2-cach-ung-ieu-kien-vao-trong-hook.tsx)
 
 > **Nguyên tắc 2 câu**: (1) hook **cố định top-level**; (2) muốn "điều kiện hóa hành vi" thì **điều kiện nằm TRONG body hook** (deps), **không phải BÊN NGOÀI** (bao hook).
 
@@ -60,13 +31,7 @@ useEffect(() => {
 
 `for (let i = 0; i < n; i++) useState(...)` → **số hook = n** → n đổi (list từ 3 item thành 5) → **dở ngay**. Không có cách "hook trong loop an toàn" — muốn state cho N phần tử, dùng **1 state mảng** (`useState(items.map(...))`), không phải N hook.
 
-```tsx
-// ❌ SAI
-items.forEach((it, i) => { const [v, setV] = useState(it); }); // 1 hook × n
-
-// ✅ ĐÚNG: 1 state duy nhất giữ mảng
-const [vals, setVals] = useState(items.map((i) => i));
-```
+> 📄 **Code ví dụ:** [`examples/03-3-loop-thi-sao-bay-thuong-gap-nhat.tsx`](examples/03-3-loop-thi-sao-bay-thuong-gap-nhat.tsx)
 
 ### 4. Vì sao hook KHÔNG trong hàm con/callback (quy tắc 3)
 
@@ -81,6 +46,8 @@ const [vals, setVals] = useState(items.map((i) => i));
 | Không cần quy tắc "hook top-level" | **Bắt buộc** (rules of hooks) | React "mua" linh hoạt (function, không class) bằng **đổi quy tắc thứ tự** |
 
 > **Nói đúng câu chốt**: "Angular 'khóa' state vào field class (mỗi field 1 tên, an toàn). React 'gò' state vào **danh sách theo thứ tự gọi** (để function hóa hook + composition) — đổi lại **bắt phải giữ thứ tự cố định mọi render** (top-level, không điều kiện/loop). Lỗi 'Rendered more hooks' chính là **danh sách hook không khớp**."
+
+> **Tóm gọn 1 câu:** React nhớ state bằng số thứ tự ô trong tủ (ô 1, ô 2, ô 3…) chứ không bằng tên — gọi hook trong `if`/loop là đổi số ô giữa các lần mở tủ, đồ sẽ rơi nhầm ngăn.
 
 ## Bẫy khi phỏng vấn
 

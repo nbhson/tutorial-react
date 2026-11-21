@@ -8,7 +8,7 @@
 
 **Vì sao:** ESLint 9+ mặc định flat — file `eslint.config.js` ESM, mảng object, không `extends`/`env` cũ. Giữ `.eslintrc` khi lên 9 là config không đọc nữa (lint chạy mà không check gì — tưởng xanh mà mù). Hiểu flat để chuyển đúng: `files` glob thay overrides, `globals` tường minh thay `env`, `...configs.recommended` spread thay extends, ESM import thay JSON.
 
-**Khác biệt nhớ 4 cái:** (1) mảng config áp theo `files` (không merge ngầm); (2) không `env: { browser }` — dùng `globals.browser`; (3) `ignores` ngay trong config (không `.eslintignore` riêng); (4) `FlatCompat` để chuyển dần dự án cũ thay vì viết lại một đêm.
+**Khác biệt nhớ 4 cái:** (1) mảng config áp theo `files` (không merge ngầm); (2) không `env: { browser }` — dùng `globals.browser`; (3) `ignores` ngay trong config (không `.eslintignore` riêng); (4) `FlatCompat` để chuyển dần dự án cũ thay vì viết lại một đêm. Ví von: legacy config như tập hồ sơ chắp vá nhiều phong bì, flat config là một tờ khai gọn — mỗi dòng nêu rõ áp cho file nào.
 
 ### 2. Cài và bật `eslint-plugin-react-hooks` v6 gồm Compiler rules
 
@@ -18,6 +18,8 @@
 
 **Vì sao:** lint không chặn commit/CI thì chỉ là gợi ý — nợ tích dần. `lint-staged` (`eslint --fix` file staged) giữ mỗi commit sạch mà không chậm (không lint cả repo). CI `--max-warnings=0` biến warning thành lỗi — chuẩn minh bạch, không "warning kệ đi".
 
+> **Tóm gọn 1 câu:** Mục tiêu của bài: chuyển sang flat config đúng cách, bật bộ rules Compiler của react-hooks v6, và chặn mọi cảnh báo từ commit tới CI.
+
 ## Tổng quan
 
 - ESLint 9+ mặc định **flat config**: một file `eslint.config.js` (ESM), cấu hình là mảng object, không còn `extends`, không còn `env`, dùng `globals` tường minh. `.eslintrc.*` không đọc nữa — phải chuyển.
@@ -26,17 +28,11 @@
 
 ## Khái niệm cốt lõi
 
+Mục này đi qua 5 khái niệm: flat config khác legacy ở đâu, compiler rules làm gì, preset nào nên bật, rule giữ HMR không gãy, và cách chặn từ pre-commit tới CI. Đọc để hiểu mỗi dòng trong `eslint.config.js` đang làm việc gì.
+
 ### 1. Flat khác legacy — mảng + files + globals + ignores trong một file
 
-```js
-// ✅ ĐÚNG (flat): mảng, files glob, globals tường minh, ignores chung
-export default tseslint.config(
-  { ignores: ['dist', 'coverage'] }, // thay .eslintignore
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  { files: ['**/*.{ts,tsx}'], languageOptions: { globals: { ...globals.browser } } },
-);
-```
+> 📄 **Code ví dụ:** [`examples/01-1-flat-khac-legacy-mang-files-globals-ignores.js`](examples/01-1-flat-khac-legacy-mang-files-globals-ignores.js)
 
 Legacy (`extends: ['airbnb']`, `env: { browser: true }`, `.eslintrc.json`) không chạy ở ESLint 9 mặc định — hoặc chuyển flat, hoặc `FlatCompat` bọc cũ trong mới tạm.
 
@@ -44,12 +40,7 @@ Legacy (`extends: ['airbnb']`, `env: { browser: true }`, `.eslintrc.json`) khôn
 
 Mutate props/state, side-effect ở render (fetch/random/Date.now), hook điều kiện — compiler skip component đó (đúng nhưng chậm). Plugin báo ngay lúc gõ để sửa trước khi build. Đây là lý do v6 quan trọng hơn v5: không chỉ "đúng hooks" mà "đủ sạch cho compiler".
 
-```tsx
-// ❌ SAI: mutate props — immutability đỏ + compiler skip
-function Row({ item }: any) { item.ten = item.ten.trim(); return <li>{item.ten}</li>; }
-// ✅ ĐÚNG: thuần — xanh + compiler cache được
-function Row({ item }: any) { const ten = item.ten.trim(); return <li>{ten}</li>; }
-```
+> 📄 **Code ví dụ:** [`examples/02-2-compiler-rules-code-sach-e-compiler-khong.tsx`](examples/02-2-compiler-rules-code-sach-e-compiler-khong.tsx)
 
 ### 3. `flat.recommended` — preset bật rules-of-hooks + exhaustive-deps + compiler
 
@@ -61,9 +52,13 @@ File component export lẫn component + const/helper không phải component →
 
 ### 5. lint-staged + `--max-warnings=0` — chặn từ commit tới CI
 
-Pre-commit `--fix` file staged (nhanh, không sửa file không staged). CI `--max-warnings=0` (warning cũng đỏ). Thiếu một là lọt: không staged thì commit bẩn; không max-warnings thì CI xanh dù vàng khè.
+Pre-commit `--fix` file staged (nhanh, không sửa file không staged). CI `--max-warnings=0` (warning cũng đỏ). Ví von: như kiểm tra an toàn thực phẩm — pre-commit là soát từng khay trước khi ra lò (commit), CI là kiểm tra lại cả kho trước khi xuất xưởng (merge); bỏ một trạm là hàng lỗi lọt kệ. Thiếu một là lọt: không staged thì commit bẩn; không max-warnings thì CI xanh dù vàng khè.
+
+> **Tóm gọn 1 câu:** Flat config là "một tờ khai rõ ràng", react-hooks v6 là "cảnh sát Compiler", và `--max-warnings=0` là luật "vàng cũng đỏ".
 
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là 5 bước dựng hệ lint hoàn chỉnh từ cài gói tới CI — làm đúng thứ tự thì hook chặn trước, CI chặn sau, không lọt.
 
 ### Bước 1. Cài 5 gói
 
@@ -79,83 +74,25 @@ Warning cũng fail — giữ chuẩn. Chạy local trước khi đẩy để kh�
 
 ### Bước 4. lint-staged pre-commit `--fix` file staged
 
-```json
-// .lintstagedrc.json — chỉ file staged, nhanh, không đụng file khác
-{ "*.{ts,tsx,js,mjs}": ["eslint --fix", "prettier --write"] }
-```
+> 📄 **Code ví dụ:** [`examples/03-buoc-4-lint-staged-pre-commit-fix-file.json`](examples/03-buoc-4-lint-staged-pre-commit-fix-file.json)
 
 ### Bước 5. CI chạy lint (song song type/test)
 
 Đỏ là block merge. Dự án cũ còn `.eslintrc` thì `FlatCompat` chuyển dần từng thư mục, không big-bang.
 
+> **Tóm gọn 1 câu:** Cài gói → viết `eslint.config.js` → `--max-warnings=0` → lint-staged pre-commit → CI block merge — mỗi lớp chặn một điểm lọt.
+
 ## Ví dụ chi tiết
 
 Mirror đầy đủ (config + code sạch + scripts), khớp `example.tsx` cùng thư mục:
 
-```js
-// eslint.config.js — flat config chuẩn React 19 + TS (ESLint 9/10)
-import js from '@eslint/js'; // rules JS cơ bản (no-undef, no-unused...)
-import globals from 'globals'; // preset môi trường (browser/node) thay env cũ
-import tseslint from 'typescript-eslint'; // rules TS + gộp config flat chuẩn
-import reactHooks from 'eslint-plugin-react-hooks'; // v6: hooks + Compiler rules
-import reactRefresh from 'eslint-plugin-react-refresh'; // giữ HMR không gãy
-import react from 'eslint-plugin-react'; // rules jsx-* (cần thì thêm)
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.js`](examples/04-vi-du-chi-tiet.js)
 
-export default tseslint.config(
-  { ignores: ['dist', 'coverage'] }, // bỏ qua build/coverage — thay .eslintignore
-  js.configs.recommended, // rules JS cơ bản — nền cho mọi file
-  ...tseslint.configs.recommended, // rules TS (+ type-aware nếu cấu hình projectService)
-  {
-    files: ['**/*.{ts,tsx}'], // chỉ áp TS/TSX — test/config khác có thể block riêng
-    languageOptions: {
-      globals: { ...globals.browser }, // window/document hợp lệ — thay env: { browser: true } cũ (thiếu là no-undef)
-      parserOptions: { ecmaFeatures: { jsx: true } }, // parse JSX trong TSX
-    },
-    plugins: {
-      react, // jsx rules — cần settings version dưới
-      'react-hooks': reactHooks, // hooks + compiler rules
-      'react-refresh': reactRefresh, // HMR guard
-    },
-    settings: { react: { version: '19' } }, // để rules jsx biết version (sai version là báo sai)
-    rules: {
-      // v6: rules-of-hooks + exhaustive-deps + Compiler (immutability, purity...) — bật cả, không chỉ exhaustive-deps
-      ...reactHooks.configs.flat.recommended.rules,
-      'react/react-in-jsx-scope': 'off', // React 17+ không cần import React — tắt để không báo thừa
-      'react/jsx-uses-react': 'off', // cùng lý do trên
-      // Chặn export lẫn lộn làm gãy HMR (component + helper chung file) — warn để tách file
-      'react-refresh/only-export-components': 'warn',
-    },
-  },
-);
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-// Đoạn code "sạch" qua được react-hooks v6: deps đủ, không mutate, không hook điều kiện
-import { useEffect, useState } from 'react';
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.sh`](examples/06-vi-du-chi-tiet.sh)
 
-export function Greeter({ name }: { name: string }) {
-  const [greeting, setGreeting] = useState('');
-
-  useEffect(() => {
-    // ✅ không mutate props (không gán name = ...), deps đủ ([name]) — thiếu là exhaustive-deps đỏ
-    // Vì sao effect ở đây: dẫn xuất từ props đồng bộ sau render — deps [name] để đổi tên là cập nhật
-    setGreeting(`Xin chào, ${name}!`);
-  }, [name]); // deps đủ — bỏ [name] là stale (tên mới mà chào tên cũ)
-
-  return <p>{greeting}</p>;
-}
-```
-
-```bash
-# script package.json / CI — lỗi CI nếu còn bất kỳ warning (chuẩn minh bạch)
-npx eslint . --max-warnings=0
-```
-
-```json
-// .lintstagedrc.json — tự sửa file staged trước commit (nhanh, không lint cả repo)
-{ "*.{ts,tsx,js,mjs}": ["eslint --fix", "prettier --write"] }
-```
+> 📄 **Code ví dụ:** [`examples/07-vi-du-chi-tiet.json`](examples/07-vi-du-chi-tiet.json)
 
 ## Giải thích từng phần
 
@@ -183,7 +120,7 @@ Không có là warning tích dần thành nợ ("để sau"). Có là mỗi PR p
 
 ### 1. Giữ `.eslintrc` lên ESLint 9 → config không đọc
 
-Chuyển `eslint.config.js` hoặc `FlatCompat` bọc cũ tạm. Kiểm tra: `npx eslint --inspect-config` xem rules áp thật không.
+Chuyển `eslint.config.js` hoặc `FlatCompat` bọc cũ tạm. Kiểm tra: `npx eslint --inspect-config` xem rules áp thật không. Giống như tưởng có bảo hiểm nhưng hóa đơn chưa được đóng dấu — lint "xanh" mà thực ra không check gì cả.
 
 ### 2. "React must be in scope" ở React 17+ → tắt 2 rules jsx scope
 
@@ -201,11 +138,15 @@ Khai như config trên. File test (vitest globals `describe/it`) thêm `globals`
 
 Chỉ file staged qua lint-staged như trên. Fix cả repo để vào script tay (`lint:fix`) chạy khi cần, không phải hook.
 
+> **Tóm gọn 1 câu:** 5 lỗi thường gặp: giữ `.eslintrc` cũ (lint mù), bật rules jsx-scope thừa, thiếu compiler rules, thiếu `globals.browser`, và `--fix` cả repo trong pre-commit.
+
 ## Best practices / Mẹo
 
 ### Deps đúng + không mutate + Prettier riêng + a11y cùng config + FlatCompat chuyển dần
 
 `useMemo`/`useCallback` deps đúng để exhaustive-deps xanh và compiler bớt việc. `push` trực tiếp state là mùi — review `immutability` khi thêm lib mutate mảng. Prettier lo format, ESLint lo logic — không để hai ông giành nhau (tắt rules format trùng). `jsx-a11y` vào cùng flat (xem nhóm 8). Dự án cũ `FlatCompat` từng thư mục, xanh dần, không big-bang.
+
+> **Tóm gọn 1 câu:** ESLint lo logic, Prettier lo format, react-hooks v6 lo độ "sạch" cho Compiler — ba người ba việc, không ai giành việc của ai.
 
 ## Bài tập nhỏ
 

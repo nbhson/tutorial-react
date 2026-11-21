@@ -9,6 +9,9 @@
 - Truyền dữ liệu cha → con qua `props` (↔ scope truyền vào directive).
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này trả lời câu hỏi nền tảng: component là gì, và nó "giống" directive AngularJS ở chỗ nào, khác ở chỗ nào. Đọc để định hình đơn vị xây dựng cơ bản của React.
+
 - AngularJS chia UI bằng `module` + `controller` + custom `directive` (như `<user-card>`). Dữ liệu truyền vào directive qua binding `scope: {...}`.
 - React legacy: **component = class** có phương thức `render()` trả về JSX. Component được dùng như thẻ HTML: `<Hello name="..." />`.
 - Dữ liệu truyền từ cha xuống con qua **props** — đối chiếu `$scope` truyền vào directive với `scope: {...}`. Props là object phẳng nằm trong `this.props`, chỉ đọc.
@@ -16,10 +19,17 @@
 - **Tên class · cách dùng**: class component thường đặt tên PascalCase (`Hello`, `UserCard`) và dùng như thẻ đóng mở `<Hello />`. Thẻ HTML bình thường (`<div>`, `<p>`) vẫn giữ nguyên — React phân biệt bằng chữ hoa ở đầu.
 - Mỗi component là "hàm thuần về mặt UI": cùng props → cùng output. Điều này giúp dự đoán, debug và tái sử dụng dễ dàng — đúng tinh thần "thẻ tùy biến có ràng buộc rõ" của directive.
 
+Ví von: component giống khuôn đúc bánh — cùng nguyên liệu (props) nấu theo cùng công thức thì luôn ra cùng chiếc bánh; khuôn nào trộn thêm "nguyên liệu bên ngoài" (biến toàn cục, thay đổi state ngầm) là khuôn hỏng.
+
+> **Tóm gọn 1 câu:** Component là "thẻ HTML tự chế": class + `render()` trả JSX, dữ liệu vào qua props, ghép chồng bằng composition.
+
 ### Keyword chính
 `Component` · `render()` · `props` · `this.props` · `composition` · `ReactDOM.render`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này lần theo cách React "dựng cây": component gốc render → component con khởi tạo → mỗi con render cây JSX của mình → React ráp tất cả vào DOM thật.
+
 1. Trình duyệt tải `index.html` + CDN React 16/Babel → Babel biên dịch `example.jsx`.
 2. `ReactDOM.render(<ComponentsDemo />, ...)` khởi tạo component gốc.
 3. `ComponentsDemo.render()` chạy → tạo các phần tử `<Hello>` và `<UserCard>` với props kèm theo.
@@ -31,46 +41,7 @@
 - Thử sửa `name` trong `ComponentsDemo` để thấy props được truyền lại mỗi lần render.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY class — đối chiếu AngularJS module/controller/directive.
-
-// Component "Hello" — giống một directive nhỏ chỉ nhận 1 binding
-class Hello extends React.Component {
-  render() {
-    // this.props.name ↔ scope.name truyền vào directive
-    // props là dữ liệu từ cha đổ xuống, KHÔNG được gán lại
-    return <p>Xin chào <b>{this.props.name}</b>!</p>;
-  }
-}
-
-// Component "UserCard" — giống directive nhận cả object qua binding
-class UserCard extends React.Component {
-  render() {
-    const user = this.props.user; // nhận nguyên object user
-    return (
-      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12, maxWidth: 360, margin: "8px auto" }}>
-        <h4>{user.name}</h4>
-        <p>Tuổi: {user.age}</p>
-      </div>
-    );
-  }
-}
-
-// Component gốc — đóng vai "controller" + template chính
-class ComponentsDemo extends React.Component {
-  render() {
-    const user = { name: "Geeks", age: 10 }; // dữ liệu như trong $scope
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>React Components (class)</h2>
-        {/* Ghép component như thẻ HTML, truyền props xuống */}
-        <Hello name="Geeks for Geeks" />
-        <UserCard user={user} />
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`class Hello extends React.Component`**: class kế thừa React.Component → có sẵn `this.props`, `this.state`, `render()`, lifecycle...
@@ -85,6 +56,9 @@ class ComponentsDemo extends React.Component {
 - **Không cần "scope: {...}"**: directive AngularJS phải khai báo binding (`=`, `@`, `&`); component React tự nhận mọi props — chỉ cần đọc `this.props.x`.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này đối chiếu module/controller/directive của AngularJS với class component của React — đọc ngang để thấy React gộp nhiều vai trò vào một khối duy nhất.
+
 | AngularJS | React legacy | Ghi chú |
 |---|---|---|
 | `angular.module("app")` | `class App extends React.Component` | Một module ≈ nhiều component |
@@ -93,7 +67,14 @@ class ComponentsDemo extends React.Component {
 | `scope: { name: "=" }` trên directive | `this.props.name` | Cùng là dữ liệu truyền vào |
 | Directive lồng nhau | Component lồng component (composition) | Tái sử dụng UI theo cây |
 
+> **Cách đọc bảng này:** AngularJS chia việc thành 3 khái niệm (module, controller, directive), còn React gộp cả 3 vào một class component — đọc từng dòng để thấy sự "gộp" này diễn ra ở chỗ nào.
+
+> **Tóm gọn 1 câu:** Một class component của React ≈ module + controller + directive của AngularJS gộp làm một.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Các lỗi dưới đây phần nhiều đến từ thói quen AngularJS (dùng `scope` binding, kế thừa...) — đọc để "gỡ thói quen cũ" sớm.
+
 - **Component trả về nhiều thẻ không bọc** trong React 16: hợp lệ (render có thể trả array), nhưng dễ lỗi layout. → Bọc trong một thẻ cha hoặc dùng array.
 - **Quên `render()`** trong class → báo lỗi "Nothing was returned from render". → Luôn có method `render`.
 - **Đổi `this.props.x = ...`** (muốn sửa giá trị từ con) → React bỏ qua (props là immutable trong class). → Báo cha thay đổi qua callback (xem bài 3).
@@ -102,6 +83,8 @@ class ComponentsDemo extends React.Component {
 - **Tên component viết thường** `<hello />` → React coi là thẻ HTML lạ, không render component. → Tên class component phải viết HOA.
 - **Trả về `undefined` khi quên `return` trong render** → React báo "Nothing was returned from render". → Luôn `return` một JSX (hoặc `null` khi muốn render trống).
 - **Nhầm composition với kế thừa**: cố `class A extends B` để tái dùng UI → React khuyến khích composition (`children`, tách component). → Ghép component, đừng kế thừa.
+
+> **Tóm gọn 1 câu:** Hai lỗi đáng nhớ nhất: tên component phải viết hoa (thường là React coi là thẻ HTML) và ghép UI bằng composition chứ không kế thừa.
 
 ## Best practices / Mẹo
 - Một component một trách nhiệm: nếu `render()` quá dài, tách component con.
@@ -112,6 +95,9 @@ class ComponentsDemo extends React.Component {
 - Kiểm tra props nhận đúng kiểu bằng `PropTypes` (như bài Context) khi component phức tạp.
 
 ## Bài tập nhỏ
+
+Hai bài này luyện "chia nhỏ" — kỹ năng quan trọng nhất khi viết component: tách khi render dài, đặt tên props rõ nghĩa.
+
 1. Tạo component `Avatar` nhận prop `url` (ảnh) và `size` (px), render `<img>` với width/height theo size; dùng nó trong `UserCard`.
 2. Tách `ComponentsDemo` thành 2 component nhỏ (`Header` + `Body`) và ghép lại — so sánh với việc tách directive trong AngularJS.
 

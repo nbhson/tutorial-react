@@ -6,9 +6,14 @@
 > Nếu lười mà wrap bằng `<div>` cho tiện thì sẽ bị gì (layout, CSS selector, semantics)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- Component chỉ được return **một khối duy nhất**. Muốn trả nhiều element cạnh nhau mà không thêm thẻ vào DOM thì bọc bằng Fragment (`<>...</>`).
+
+Mục này là câu trả lời 30 giây — ba gạch đầu dòng chốt: Fragment để làm gì, bọc div bị gì, và key với Fragment.
+
+- Component chỉ được return **một khối duy nhất**. Ví von: như một phong bì thư chỉ gửi được một tờ — muốn gửi nhiều tờ thì phải có "túi bọc", và Fragment là túi trong suốt không hiện ra ngoài phong bì (DOM). Muốn trả nhiều element cạnh nhau mà không thêm thẻ vào DOM thì bọc bằng Fragment (`<>...</>`).
 - Bọc `div` thì trình duyệt vẽ thêm một node thật: dễ vỡ layout flex/grid, vỡ selector CSS (`.cha > .con`), sai ngữ nghĩa (`ul`/`table`).
 - Map list mà mỗi dòng trả nhiều element thì dùng `<Fragment key={id}>` — shorthand `<>` không nhận key.
+
+> **Tóm gọn 1 câu:** Fragment là "túi bọc trong suốt" — nhóm nhiều element cho hợp luật một gốc mà không để lại dấu vết nào trong DOM.
 
 ## Trả lời chi tiết
 
@@ -16,47 +21,19 @@
 
 `return` của component là **một expression trả về một React element** (object mô tả UI — xem [`06-jsx`](../06-jsx)). Khi component render nhiều "khối" (header + nội dung + footer), bạn cần "nhóm" chúng — nhưng **không muốn thêm node vào DOM** (vì node thừa = layer HTML thừa).
 
-```tsx
-// ❌ Thêm <div> "vô nghĩa" vào DOM
-function Card() {
-  return (
-    <div>                // <-- layer DOM thừa
-      <div className="card-header">...</div>
-      <div className="card-body">...</div>
-    </div>
-  );
-}
-
-// ✅ Fragment: nhóm về phía React, không tạo node
-function Card() {
-  return (
-    <>
-      <div className="card-header">...</div>
-      <div className="card-body">...</div>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-vi-sao-mot-goc-duy-nhat.tsx`](examples/01-1-vi-sao-mot-goc-duy-nhat.tsx)
 
 ### 2. Hai dạng, khi nào dùng cái nào
 
-```tsx
-// (a) Shorthand — KHÔNG nhận props (không key):
-<>{children}</>
+Mục này phân biệt shorthand `<></>` và `<Fragment key>` — một "túi thường", một "túi có khóa" (key). Biết chọn đúng dạng là trả lời được trắc nghiệm phổ biến nhất của câu này.
 
-// (b) Dạng đầy đủ — NHẬN key (đặc biệt cần khi map list trả >1 element):
-import { Fragment } from "react";
-items.map((it) => (
-  <Fragment key={it.id}>
-    <div className="head">{it.title}</div>
-    <div className="foot">{it.meta}</div>
-  </Fragment>
-));
-```
+> 📄 **Code ví dụ:** [`examples/02-2-hai-dang-khi-nao-dung-cai-nao.tsx`](examples/02-2-hai-dang-khi-nao-dung-cai-nao.tsx)
 
 > Quy tắc nhớ: **cần key → `<Fragment key>`**, chỉ "nhóm" thuần → **`<></>`**.
 
 ### 3. `<div>` vs Fragment — bảng so (điểm "ăn điểm")
+
+Mục này đối chiếu hai lựa chọn bọc theo 5 tiêu chí — trả lời trực tiếp vế "lười bọc div thì bị gì" của đề bài.
 
 | Tiêu chí | Wrap bằng `<div>` | Fragment `<></>` |
 |---|---|---|
@@ -65,6 +42,8 @@ items.map((it) => (
 | Semantics | Thêm HTML "vô nghĩa", sai tree (ul không trực tiếp trong section...) | Đúng ngữ nghĩa, DOM sạch |
 | A11y/SEO | DOM "sâu" hơn không cần thiết | DOM đúng, tốt hơn |
 | Khi nào HỢP LÝ dùng div thật | **Có intent layout** (wrapper flexbox, card, section) | — |
+
+> **Cách đọc bảng này:** đọc ngang từng hàng là một phép so sánh trực tiếp; hàng cuối là "lối thoát" quan trọng — div không phải kẻ xấu, chỉ là đừng dùng khi không có ý đồ layout.
 
 **Kết luận**: không phải "đóng khung" Fragment tốt hơn — **chọn có chủ ý**:
 - Wrapper "thuần layout" (flex container, section với style) → **div (hoặc element ngữ nghĩa) là đúng**, vì đó là intent thiết kế.
@@ -76,6 +55,8 @@ items.map((it) => (
 - **Fragment + key khi map**: key là "căn cước" để diff list động (thêm/xóa/đảo) — không có key → React giữ nhầm node theo vị trí (state "nhảy hàng").
 
 ## Bẫy khi phỏng vấn
+
+Mục này là 4 phát ngôn sai kinh điển về Fragment — bẫy số 2 (shorthand không nhận key) là "trắc nghiệm" bị hỏi nhiều nhất.
 
 1. **"Fragment nhanh hơn div"** (nói suông) → **không đúng bản chất**: vấn đề không phải "hiệu năng" — mà là **thêm node DOM không cần thiết + phá layout/semantics**.
 2. **Dùng `<></>` cho list động có key** → **lỗi**: shorthand không nhận key → dùng `<Fragment key>` (đây là "trắc nghiệm" phổ biến nhất).

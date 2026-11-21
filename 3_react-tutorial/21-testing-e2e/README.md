@@ -10,67 +10,55 @@
 ### 1. Bộ ba 2026: Vitest + RTL + Playwright
 Angular: Karma/Jasmine + TestBed + Protractor/Cypress. React + Vite: **Vitest** (chạy trên Vite, config chung, API Jest-like, song song, watch, coverage v8) + **RTL** (render vào jsdom, query theo a11y) + **Playwright** (browser thật Chromium/Firefox/WebKit, auto-wait, trace). Mỗi tầng một việc, không thay nhau.
 
-```ts
-// vite.config.ts — Vitest dùng chung config Vite (alias, plugin) nên không config 2 nơi:
-import { defineConfig } from "vitest/config";
-export default defineConfig({
-  test: {
-    environment: "jsdom", // DOM giả (nhanh, không browser) cho unit/integration
-    setupFiles: ["./src/test-setup.ts"], // 1 dòng: import "@testing-library/jest-dom" (toBeInTheDocument)
-    globals: true, // test/expect/describe toàn cục (khỏi import mỗi file) + auto-cleanup
-  },
-});
-// src/test-setup.ts: import "@testing-library/jest-dom"; // matcher DOM thân thiện
-```
+> 📄 **Code ví dụ:** [`examples/01-1-bo-ba-2026-vitest-rtl-playwright.ts`](examples/01-1-bo-ba-2026-vitest-rtl-playwright.ts)
 
 Vì sao jsdom cho unit mà browser cho E2E? Vì jsdom nhanh (ms) nhưng giả (không layout/paint/animation thật) — đủ cho logic + tương tác. E2E cần thật (multi-page, auth, network, visual) — Playwright browser thật + auto-wait + video/trace khi fail.
+
+> **Tóm gọn 1 câu:** Vitest + RTL chạy trong "hộp giấy" jsdom cho nhanh, Playwright mở hẳn trình duyệt thật cho tin — mỗi tầng một giá cả.
+
 
 ### 2. Triết lý RTL — test như user dùng
 "The more your tests resemble the way your software is used, the more confidence they can give you." Query theo `getByRole` (nut, textbox, heading) + `getByLabelText` (label) + `getByText` (nội dung) — những gì user (kể cả screen reader) nhận biết. Không `querySelector(".btn-primary")` (đổi class là vỡ dù hành vi đúng), không assert `useState` call count (implementation).
 
-```tsx
-// example.tsx Counter: test hỏi "user thấy gì" sau "user làm gì":
-render(<App />);
-await user.click(screen.getByRole("button", { name: "+1" })); // tìm nút như user (role + tên đọc được)
-expect(screen.getByText("Count: 1")).toBeInTheDocument(); // assert text user thấy
-// Đổi class/style/component nội bộ mà role/text giữ -> test vẫn xanh. Đổi ".btn" query là đỏ oan.
-```
+> 📄 **Code ví dụ:** [`examples/02-2-triet-ly-rtl-test-nhu-user-dung.tsx`](examples/02-2-triet-ly-rtl-test-nhu-user-dung.tsx)
 
 `getBy*` (đồng bộ, không thấy là ném ngay) vs `findBy*` (async, chờ xuất hiện — cho fetch/Suspense) vs `queryBy*` (không thấy trả null — cho assert "không tồn tại"). Sai là `getBy` cho element async (flaky) hoặc `findBy` cho sync (chậm).
 
-### 3. `render` + `screen` + `user-event` (không phải `fireEvent`)
-`render(<App/>)` mount vào container jsdom (tương đương `TestBed.createComponent` nhưng không module/DI). `screen` query toàn cục (`document.body`). `user-event` mô phỏng nhiều bước như người (hover → focus → pointerdown → click → blur), async nên `await`. `fireEvent.click` chỉ dispatch 1 event (rẻ nhưng giả — bỏ qua focus/hover behavior).
+> **Tóm gọn 1 câu:** RTL dạy test như user đọc trang: nhìn theo role/label/text, không bóc máy móc xem bên trong lắp ráp thế nào.
 
-```tsx
-const user = userEvent.setup(); // v14 setup 1 lần mỗi test
-await user.click(screen.getByRole("button", { name: "+1" })); // nhớ await — quên là assert chạy trước update (flaky)
-await user.keyboard("Son"); // gõ như người (từng phím + onChange từng cái)
-```
+
+### 3. `render` + `screen` + `user-event` (không phải `fireEvent`)
+`render(<App/>)` mount vào container jsdom (tương đương `TestBed.createComponent` nhưng không module/DI). `screen` query toàn cục (`document.body`). `user-event` mô phỏng nhiều bước như người (hover → focus → pointerdown → click → blur), async nên `await`. `fireEvent.click` chỉ dispatch 1 event (rẻ nhưng giả — bỏ qua focus/hover behavior). Hãy hình dung: `fireEvent` là người rủa giả tiếng khạc, `user-event` là diễn viên vào vai — đi hết động tác thật.
+
+> 📄 **Code ví dụ:** [`examples/03-3-render-screen-user-event-khong-phai-fireevent.tsx`](examples/03-3-render-screen-user-event-khong-phai-fireevent.tsx)
+
+> **Tóm gọn 1 câu:** `user-event` diễn lại nguyên chuỗi động tác của người thật nên đáng tin hơn `fireEvent` bắn sự kiện đơn lẻ — đừng tiết kiệm công diễn.
+
 
 ### 4. `toBeInTheDocument` + `renderHook` + MSW
-`toBeInTheDocument()` từ `jest-dom` (cần setup import 1 lần, không là "not a function"). `renderHook(() => useDebounce(x))` test hook không cần UI (kết hợp fake timer). MSW chặn ở tầng network (trả JSON giả cho fetch/XHR) — test `useFetch`/`useQuery` sát thật (loading → success/error) mà không mock `fetch` tay (mock tay bỏ qua check `ok`/parse).
+`toBeInTheDocument()` từ `jest-dom` (cần setup import 1 lần, không là "not a function"). `renderHook(() => useDebounce(x))` test hook không cần UI (kết hợp fake timer). MSW chặn ở tầng network (trả JSON giả cho fetch/XHR) — test `useFetch`/`useQuery` sát thật (loading → success/error) mà không mock `fetch` tay (mock tay bỏ qua check `ok`/parse). Ví von: MSW như lễ tân đứng chặn ở sảnh — khách nào cũng qua quầy, không ai chui cửa sau.
+
+> **Tóm gọn 1 câu:** jest-dom cho matcher dễ đọc, `renderHook` cho hook không cần UI, MSW chặn mạng ở tầng request — ba món hoàn thiện hộp đồ test.
+
 
 ### 5. Playwright E2E — luồng trọng yếu, browser thật
 `page.goto` + locator `getByRole/getByPlaceholder` (auto-wait: chưa có thì poll, không `sleep`) + `expect().toBeVisible()` (retry mặc định) + `storageState` (login 1 lần dùng nhiều test) + trace/video khi CI fail. Test ít (login, checkout) vì chậm/đắt; logic để Vitest/RTL.
 
-```ts
-// e2e/login.spec.ts — npm init playwright@latest
-import { test, expect } from "@playwright/test";
-test("login thành công", async ({ page }) => {
-  await page.goto("/"); // baseURL config, không hardcode localhost:5173 mỗi test
-  await page.getByPlaceholder("Email").fill("a@b.com"); // auto-wait tới khi fill được
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page.getByText("Welcome")).toBeVisible(); // poll tới khi hiện (không sleep)
-});
-```
+> 📄 **Code ví dụ:** [`examples/04-5-playwright-e2e-luong-trong-yeu-browser-that.ts`](examples/04-5-playwright-e2e-luong-trong-yeu-browser-that.ts)
+
+> **Tóm gọn 1 câu:** Playwright dùng cho ít luồng đắt tiền nhất (login, thanh toán) — như chiêu khách VIP: ít nhưng mỗi lần phải tận tay.
+
 
 ### 6. Phân tầng — kim tự tháp
 Unit (hàm thuần `move`/`vnd`, hook `renderHook`) nhiều + nhanh; Integration (component + user-event: Counter bấm → text) nhiều vừa; E2E (Playwright xuyên trang) ít (luồng tiền). Chi phí chạy ngược với độ tin cậy (E2E tin nhất, chậm nhất). Coverage để tìm vùng chưa test, không phải mục tiêu 100% mù.
+
+> **Tóm gọn 1 câu:** Kim tự tháp test: đáy là hàng nghìn unit rẻ-nhanh, đỉnh là vài E2E đắt-chậm cho luồng tiền — đừng dựng đỉnh trước đáy.
 
 ### Keyword chính
 Vitest (`test`/`expect`/`vi.fn`/`vi.useFakeTimers`/`--coverage`), RTL (`render`/`screen`/`getByRole`/`findBy*`/`renderHook`), `user-event` (setup + await, thật hơn fireEvent), jest-dom (`toBeInTheDocument`), MSW (mock network), Playwright (`page.getByRole`, auto-wait, `toBeVisible`, `storageState`, trace).
 
 ## Luồng hoạt động (Flow)
+Mục này đi qua 8 bước theo đúng trình tự một vòng đời test: từ lúc chạy lệnh, mount component, giả lập thao tác, assert, cho tới test async, hook, E2E và coverage — đọc theo thứ tự để thấy "một ca test sống" trông thế nào.
 1. `npx vitest` (watch) / `vitest run` (CI): đọc `vite.config.ts`, jsdom + setup jest-dom, mỗi file `*.test.tsx` chạy song song (nhanh nhờ Vite transform).
 2. Test mount: `render(<App/>)` — React mount vào div trong jsdom. `screen` trỏ `document.body`. Auto-cleanup sau mỗi test (globals) nên không rò DOM (không là `getBy*` thấy 2 nút 2 test).
 3. `await user.click(getByRole("button", { name: "+1" }))`: RTL tìm theo a11y (role button + accessible name "+1" từ text content); user-event pointer + focus + click như người; React `setCount(c => c+1)`; RTL bọc `act` nên DOM cập nhật đồng bộ sau await.
@@ -83,107 +71,19 @@ Vitest (`test`/`expect`/`vi.fn`/`vi.useFakeTimers`/`--coverage`), RTL (`render`/
 ## Ví dụ chi tiết
 Khớp 1-1 với `example.tsx` (Counter + 3 test + ghi chú async/hook/MSW/query):
 
-```tsx
-// example.tsx — DAY 21: Counter dễ test + test RTL + MSW + renderHook ý tưởng
-// Mục đích: test hành vi user (role/text) — không chọc state/hàm nội bộ.
-import { useState } from "react"; // (1) State count — test assert UI "Count: X", không assert state trực tiếp
-
-export default function App() {
-  const [count, setCount] = useState(0); // (2) Functional update để bấm nhanh không mất (kết hợp DAY 1/3)
-  return (
-    <>
-      {/* (3) Text động "Count: {count}" — getByText assert theo những gì user thấy */}
-      <p>Count: {count}</p>
-      {/* (4) <button> semantic + tên "+1" rõ — getByRole("button", { name: "+1" }) bền trước refactor class */}
-      <button onClick={() => setCount((c) => c + 1)}>+1</button>
-      <button onClick={() => setCount(0)}>Reset</button>
-    </>
-  );
-}
-
-// Counter.test.tsx — đặt cạnh example.tsx khi chạy (Vitest + RTL + user-event):
-// import { render, screen } from "@testing-library/react";
-// import userEvent from "@testing-library/user-event"; // mô phỏng thật (pointer/focus/click), khác fireEvent low-level
-// import { expect, test, beforeEach, vi } from "vitest";
-// import App from "./example";
-//
-// beforeEach(() => vi.clearAllMocks()); // reset mock giữa các test — không rò state
-//
-// test("hiển thị Count: 0 lúc đầu", () => {
-//   render(<App />); // mount vào jsdom (không browser thật nên nhanh)
-//   expect(screen.getByText("Count: 0")).toBeInTheDocument(); // jest-dom matcher — cần setupFiles import 1 lần
-// });
-//
-// test("bấm +1 hai lần -> Count: 2", async () => {
-//   const user = userEvent.setup(); // v14: setup rồi dùng — mô phỏng async như người thật
-//   render(<App />);
-//   await user.click(screen.getByRole("button", { name: "+1" })); // query theo role + accessible name (a11y)
-//   await user.click(screen.getByRole("button", { name: "+1" }));
-//   expect(screen.getByText("Count: 2")).toBeInTheDocument(); // assert UI, không assert count state
-// });
-//
-// test("Reset về 0", async () => {
-//   const user = userEvent.setup();
-//   render(<App />);
-//   await user.click(screen.getByRole("button", { name: "+1" }));
-//   await user.click(screen.getByRole("button", { name: "Reset" }));
-//   expect(screen.getByText("Count: 0")).toBeInTheDocument();
-// });
-
-// Ghi chú mở rộng (xem README copy):
-// - Async: await screen.findByText("Welcome") chờ xuất hiện (không waitForTimeout) — auto-wait.
-// - Hook: renderHook(() => useDebounce(text, 300)) với vi.useFakeTimers() + advanceTimersByTime(300).
-// - Network: MSW (msw) chặn fetch ở tầng network cho useFetch/useQuery — test loading->success->error.
-// - Query: bọc QueryClientProvider client mới mỗi test + retry: false (không chờ retry khi lỗi).
-// - E2E Playwright: page.getByRole auto-wait + toBeVisible (không waitForTimeout), storageState login 1 lần.
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
 Vitest + RTL setup + Playwright + MSW/query (copy khi cần):
 
-```ts
-// vite.config.ts — test jsdom + setup jest-dom (đã ở Khái niệm, nhắc lại để copy)
-import { defineConfig } from "vitest/config";
-export default defineConfig({
-  test: { environment: "jsdom", setupFiles: ["./src/test-setup.ts"], globals: true },
-});
-// src/test-setup.ts: import "@testing-library/jest-dom";
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.ts`](examples/06-vi-du-chi-tiet.ts)
 
-```ts
-// e2e/login.spec.ts — Playwright (npm init playwright@latest)
-import { test, expect } from "@playwright/test";
-test("login thành công", async ({ page }) => {
-  await page.goto("/"); // baseURL trong playwright.config.ts
-  await page.getByPlaceholder("Email").fill("a@b.com"); // auto-wait
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page.getByText("Welcome")).toBeVisible(); // retry poll, không sleep
-});
-```
+> 📄 **Code ví dụ:** [`examples/07-vi-du-chi-tiet.ts`](examples/07-vi-du-chi-tiet.ts)
 
-```tsx
-// MSW mock network cho useFetch/useQuery — test 3 trạng thái sát thật:
-import { http, HttpResponse } from "msw";
-import { setupServer } from "msw/node";
-const server = setupServer(http.get("/api/users", () => HttpResponse.json([{ id: 1, name: "Son" }])));
-beforeAll(() => server.listen()); afterEach(() => server.resetHandlers()); afterAll(() => server.close());
-// Test: render -> getByText("Đang tải") -> findByText("Son") (thành công); server.use(http.get(..., () => new HttpResponse(null, { status: 500 }))) cho nhánh lỗi
-```
+> 📄 **Code ví dụ:** [`examples/08-vi-du-chi-tiet.tsx`](examples/08-vi-du-chi-tiet.tsx)
 
-```tsx
-// renderHook + fake timer cho useDebounce (DAY 16):
-import { renderHook, act } from "@testing-library/react";
-vi.useFakeTimers();
-const { result, rerender } = renderHook(({ v }) => useDebounce(v, 300), { initialProps: { v: "a" } });
-rerender({ v: "ab" }); act(() => vi.advanceTimersByTime(300)); // ngừng đủ 300ms
-expect(result.current).toBe("ab");
-```
+> 📄 **Code ví dụ:** [`examples/09-vi-du-chi-tiet.tsx`](examples/09-vi-du-chi-tiet.tsx)
 
-```tsx
-// TanStack Query trong test: client mới mỗi test + retry false (không chờ retry khi lỗi):
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-render(<QueryClientProvider client={qc}><Users /></QueryClientProvider>);
-```
+> 📄 **Code ví dụ:** [`examples/10-vi-du-chi-tiet.tsx`](examples/10-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - Dòng `useState(0)` + functional `(c) => c + 1`: test bấm 2 lần nhanh không mất (stale). Vì sao functional quan trọng cho test? Vì user-event click 2 lần trước re-render xong mà `count + 1` snapshot cũ là chỉ +1 (test đỏ oan).
@@ -199,6 +99,7 @@ render(<QueryClientProvider client={qc}><Users /></QueryClientProvider>);
 - Dòng Playwright `getByRole/getByPlaceholder` + `toBeVisible()`: auto-wait + retry poll — không `waitForTimeout(1000)` (flaky + chậm: nhanh thì chờ thừa, chậm thì vẫn fail). `storageState` login 1 lần (file) cho nhiều test (nhanh + ít phụ thuộc).
 
 ## Bảng so sánh Angular ↔ React + Vite
+Mục này là "cuốn từ điển song ngữ" cho người từ Angular sang: cột trái là thứ bạn quen, cột giữa là bản dịch React + Vite, cột phải nói thêm khi nào dịch "thật lòng".
 | Angular | React + Vite | Ghi chú |
 |---|---|---|
 | Karma + Jasmine (`describe/it/expect`) | Vitest (API Jest-like, Vite, song song) | Chuyển gần như giữ nguyên cú pháp |
@@ -212,54 +113,29 @@ render(<QueryClientProvider client={qc}><Users /></QueryClientProvider>);
 | `jasmine.createSpy`/`spyOn` | `vi.fn()` / `vi.spyOn` + `clearAllMocks` | Cùng mock/spy, nhớ reset |
 | `fakeAsync`/`tick()` | `vi.useFakeTimers()` + `advanceTimersByTime` | Cùng giả thời gian cho debounce/timeout |
 
+> **Cách đọc bảng này:** mỗi dòng là một công cụ cũ ↔ mới; đọc cột Ghi chú để biết chỗ nào "chuyển gần như 1-1" (Karma → Vitest) và chỗ nào "khác triết lý" (class a11y → role a11y) — chỗ khác triết lý mới là chỗ cần học.
+
 ## Lỗi thường gặp (Common pitfalls)
+Mục này gom 8 cái bẫy hay gặp nhất khi mới viết test React — mỗi cái có mã ví dụ chạy được để thấy lỗi "văn mình" (fail không vì logic sai mà vì viết sai kiểu test).
 
 ### 1. Query class/testid nội bộ → refactor vỡ oan
-```tsx
-// ❌ SAI: đổi class là test đỏ dù hành vi đúng
-expect(container.querySelector(".btn-primary")).not.toBeNull();
-```
-```tsx
-// ✅ ĐÚNG: role/label/text (a11y) — đổi style không vỡ (như example)
-expect(screen.getByRole("button", { name: "+1" })).toBeInTheDocument();
-// Testid chỉ khi không role/text: getByTestId("chart-canvas")
-```
+> 📄 **Code ví dụ:** [`examples/11-1-query-class-testid-noi-bo-refactor-vo.tsx`](examples/11-1-query-class-testid-noi-bo-refactor-vo.tsx)
+> 📄 **Code ví dụ:** [`examples/12-1-query-class-testid-noi-bo-refactor-vo.tsx`](examples/12-1-query-class-testid-noi-bo-refactor-vo.tsx)
 
 ### 2. Quên `await userEvent` → flaky
-```tsx
-// ❌ SAI: assert trước khi update xong (lúc xanh lúc đỏ)
-user.click(screen.getByRole("button", { name: "+1" }));
-expect(screen.getByText("Count: 1")).toBeInTheDocument(); // còn "Count: 0"
-```
-```tsx
-// ✅ ĐÚNG: luôn await; async element thì findBy
-await user.click(screen.getByRole("button", { name: "+1" }));
-expect(screen.getByText("Count: 1")).toBeInTheDocument();
-// Fetch: await screen.findByText("Son") (chờ, không getBy ngay)
-```
+> 📄 **Code ví dụ:** [`examples/13-2-quen-await-userevent-flaky.tsx`](examples/13-2-quen-await-userevent-flaky.tsx)
+> 📄 **Code ví dụ:** [`examples/14-2-quen-await-userevent-flaky.tsx`](examples/14-2-quen-await-userevent-flaky.tsx)
 
 ### 3. Quên jest-dom setup → matcher không tồn tại
 Mô tả: "toBeInTheDocument is not a function" — không phải logic sai mà setup thiếu. Fix: `setupFiles: ["./src/test-setup.ts"]` với `import "@testing-library/jest-dom"` 1 lần (xem mẫu trên).
 
 ### 4. Test implementation (state/call) → khó bảo trì
-```tsx
-// ❌ SAI: chọc nội bộ — đổi tên hàm là vỡ dù UI đúng
-expect(setCount).toHaveBeenCalledTimes(2);
-```
-```tsx
-// ✅ ĐÚNG: assert UI user thấy (như example 3 test)
-expect(screen.getByText("Count: 2")).toBeInTheDocument();
-```
+> 📄 **Code ví dụ:** [`examples/15-4-test-implementation-state-call-kho-bao-tri.tsx`](examples/15-4-test-implementation-state-call-kho-bao-tri.tsx)
+> 📄 **Code ví dụ:** [`examples/16-4-test-implementation-state-call-kho-bao-tri.tsx`](examples/16-4-test-implementation-state-call-kho-bao-tri.tsx)
 
 ### 5. E2E `waitForTimeout` → chậm + flaky
-```ts
-// ❌ SAI: nhanh thì chờ thừa, chậm thì vẫn fail
-await page.waitForTimeout(1000); await expect(page.getByText("Welcome")).toBeVisible();
-```
-```ts
-// ✅ ĐÚNG: auto-wait + retry poll (như example login)
-await expect(page.getByText("Welcome")).toBeVisible(); // poll tới khi hiện/timeout config
-```
+> 📄 **Code ví dụ:** [`examples/17-5-e2e-waitfortimeout-cham-flaky.ts`](examples/17-5-e2e-waitfortimeout-cham-flaky.ts)
+> 📄 **Code ví dụ:** [`examples/18-5-e2e-waitfortimeout-cham-flaky.ts`](examples/18-5-e2e-waitfortimeout-cham-flaky.ts)
 
 ### 6. Không reset mock/DOM → rò giữa test
 Mô tả: mock đếm dồn, DOM test trước còn (2 nút "+1") → `getByRole` "found multiple". Fix: `beforeEach(vi.clearAllMocks())` + RTL auto-cleanup (globals) / `cleanup()` tay.
@@ -268,16 +144,11 @@ Mô tả: mock đếm dồn, DOM test trước còn (2 nút "+1") → `getByRole
 Mô tả: `setState` sau `render` không trong `act` (fetch về sau test xong). Fix: `await userEvent`/`findBy`/`waitFor` (bọc act) thay vì `fireEvent` + assert sync. Không suppress warning.
 
 ### 8. Timeout thật cho debounce/interval → chậm/flaky
-```tsx
-// ❌ SAI: chờ thật 300ms mỗi test — suite chậm, CI flaky
-await new Promise((r) => setTimeout(r, 350)); expect(...).toBe(...);
-```
-```tsx
-// ✅ ĐÚNG: fake timer (như mẫu renderHook trên)
-vi.useFakeTimers(); rerender({ v: "ab" }); act(() => vi.advanceTimersByTime(300));
-```
+> 📄 **Code ví dụ:** [`examples/19-8-timeout-that-cho-debounce-interval-cham-flaky.tsx`](examples/19-8-timeout-that-cho-debounce-interval-cham-flaky.tsx)
+> 📄 **Code ví dụ:** [`examples/20-8-timeout-that-cho-debounce-interval-cham-flaky.tsx`](examples/20-8-timeout-that-cho-debounce-interval-cham-flaky.tsx)
 
 ## Best practices / Mẹo
+Mục này là "bộ luật dọn dẹp" sau khi biết viết test: chọn tầng nào, test cái gì, đặt tên ra sao để suite sống lâu không thành gánh nặng.
 - **Kim tự tháp:** nhiều unit/integration (Vitest/RTL, ms) + ít E2E (Playwright, giây) cho luồng tiền. Vì sao? Vì E2E tin nhất nhưng chậm/đắt/flaky hơn — phủ hết bằng E2E là CI giờ đồng hồ.
 - **Hành vi, không implementation:** câu test như user ("bấm +1 hai lần, thấy Count: 2"). Vì sao? Để refactor (đổi class/tên hàm/tách component) không vỡ khi hành vi giữ.
 - Hook `renderHook` + hàm thuần test trực tiếp (không render UI). Vì sao? Vì logic hook/hàm độc lập — test UI cho nó là phí + mờ (fail không biết do logic hay UI).
@@ -285,6 +156,8 @@ vi.useFakeTimers(); rerender({ v: "ab" }); act(() => vi.advanceTimersByTime(300)
 - Playwright `storageState` login 1 lần + trace/video CI + matrix 3 browser cho luồng tiền. Vì sao? Vì login mỗi test chậm + phụ thuộc; trace cho xem lại fail như video.
 - Query trong test: client mới + `retry: false`. Vì sao? Để nhanh (không chờ retry) + cô lập (không cache rò).
 - **Tên test như câu chuyện** ("hiển thị lỗi khi email trống") — tài liệu sống. Vì sao? Vì đọc tên là biết hành vi hệ thống, không mở code.
+
+> **Tóm gọn 1 câu:** Test tốt là test nói được thành câu user hiểu, chạy nhanh tầng dưới, và chỉ đổ thật sự khi hành vi đổi — không phải khi bạn đổi tên biến.
 
 ## Bài tập nhỏ
 1. `Counter.test.tsx` 2 test (như example: đầu "Count: 0", +1 hai lần "Count: 2") + thêm Reset test. `npx vitest run` xanh. Đổi `querySelector(".btn")` thử vỡ khi đổi class?

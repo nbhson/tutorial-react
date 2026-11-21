@@ -2,16 +2,22 @@
 
 > React 19 + TypeScript (2026): Vite 7, React Compiler 1.0, TanStack Query v5, Zustand v5, React Router v7, Tailwind v4.
 
-Phần này gom **8 nhóm kỹ thuật** biến kiến thức React cơ bản (ở `3_react-tutorial`) thành năng lực làm sản phẩm thật: tách bundle, hoạt động offline, kiến trúc code lớn, tối ưu hiệu năng, bảo mật, micro-frontend, công cụ dev, làm việc với AI, và chuẩn code. Mỗi nhóm là một thư mục có `README.md` (tổng quan) và các bài con (`README.md` chi tiết + `example.tsx` chạy được, comment tiếng Việt).
+Phần này gom **8 nhóm kỹ thuật** biến kiến thức React cơ bản (ở `3_react-tutorial`) thành năng lực làm sản phẩm thật: tách bundle, hoạt động offline, kiến trúc code lớn, tối ưu hiệu năng, bảo mật, micro-frontend, công cụ dev, làm việc với AI, và chuẩn code. Mỗi nhóm là một thư mục có `README.md` (tổng quan) và các bài con (`README.md` chi tiết + `example.tsx` chạy được, comment tiếng Việt). Hãy hình dung phần này như **tủ công cụ của thợ xây**: `3_react-tutorial` dạy bạn cầm được từng dụng cụ, còn đây là lúc bạn được giao công trình thật.
 
 ## Đọc phần này thế nào
+
+Mục này chỉ đường tùy theo bạn đang ở đâu. Chọn đúng dòng mô tả hoàn cảnh của mình rồi đi theo nhóm gợi ý.
 
 - **Mới học xong React**: đi lần lượt nhóm 1 → 3 → 4, hoặc chọn lẻ theo nhu cầu ở bảng dưới.
 - **Có nền React, cần làm app production**: bắt đầu từ nhóm 6 (đồ nghề) → 1 (tính năng nâng cao) → 3 (hiệu năng) → 8 (chuẩn code).
 - **Làm việc nhóm / hệ thống lớn**: nhóm 2 (kiến trúc) → 5 (micro-frontend) → 8 (chuẩn & review).
 - **Muốn khai thác AI**: nhóm 7, đọc sau khi đã nắm stack ở nhóm 6.
 
+> **Tóm gọn 1 câu:** Chưa cần học hết 8 nhóm — chọn lộ trình theo hoàn cảnh: mới học đi 1 → 3 → 4, làm production đi 6 trước, hệ thống lớn đi 2 trước, thích AI thì để nhóm 7 sau cùng.
+
 ## Bảng 8 nhóm
+
+Mục này là mục lục toàn bộ 8 nhóm kỹ thuật. Đọc cột "Khi nào cần" trước để tìm đúng nhóm cho vấn đề của bạn.
 
 | # | Nhóm | Nội dung | Khi nào cần |
 |---|------|----------|-------------|
@@ -24,7 +30,13 @@ Phần này gom **8 nhóm kỹ thuật** biến kiến thức React cơ bản (�
 | 7 | [7_build-with-ai/](7_build-with-ai/README.md) | LLM prompts, agent-skills, MCP server, AI design patterns + tutor | Muốn dùng AI (Cursor/Copilot/agent) sinh & review code React đúng chuẩn |
 | 8 | [8_best-practices/](8_best-practices/README.md) | Style-guide, accessibility, error-boundary, performance-guide | Chuẩn hóa code trước merge, đảm bảo a11y và trải nghiệm khi có lỗi |
 
+> **Cách đọc bảng này:** mỗi dòng là một nhóm bài, đọc cột "Khi nào cần" trước — thấy đúng triệu chứng app của bạn (giật, bị XSS, bundle to...) thì nhóm đó là bài thuốc. Cột "Nội dung" để biết trong nhóm có gì trước khi bấm vào.
+
+> **Tóm gọn 1 câu:** Bảng 8 nhóm là "kệ thuốc theo triệu chứng" — app đau chỗ nào, bấm đúng nhóm chữa chỗ đó.
+
 ## Mô tả chi tiết từng nhóm
+
+Mục này kể dài hơn một chút về từng nhóm so với bảng trên. Đọc khi cần nắm phạm vi mỗi nhóm trước khi quyết định học sâu.
 
 1. **Advanced Features** — Năm tính năng nâng cao không thể thiếu của app thật: `React.lazy` + `Suspense` tách bundle, PWA/service worker cho offline, tách **client state (Zustand)** khỏi **server state (TanStack Query)**, Web Worker đẩy tính toán nặng khỏi main thread, và guard + animation cho routing.
 2. **Architecture Patterns** — Năm cách tổ chức code ở quy mô lớn: FSD/bulletproof (chia theo feature), container–presentational (tách data/render), MVVM qua `useViewModel`, chống prop-drilling theo thứ tự composition → context → store, và hexagonal (core thuần + port/adapter). Có thể kết hợp: FSD làm khung, hexagonal cho nghiệp vụ, MVVM cho màn hình.
@@ -35,7 +47,11 @@ Phần này gom **8 nhóm kỹ thuật** biến kiến thức React cơ bản (�
 7. **Build with AI** — Dẫn AI IDE/agent làm đúng chuẩn React 19: `llms.txt` + `AGENTS.md`, Agent Skills tái sử dụng, MCP server cho docs & tool, các design pattern khi dùng AI, và AI tutor dạy React.
 8. **Best Practices** — Chốt lại "cách viết đúng chuẩn": style guide (nhất quán, Compiler-safe), accessibility (semantic HTML + ARIA), error boundary (3 tầng lỗi), và performance guide (checklist Core Web Vitals).
 
+> **Tóm gọn 1 câu:** Tám nhóm = tám lớp năng lực xếp từ "app chạy được" đến "app lớn, an toàn, nhanh, và có AI hỗ trợ".
+
 ## Thứ tự đọc gợi ý
+
+Mục này gom 3 lộ trình đọc tùy mục tiêu. Đọc để không đi lạc — mỗi lộ trình một đích đến.
 
 ```
 Lộ trình "app production đầy đủ":
@@ -48,7 +64,11 @@ Lộ trình "nhanh, theo nhu cầu":
   Chọn đúng ô ở bảng trên, đọc README nhóm rồi nhảy vào bài con cần nhất.
 ```
 
+> **Tóm gọn 1 câu:** Ba con đường ba đích: làm app thật (6 trước), gánh hệ thống lớn (2 trước), hoặc nhảy chọn lẻ theo nhu cầu.
+
 ## Liên kết chéo giữa các nhóm
+
+Mục này vẽ "bản đồ tương tác" giữa 8 nhóm — nhóm nào kéo theo nhóm nào. Đọc để tránh học một nhóm mà bỏ sót nhóm đồng hành của nó.
 
 - **1 ↔ 3**: Lazy/dynamic import (1) và code-splitting (3) cùng chủ đề tách bundle; routing animation (1) nên kết hợp code-splitting (3) để page mới không chờ chunk.
 - **1 ↔ 4**: Sinh viên dùng `persist` của Zustand (1) phải cẩn thận không lưu token — xem auth httpOnly cookie (4).
@@ -59,7 +79,11 @@ Lộ trình "nhanh, theo nhu cầu":
 - **5 ↔ 8**: Remote micro-frontend (5) cần Error Boundary (8) làm fallback khi remote deploy lệch.
 - **7 ↔ tất cả**: Prompt/skill/MCP (7) cần "luật chơi" từ style-guide (8) và stack ở dev-tools (6).
 
+> **Tóm gọn 1 câu:** Không nhóm nào đứng một mình — kỹ thuật và công cụ luôn đi cặp (1↔3, 3↔6...), còn nhóm 7 (AI) cần mọi nhóm khác làm "luật chơi".
+
 ## Câu hỏi thường gặp khi chọn nhóm
+
+Mục này trả lời 5 câu hỏi phân vân phổ biến nhất khi chọn lộ trình. Đọc để gỡ nhanh quyết định.
 
 - **Học nhóm nào trước?** Nếu mới làm app thật: 6 (đồ nghề) → 1 (tính năng nâng cao); nếu muốn tổ chức code: 2 → 5.
 - **Có phải học hết 8 nhóm không?** Không — chọn theo nhu cầu; hầu hết app chỉ cần 1, 3, 4, 6, 8.
@@ -67,7 +91,11 @@ Lộ trình "nhanh, theo nhu cầu":
 - **Micro-frontend có phải lúc nào cũng cần?** Không — chỉ khi nhiều team cần deploy độc lập.
 - **AI có thay được các kỹ thuật này?** Không — AI chỉ tăng tốc; kiến trúc, hiệu năng, bảo mật vẫn do bạn quyết.
 
+> **Tóm gọn 1 câu:** Trả lời gọn: không cần học hết, nhóm 3 là "kỹ thuật sâu" còn 8 là "checklist", micro-frontend là lựa chọn chứ không mặc định, và AI không thay được bạn quyết kiến trúc.
+
 ## Gợi ý lộ trình theo mục tiêu
+
+Mục này ánh xạ mục tiêu nghề nghiệp sang thứ tự nhóm nên đọc. Đọc cột "Nhóm nên đọc trước" trước, "sau" để củng cố.
 
 | Mục tiêu | Nhóm nên đọc trước | Nhóm nên đọc sau |
 |---|---|---|
@@ -76,6 +104,10 @@ Lộ trình "nhanh, theo nhu cầu":
 | Hệ thống lớn, nhiều team | 2, 5 | 6, 8 |
 | Tối ưu app đang chạy chậm | 3 | 6, 8 |
 | Làm việc với AI hằng ngày | 7 | 8, 6 |
+
+> **Cách đọc bảng này:** mỗi dòng là một mục tiêu — đọc cột giữa là "vào môn", cột phải là "nâng cao"; chỉ cần bám 2 cột đó là đủ lộ trình cho mục tiêu của bạn.
+
+> **Tóm gọn 1 câu:** Chọn đúng dòng mục tiêu của mình — mỗi dòng là một "kế hoạch học" đã sắp sẵn thứ tự.
 
 ## Nguồn & công cụ chính (2026)
 

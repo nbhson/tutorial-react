@@ -13,6 +13,10 @@
 - Ecosystem React **tách làm hai**: **headless** (logic + a11y, không style) và **styled** (đã style).
   Thực tế bạn **ghép**: Radix/Ark (behavior) + Tailwind (style), hoặc shadcn/ui, hoặc MUI nguyên bộ.
 - Không có "một cửa" nhưng được tự do: bundle chỉ chứa thứ dùng, design không bị khóa theo hãng.
+- Ví von: Angular bán trọn bộ ghế sofa; React bán "khung ghế siêu chắc" (headless) tách khỏi
+  "vải bọc" (style) — bạn ghép theo ý mình.
+
+> **Tóm gọn 1 câu:** React tách behavior khỏi style — tự do ghép Radix + Tailwind, shadcn hoặc MUI tùy hoàn cảnh.
 
 ---
 
@@ -36,6 +40,10 @@
   Bạn **sở hữu code**: tùy biến tận gốc, không version lock, không chờ upstream fix.
 - Khởi tạo tạo `components.json`, alias `@/`, hàm `cn()` (`clsx` + `tailwind-merge`), theme CSS variables —
   sau đó mỗi component là code nhà, sửa thoải mái.
+- Ví von: như nhận bản thiết kế gỗ thô thay vì đồ nội thất đóng sẵn — đục khắc tùy ý,
+  nhưng mỗi mùa phải tự sơn lại.
+
+> **Tóm gọn 1 câu:** shadcn/ui là code nhà (copy vào repo), không phải lib — sở hữu trọn, nâng cấp tự lo.
 
 ---
 
@@ -85,30 +93,7 @@
 - Vì sao phải qua `cn()` mà không nối chuỗi: Tailwind sinh cả `p-2` lẫn `p-4` vào CSS, kết quả phụ thuộc thứ tự stylesheet — khó đoán. `twMerge` loại class thua trước khi render nên DOM chỉ còn class thắng, quyết định nằm ở code chứ không ở thứ tự CSS.
 - Sai thì sao: quên `cn()` mà nối chuỗi, truyền `className="px-8"` để ghi đè thì DOM có cả `px-4 px-8` — padding theo cái nào là hên xui. Fix: mọi component nhận `className` đều `cn(variantClass, className)`.
 
-```tsx
-import { cva } from "class-variance-authority";
-import { cn } from "@/lib/utils"; // cn = twMerge(clsx(...)): ghép + khử xung đột
-
-// Từ điển variant: base luôn có + variant/size + mặc định (thay style object thủ công)
-const buttonVariants = cva("inline-flex items-center rounded-md text-sm font-medium", {
-  variants: {
-    variant: {
-      default: "bg-primary text-primary-foreground hover:bg-primary/90", // primary
-      outline: "border border-input bg-background hover:bg-accent", // outline
-      ghost: "hover:bg-accent", // thêm ghost như bài tập README
-    },
-    size: { default: "h-9 px-4", sm: "h-8 px-3" },
-  },
-  defaultVariants: { variant: "default", size: "default" }, // khớp variant = "primary" mặc định
-});
-
-function Button({ variant, size, className, ...props }: {
-  variant?: "default" | "outline" | "ghost"; size?: "default" | "sm"; className?: string;
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  // cn: class người dùng truyền thắng khi xung đột (px-8 thắng px-4)
-  return <button className={cn(buttonVariants({ variant, size }), className)} {...props} />;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-7-pipeline-cva-cn-that-viet-button-shadcn.tsx`](examples/01-7-pipeline-cva-cn-that-viet-button-shadcn.tsx)
 
 ---
 
@@ -127,6 +112,8 @@ function Button({ variant, size, className, ...props }: {
 | Prod mới, brand riêng | shadcn/ui + Tailwind v4 | Sở hữu code, token theme | Tự nâng cấp khi upstream đổi |
 | Dialog/combobox, a11y đỉnh | Radix/Ark + Tailwind | Focus/ARIA chuẩn, style tự do | Tự viết CSS |
 
+> **Cách đọc bảng này:** mỗi dòng là một hoàn cảnh dự án — cột Pick là lựa chọn, cột Được là lợi ích, cột Giá là cái phải trả. Đọc theo dòng hoàn cảnh của bạn, nhớ rằng không có dòng nào "được mà không giá".
+
 ---
 
 ## 9. Lỗi thực chiến: import cả bộ MUI + trộn Tailwind/MUI + sửa `node_modules`?
@@ -139,17 +126,7 @@ function Button({ variant, size, className, ...props }: {
 - **Sửa file trong `node_modules`**: tưởng sửa shadcn nhưng sửa nhầm package — `npm ci` là mất. Fix: nhớ shadcn **copy vào `src/components/ui/`** — sửa trong repo, đó là code nhà. Đây là "cái giá của sở hữu": chủ động theo changelog để nâng cấp.
 - Cơ chế phòng ngừa chung: sau mỗi lần thêm lib UI, chạy build + xem kích thước chunk (như DAY 13) — chunk phình đột ngột là tín hiệu import sai.
 
-```tsx
-// ĐÚNG: component mở đuôi className + ...props để tùy biến không cần sửa lib
-import { cn } from "@/lib/utils";
-
-function Card({ className, children, ...props }: {
-  className?: string; children: React.ReactNode;
-} & React.HTMLAttributes<HTMLDivElement>) {
-  // cn hợp nhất class gốc với class người dùng, props lạ (onClick, id...) xuyên qua
-  return <div className={cn("rounded-lg border bg-card p-4", className)} {...props}>{children}</div>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-9-loi-thuc-chien-import-ca-bo-mui.tsx`](examples/02-9-loi-thuc-chien-import-ca-bo-mui.tsx)
 
 ---
 
@@ -168,6 +145,8 @@ function Card({ className, children, ...props }: {
 | Đổi token `--color-primary` | CSS variables ở trình duyệt | Không — CSS tự cập nhật |
 | Hardcode hex mỗi component | Sửa code N file | Có + tốn công |
 
+> **Cách đọc bảng này:** mỗi dòng là một việc cần làm, cột 2 cho biết việc chạy ở tầng nào (JS render hay CSS trình duyệt), cột 3 trả lời câu hỏi then chốt "React có phải render lại không" — dùng để quyết định style/theme nên đặt ở đâu.
+
 ---
 
 ## 11. A11y + test UI lib: vì sao `<div onClick>` thua `<button>` và `getByRole` ép code tốt?
@@ -179,14 +158,7 @@ function Card({ className, children, ...props }: {
 - Cơ chế test ép code tốt (nối DAY 21): query bằng `getByRole("button", { name: "Lưu" })` chỉ pass khi component render **đúng element semantic có accessible name**. Div giả không role/name thì query không ra — test đỏ báo hiệu phải sửa component (dùng `<button>` hoặc headless), không được sửa test sang `querySelector` cho dễ. Nhờ vậy suite test thành lưới a11y tự động.
 - Quy tắc: component tương tác luôn dùng element đúng (`button`, `a`, `input` + `label`); xuất cả `buttonVariants` để nơi khác (`<a styled như button>`) tái dùng class mà vẫn đúng semantic.
 
-```tsx
-// ĐÚNG: button thật + accessible name rõ -> getByRole query được, keyboard miễn phí
-function SaveButton({ onSave }: { onSave: () => void }) {
-  // Test khóa: getByRole("button", { name: "Lưu" }) chỉ pass với button thật có text
-  return <button type="button" onClick={onSave}>Lưu</button>;
-}
-// SAI: <div onClick={onSave}>Lưu</div> -> Tab không focus, Enter không bấm, test role không ra
-```
+> 📄 **Code ví dụ:** [`examples/03-11-a11y-test-ui-lib-vi-sao-div.tsx`](examples/03-11-a11y-test-ui-lib-vi-sao-div.tsx)
 
 ---
 

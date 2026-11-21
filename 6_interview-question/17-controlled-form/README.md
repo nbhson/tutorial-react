@@ -16,22 +16,7 @@
 
 ### 1. Pattern chuẩn (code tối giản)
 
-```tsx
-import { useState } from "react";
-
-function Login() {
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-
-  return (
-    <form onSubmit={(e) => e.preventDefault()}>
-      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-      <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Mật khẩu" />
-      <button type="submit">Đăng nhập</button>
-    </form>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-pattern-chuan-code-toi-gian.tsx`](examples/01-1-pattern-chuan-code-toi-gian.tsx)
 
 ### 2. Luồng dữ liệu (bước-by-bước, "gõ 1 chữ")
 
@@ -57,19 +42,7 @@ React commit: DOM input cập nhật thành "a" (React so, chỉ đổi khi khá
 
 ### 4. Submit + validate (control form "đủ" = thêm `onSubmit`)
 
-```tsx
-const [err, setErr] = useState("");
-const [submitting, setSubmitting] = useState(false);
-
-const submit = (e: React.FormEvent) => {
-  e.preventDefault();                 // (1) BẮT BUỘC: chặn reload
-  if (submitting) return;            // (2) Chặn bấm kép (nhiều lần click)
-  if (!email.includes("@"))          // (3) Validate fail-fast (dừng ngay lỗi đầu)
-    return setErr("Email không hợp lệ");
-  setSubmitting(true);
-  // ...gọi API...
-};
-```
+> 📄 **Code ví dụ:** [`examples/02-4-submit-validate-control-form-u-them-onsubmit.tsx`](examples/02-4-submit-validate-control-form-u-them-onsubmit.tsx)
 
 **Dấu hiệu nên chuyển RHF** (khi "hết đủ"): `err` **trở thành object nhiều field** (lỗi mỗi field riêng), `if` **lồng nhau**, rule **lặp ở nhiều form** → validate tay phình nhanh → **RHF + Zod** (Q18, Q19).
 
@@ -82,6 +55,8 @@ const submit = (e: React.FormEvent) => {
 | `validators` (required, email) + `valueChanges` | Validate tay (if) hoặc RHF + Zod (`watch`) | **RHF gần hơn Reactive Forms của Angular** (nhưng gọn hơn, không class) |
 
 > **Nói đúng với interviewer**: controlled là **mô hình dữ liệu đúng** (single source of truth) — **không phải tối ưu hiệu năng** (gõ nhiều field = nhiều render mỗi phím). RHF **giải quyết vấn đề hiệu năng này bằng uncontrolled + ref** (Q18) — **không đổi ngữ nghĩa form** (submit vẫn đúng một nguồn sự thật).
+
+> **Tóm gọn 1 câu:** Controlled input là cặp dây điện hai đầu: state là nguồn, input là bóng đèn — gõ một chữ là dòng điện chạy hết vòng (onChange → set → render → hiện chữ), và nguồn nào không được nối nhau là hết sáng.
 
 ## Bẫy khi phỏng vấn
 

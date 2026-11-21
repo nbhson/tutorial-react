@@ -3,6 +3,8 @@
 > File hỏi–đáp chi tiết cho `3_react-tutorial/0-react-explore`.
 > Đọc kèm: `README.md` (lý thuyết) + `example.tsx` (code chạy được).
 
+File này là "12 câu hỏi khoai" mà người mới bắt đầu React 19 nào cũng gặp, từ `createRoot` đến `tsconfig` strict. Mỗi câu có cấu trúc: **Hỏi** ngắn gọn → **Đáp** chi tiết kèm ví von — đọc tuần tự hoặc tra cứu theo câu đang thắc mắc.
+
 ---
 
 ## 1. `createRoot` là gì? Vì sao chỉ gọi một lần?
@@ -18,15 +20,11 @@
 - Khác React 17: API cũ `ReactDOM.render(<App />, el)` đã bị gỡ; React 18+ bắt buộc `createRoot(el).render(...)`
   để dùng được Concurrent Rendering (render có thể ngắt, ưu tiên, transitions).
 
-```tsx
-// ĐÚNG — 1 lần trong main.tsx
-createRoot(document.getElementById("root")!).render(<App />);
+Hãy hình dung `createRoot` như **cắm cây vào chậu**: chỉ cắm gốc một lần, sau đó cây tự đâm chồi (re-render) — bạn không nhổ cắm lại mỗi lần cây lớn lên.
 
-// SAI — gọi mỗi khi muốn cập nhật UI
-function handleClick() {
-  createRoot(document.getElementById("root")!).render(<App />); // ❌ warning + mất state
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-createroot-la-gi-vi-sao-chi-goi.tsx`](examples/01-1-createroot-la-gi-vi-sao-chi-goi.tsx)
+
+> **Tóm gọn 1 câu:** `createRoot` là "cắm gốc" duy nhất lúc khởi động — sau đó mọi cập nhật là việc của state/hooks, đừng cắm lại.
 
 ---
 
@@ -41,10 +39,14 @@ function handleClick() {
   React tự chạy lại function component và **diff Virtual DOM** để vá đúng node DOM khác biệt.
 - Bạn không gọi `.render()` thủ công nữa. Muốn UI đổi → đổi **state**, không thao tác DOM trực tiếp.
 
+Ví von: lần đầu `.render()` là **dựng sân khấu**; sau đó bạn không dựng lại sân khấu, chỉ đổi **hồ sơ kịch bản** (state) — React tự xếp lại cảnh theo hồ sơ mới.
+
 ```
 .render(<App />)          → mount lần đầu (1 lần duy nhất)
 setCount(c => c + 1)      → React re-render App → diff → vá DOM (mọi lần sau)
 ```
+
+> **Tóm gọn 1 câu:** `.render()` dựng sân khấu một lần — muốn đổi cảnh, đổi state chứ đừng sờ tay vào sân khấu.
 
 ---
 
@@ -61,13 +63,11 @@ setCount(c => c + 1)      → React re-render App → diff → vá DOM (mọi l�
   Nếu chạy 2 lần mà sinh bug (gọi API 2 lần, timer nhân đôi) thì đó chính là bug thật mà StrictMode giúp bạn thấy sớm.
 - Quy tắc: **giữ `<StrictMode>` ở dev**, viết effect đúng chuẩn (setup ↔ cleanup đối xứng, xem DAY 15).
 
-```tsx
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
-```
+Ví von: StrictMode như **kiểm tra khử trùng trong bếp** — nhà hàng chạy thử "xào món hai lần" để phát hiện món nào không sạch (thiếu dọn nguyên liệu); bếp sạch thì xào bao nhiêu lần món vẫn giống nhau.
+
+> 📄 **Code ví dụ:** [`examples/02-3-strictmode-la-gi-vi-sao-render-2.tsx`](examples/02-3-strictmode-la-gi-vi-sao-render-2.tsx)
+
+> **Tóm gọn 1 câu:** Render 2 lần ở dev không phải bug mà là "kiểm tra khử trùng" của StrictMode — code sạch thì chạy mấy lần cũng giống nhau, đừng bỏ nó.
 
 ---
 
@@ -82,12 +82,11 @@ createRoot(document.getElementById("root")!).render(
   chữ thường (`<div>`, `<span>`, `<app>`) = thẻ HTML thật. Viết `<app />` sẽ bị hiểu là thẻ HTML lạ, không chạy code bạn muốn.
 - Quy ước: mỗi file một component chính + component con nhỏ liên quan; tên file và tên function trùng nhau.
 
-```tsx
-// Component hợp lệ: function + return JSX
-export default function App() {
-  return <h1>Hello React 19 + Vite!</h1>;
-}
-```
+Ví von: viết hoa chữ cái đầu như **quy ước áo đồng phục** — ai mặc áo đồng phục (PascalCase) là nhân viên component của bạn, ai mặc thường (chữ thường) thì trình duyệt coi là khách vãng lai (thẻ HTML).
+
+> 📄 **Code ví dụ:** [`examples/03-4-component-la-gi-vi-sao-phai-viet.tsx`](examples/03-4-component-la-gi-vi-sao-phai-viet.tsx)
+
+> **Tóm gọn 1 câu:** Component là function trả về JSX — viết hoa chữ đầu để JSX phân biệt nó với thẻ HTML.
 
 ---
 
@@ -104,10 +103,11 @@ export default function App() {
   mọi thẻ phải đóng (`<img />`, `<br />`), một component chỉ return **một node gốc** (dùng fragment `<>...</>` nếu cần nhiều).
 - Tương đương Angular: fragment `<>...</>` ≈ `ng-container` — nhóm element mà không thêm node DOM thừa.
 
-```tsx
-const name = "React";
-return <h1 className="title">Hello {name}!</h1>; // {name} là expression JS
-```
+Ví von: JSX là **bản thiết kế bằng mô hình nhỏ**, không phải ngôi nhà thật — compiler dịch mô hình thành "đơn đặt hàng" (object JS), React đọc đơn đặt hàng rồi mới xây nhà (DOM).
+
+> 📄 **Code ví dụ:** [`examples/04-5-jsx-la-gi-co-phai-html-trong.tsx`](examples/04-5-jsx-la-gi-co-phai-html-trong.tsx)
+
+> **Tóm gọn 1 câu:** JSX nhìn như HTML nhưng thật ra là code TypeScript được dịch thành object mô tả UI — vì là code nên bạn dùng được trọn sức mạnh JS.
 
 ---
 
@@ -130,6 +130,10 @@ return <h1 className="title">Hello {name}!</h1>; // {name} là expression JS
 | `npm run build` | Rollup bundle production vào `dist/` (hash tên file để cache) |
 | `npm run preview` | Chạy thử bản `dist/` trước khi deploy |
 
+> **Cách đọc bảng này:** 3 lệnh là 3 thời điểm trong vòng đời dự án — `dev` khi đang code, `build` khi chuẩn bị xuất bản, `preview` để soát trước khi deploy; đọc từ trên xuống theo đúng thứ tự đó.
+
+> **Tóm gọn 1 câu:** Vite là "nhà xưởng" còn React là "họa sĩ" — dev chạy esbuild tức thì, build chạy Rollup đóng gói; CRA đã nghỉ hưu.
+
 ---
 
 ## 7. HMR là gì? Khác gì reload trang?
@@ -142,6 +146,10 @@ return <h1 className="title">Hello {name}!</h1>; // {name} là expression JS
 - Reload trang (F5) thì mất hết state vì tải lại toàn bộ app từ đầu.
 - Lưu ý: HMR chỉ giữ state khi bạn sửa **thân component**; nếu sửa logic khởi tạo state hoặc đổi export,
   React có thể phải remount (reset state) — đó là hành vi đúng để tránh state cũ sai hình.
+
+Ví von: HMR như **thay từng miếng gạch khi nhà đang có người ở** — khách không phải dọn ra (không mất state); còn reload trang là **phá cả nhà xây lại từ móc**.
+
+> **Tóm gọn 1 câu:** HMR vá nóng từng module và giữ nguyên state của bạn — F5 là phá nhà xây lại, vì thế đừng tắt nó.
 
 ---
 
@@ -163,9 +171,13 @@ my-app/
 └── package.json        # scripts dev / build / preview
 ```
 
+Hãy hình dung template như **bàn ăn chuẩn khi vào quán**: `index.html → main.tsx → App.tsx` là đường dẫn "món chính", còn lại là gia vị cấu hình.
+
 - Quan trọng nhất để hiểu luồng chạy: `index.html` → `src/main.tsx` → `src/App.tsx`.
 - Còn lại là cấu hình: `vite.config.ts` (trung tâm plugin/alias/proxy), `tsconfig.json` (chuẩn type),
   `package.json` (scripts + dependency).
+
+> **Tóm gọn 1 câu:** Template `react-ts` chỉ có 3 file tạo luồng chạy chính (index.html → main.tsx → App.tsx), còn lại là cấu hình phục vụ chúng.
 
 ---
 
@@ -182,6 +194,8 @@ my-app/
 - Lỗi kinh điển: `index.html` thiếu `#root` → `getElementById` trả `null` → crash lúc mount.
   Dấu `!` trong `getElementById("root")!` là **non-null assertion**: bạn cam kết node đã tồn tại.
 
+> **Tóm gọn 1 câu:** Entry point là cặp đôi nối tiếp `index.html` (chỗ neo DOM) → `main.tsx` (khởi động React) — thiếu chỗ neo là app crash ngay lúc mount.
+
 ---
 
 ## 10. Hooks + "React tự quản lý re-render" nghĩa là gì? (So với Angular Zone.js)
@@ -197,11 +211,11 @@ my-app/
   Render function phải **thuần khiết** (cùng props/state → cùng JSX, không mutation trong render) để React
   render lại bao nhiêu lần cũng an toàn — đây chính là điều StrictMode kiểm tra ở dev.
 
-```tsx
-const [count, setCount] = useState(0);
-// ĐÚNG: đổi state → React tự re-render
-<button onClick={() => setCount(c => c + 1)}>+1</button>
-```
+Ví von: Angular với Zone.js như **người gác nhỏ tai everywhere** — nghe thấy động tĩnh gì cũng quét nhà; React như **chuông cửa có nút** — chỉ ai bấm chuông (gọi setter) thì chủ nhà mới ra mở.
+
+> 📄 **Code ví dụ:** [`examples/05-10-hooks-react-tu-quan-ly-re-render.tsx`](examples/05-10-hooks-react-tu-quan-ly-re-render.tsx)
+
+> **Tóm gọn 1 câu:** React không "nghe lén" như Zone.js — nó chỉ re-render khi có chuông (setter state/props/context) reo, nên hãy đổi state thay vì sờ DOM.
 
 ---
 
@@ -220,6 +234,10 @@ const [count, setCount] = useState(0);
   (list 10k+, tính toán nặng) — hoặc khi cần ổn định tham chiếu cho API bên ngoài (ví dụ `useEffect` deps).
   (Xem sâu: `4_react-new-feature/5_react-compiler` và `2_react-techniques/3_performance-optimization`.)
 
+Ví von: Compiler như **trợ lý tự ghi chú giúp bạn** — trước đây bạn phải tự dán giấy nhớ "đừng tính lại chỗ này" (`memo`), nay trợ lý nhìn thấy chỗ nào lặp việc là tự dán hộ.
+
+> **Tóm gọn 1 câu:** Compiler 1.0 tự memoize giúp bạn — đừng xóa hết `memo` ngay nhưng cũng đừng tự dán giấy nhớ trước khi đo được bottleneck thật.
+
 ---
 
 ## 12. `strict` + `noUncheckedIndexedAccess` trong `tsconfig` để làm gì?
@@ -233,18 +251,16 @@ const [count, setCount] = useState(0);
 - **`noUncheckedIndexedAccess: true`** (không nằm trong `strict`, phải bật riêng): truy cập mảng/tuple bằng index
   sẽ có thêm `| undefined`. Vì `arr[i]` **có thể** out-of-bound mà TS mặc định vẫn tin là `T` → bug lọt lưới.
 
-```ts
-const list = ["a", "b"];
-// strict: string[] ; strict + noUncheckedIndexedAccess: (string | undefined)[]
-const first = list[0];      // type: string | undefined → buộc xử lý
-if (first !== undefined) {
-  console.log(first.toUpperCase()); // an toàn
-}
-// hoặc: const first = list[0] ?? "fallback";
-```
+> 📄 **Code ví dụ:** [`examples/06-12-strict-nouncheckedindexedaccess-trong-tsconfig-e-lam-gi.ts`](examples/06-12-strict-nouncheckedindexedaccess-trong-tsconfig-e-lam-gi.ts)
 
 - Cặp đôi này đặc biệt hữu ích cho CRUD/list rendering: `posts[i]`, `record[key]` đều buộc bạn xử lý case
   "không tồn tại" thay vì `.title` trên `undefined` rồi crash ở production.
+
+Ví von: `strict` là **kiểm tra kỹ thuật hàng trước khi xuất xưởng**, còn `noUncheckedIndexedAccess` là quy định "mọi hộc tủ có thể trống" — mở hộc phải nhìn xem có đồ không, đừng chộp tay mà không.
+
+> 📄 **Code ví dụ:** [`examples/06-12-strict-nouncheckedindexedaccess-trong-tsconfig-e-lam-gi.ts`](examples/06-12-strict-nouncheckedindexedaccess-trong-tsconfig-e-lam-gi.ts)
+
+> **Tóm gọn 1 câu:** `strict` bắt mọi lỗi kiểu lúc compile, `noUncheckedIndexedAccess` bắt riêng lỗi "tủ trống" khi truy cập mảng — hai cái này chính là bảo hiểm cho production.
 
 ---
 

@@ -10,92 +10,58 @@
 ### 1. `children` chỉ là một prop
 Mọi JSX nằm giữa `<Card>` và `</Card>` được gói vào prop `children` và truyền vào `Card`. Không có magic — chỉ là "JSX là object, gói vào tham số hàm".
 
-```tsx
-// Bạn viết:
-<Card><p>Hi</p></Card>
-
-// React hiểu gần tương đương:
-Card({ children: jsx("p", { children: "Hi" }) });
-// Card nhận object props, trong đó children là element <p>
-```
+> 📄 **Code ví dụ:** [`examples/01-1-children-chi-la-mot-prop.tsx`](examples/01-1-children-chi-la-mot-prop.tsx)
 
 Vì sao quan trọng? Vì không có "transclusion" bí ẩn — `children` tuân mọi quy tắc props: read-only, snapshot mỗi render, type-check được. Component con chỉ `return <div>{children}</div>` là xong. Nếu bạn quên khai `children` trong type, TS báo thiếu prop khi có con, hoặc `children` là `undefined` khi không có con mà bạn vẫn render wrapper rỗng.
+
+> **Tóm gọn 1 câu:** `children` chỉ là một prop có tên đặc biệt: mọi thứ giữa 2 thẻ được gói lại và đưa vào — hết.
 
 ### 2. `ReactNode` là kiểu dành cho children
 Gồm element, string, number, fragment, array, `null`, boolean (`boolean`/`null` bị bỏ qua khi render nhưng vẫn là `ReactNode` hợp lệ).
 
-```tsx
-import type { ReactNode } from "react";
-function Card({ children }: { children: ReactNode }) {
-  return <div style={{ border: "1px solid #ccc", padding: 12 }}>{children}</div>;
-}
-// Cả 3 cách đều hợp lệ vì đều là ReactNode:
-<Card>Xin chào</Card> // string
-<Card>{["a", "b"]}</Card> // mảng
-<Card><p>Hi</p></Card> // element
-```
+> 📄 **Code ví dụ:** [`examples/02-2-reactnode-la-kieu-danh-cho-children.tsx`](examples/02-2-reactnode-la-kieu-danh-cho-children.tsx)
 
 Vì sao không `string` hay `JSX.Element` hẹp? Vì `string` loại trừ element, `JSX.Element` loại trừ string/mảng/null — `ReactNode` rộng đúng ý "khe chèn bất kỳ nội dung vẽ được". Muốn hẹp (chỉ cho 1 element) mới dùng `ReactElement`; muốn bắt buộc có con thì `children: ReactNode` vẫn cho `undefined` nên cần runtime check hoặc type custom.
+
+> **Tóm gọn 1 câu:** `ReactNode` là kiểu "mở cửa cho mọi thứ vẽ được" — muốn giới hạn khe chèn thì thu hẹp thành `ReactElement`, nhưng phải cân nhắc.
 
 ### 3. Named slots — nhiều props `ReactNode`
 Angular dùng `<ng-content select="[slot=header]">` để chọn khe theo selector. React **không có select** — bạn tự định nghĩa nhiều props (`header`, `sidebar`, `footer`). Lợi ích: type-check từng slot, IDE gợi ý, rõ nơi nào chèn gì.
 
-```tsx
-// Layout trong example.tsx: 3 khe tường minh
-function Layout({ header, sidebar, children }: { header: ReactNode; sidebar: ReactNode; children: ReactNode }) {
-  return (
-    <div>
-      <header>{header}</header>
-      <div style={{ display: "flex", gap: 12 }}>
-        <aside>{sidebar}</aside>
-        <main>{children}</main>
-      </div>
-    </div>
-  );
-}
-// Dùng: slot phụ qua attribute, slot chính qua children
-<Layout header={<h2>Header</h2>} sidebar={<nav>Menu</nav>}>
-  <Card><p>Nội dung qua children.</p></Card>
-</Layout>
-```
+> 📄 **Code ví dụ:** [`examples/03-3-named-slots-nhieu-props-reactnode.tsx`](examples/03-3-named-slots-nhieu-props-reactnode.tsx)
 
 Vì sao props có tên thắng `select`? Vì `select="[slot=header]"` là string khớp lúc runtime, sai chính tả không ai báo. Props có tên sai thì TS báo ngay, refactor đổi tên thì IDE sửa hết. Quy ước: `children` cho slot lớn nhất (main/body), props `ReactNode` cho slot phụ (header/footer/aside).
+
+> **Tóm gọn 1 câu:** Named slots = mỗi khe một prop `ReactNode` có tên: TS bắt lỗi ngay, IDE gợi ý — không còn string selector sai ngầm.
 
 ### 4. Composition > inheritance
 Đừng thừa kế component (không tồn tại trong React function, không có `extends`). Hãy **bọc** (`<Card><SpecialContent /></Card>`) hoặc cấu hình qua props. Muốn biến thể, thêm props/slot chứ không tạo subclass.
 
-```tsx
-// ❌ Tư duy kế thừa (không tồn tại trong React function)
-class SpecialCard extends Card {} // không làm thế này
-
-// ✅ Tư duy composition: bọc + slot
-<Card><p>Nội dung đặc biệt</p></Card>
-<Panel title="Có footer" footer={<button>Lưu</button>}><p>Body</p></Panel>
-```
+> 📄 **Code ví dụ:** [`examples/04-4-composition-inheritance.tsx`](examples/04-4-composition-inheritance.tsx)
 
 Vì sao composition thắng? Vì bọc không vỡ khi cha đổi nội bộ (Card đổi viền không ảnh hưởng nội dung), kết hợp nhiều lớp không giới hạn (`Layout > Card > Panel`), mỗi lớp chỉ lo layout của mình (inversion of control: cha quyết nội dung, con quyết khung).
+
+> **Tóm gọn 1 câu:** Composition là "xếp lớp hộp quà": mỗi lớp chỉ lo khung của mình, nội dung do người bọc quyết — không cần `extends` nào cả.
 
 ### 5. Children là dữ liệu bất biến
 Component con chỉ render, không mutate `children`. Muốn đếm/sửa/inject prop vào children (đánh số Steps, thêm onClick hàng loạt) → `Children` API (DAY 9). Đừng `children.push()` hay gán `children.props`.
 
-```tsx
-// ❌ SAI: mutate children
-children.push(<p>Mới</p>); // children có thể không phải mảng — crash
+> 📄 **Code ví dụ:** [`examples/05-5-children-la-du-lieu-bat-bien.tsx`](examples/05-5-children-la-du-lieu-bat-bien.tsx)
 
-// ✅ ĐÚNG: bọc thêm (composition) hoặc dùng Children API
-<Card>{children}<p>Thêm bằng bọc, không sửa gốc</p></Card>
-// Hoặc DAY 9: Children.map(children, (c, i) => <li>Bước {i+1}: {c}</li>)
-```
+> **Tóm gọn 1 câu:** Children là hàng trưng bày trong tủ kính: con chỉ render, không mutate — muốn đếm/sửa thì dùng `Children` API (DAY 9).
 
 ### 6. Render children sớm/lười — ý nghĩa với memo
 Children được tạo *trước* khi component con render (ở cha). Khi con re-render vì state riêng mà cha không render lại, `children` cũ (object từ props) được tái sử dụng — React không dựng lại cây con. Ngược lại cha re-render thì mọi JSX đánh giá lại → element mới → diff.
 
-Vì sao cần biết? Vì đây là lý do "children ổn định giúp memo hiệu quả": tách phần ít đổi thành `children` truyền từ cha ít render, con hay render không kéo theo. Tránh prop-drilling children qua 4-5 tầng — mỗi tầng trung gian vẫn re-render dù chỉ "chuyển tiếp".
+Vì sao cần biết? Vì đây là lý do "children ổn định giúp memo hiệu quả": tách phần ít đổi thành `children` truyền từ cha ít render, con hay render không kéo theo. Tránh prop-drilling children qua 4-5 tầng — mỗi tầng trung gian vẫn re-render dù chỉ "chuyển tiếp". Ví von: children như món quà đã gói sẵn từ nhà cha — con chỉ mở xem, không bọc lại.
+
+> **Tóm gọn 1 câu:** Children được gói xong trước ở cha rồi mới đưa con — con re-render vì state riêng không bọc lại món quà này.
 
 ### Keyword chính
 `children`, `ReactNode` (rộng) vs `ReactElement` (hẹp 1 element), `slot`, `ng-content` ↔ `{children}`, `composition`, `named slots`, `layout`, `fallback` (`??`).
 
 ## Luồng hoạt động (Flow)
+Mục này đi qua 10 bước theo đúng vòng đời của một trang có Layout + Card + Panel: từ lúc cha gói JSX, con phân bổ slot, tới khi state đổi ai re-render ai.
 1. `App` render JSX `<Layout header={<h2>.../>} sidebar={<nav>Menu</nav>}>...<Card>...</Card>...</Layout>`. React đánh giá từng JSX con thành ReactNode trước.
 2. `header` = element `<h2>`, `sidebar` = element `<nav>`, và mọi thứ giữa `<Layout>` `</Layout>` (gồm `<Card>` + 2 `<Panel>`) gom thành mảng `children` của Layout.
 3. `Layout` render: đặt `header` vào `<header>`, `sidebar` vào `<aside>`, `children` vào `<main>`. Con quyết vị trí, cha quyết nội dung — inversion of control.
@@ -110,65 +76,7 @@ Vì sao cần biết? Vì đây là lý do "children ổn định giúp memo hi�
 ## Ví dụ chi tiết
 Khớp 1-1 với `example.tsx` cùng thư mục:
 
-```tsx
-// example.tsx — DAY 5: children + named slots + fallback (khớp README 1-1)
-// Mục đích: cha quyết nội dung, con quyết layout — composition thay inheritance.
-import type { ReactNode } from "react"; // (1) Type cho mọi nội dung chèn được: element, string, số, mảng, null
-
-// (2) Card: layout do Card quyết (viền + padding), nội dung do cha đưa qua children.
-function Card({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ border: "1px solid #ccc", padding: 12, borderRadius: 8 }}>
-      {children} {/* (3) Chèn nội dung cha đưa — Card không cần biết cụ thể là gì */}
-    </div>
-  );
-}
-
-// (4) Layout: 3 "khe" tường minh — header, sidebar (named slots), children (main).
-// Thay cho <ng-content select="..."> của Angular: mỗi slot là một prop ReactNode có tên.
-function Layout({ header, sidebar, children }: { header: ReactNode; sidebar: ReactNode; children: ReactNode }) {
-  return (
-    <div>
-      <header>{header}</header> {/* (5) Slot header vào <header> */}
-      <div style={{ display: "flex", gap: 12 }}>
-        <aside>{sidebar}</aside> {/* (6) Slot sidebar vào <aside> */}
-        <main>{children}</main> {/* (7) Slot chính vào <main> */}
-      </div>
-    </div>
-  );
-}
-
-// (8) Panel: slot phụ tùy chọn (footer?) + fallback khi cha không truyền.
-function Panel({ title, children, footer }: { title: string; children: ReactNode; footer?: ReactNode }) {
-  return (
-    <section>
-      <h3>{title}</h3>
-      <div>{children}</div>
-      {/* (9) ?? fallback: không có footer thì hiện mặc định — thay projector fallback của Angular */}
-      {footer ?? <small>Nội dung mặc định</small>}
-    </section>
-  );
-}
-
-export default function App() {
-  return (
-    <Layout header={<h2>Header</h2>} sidebar={<nav>Menu</nav>}>
-      {/* (10) Mọi JSX ở đây thành children của Layout — lồng Card trong Layout (composition chồng) */}
-      <Card>
-        <p>Nội dung qua children.</p>
-        <p>Nội dung 2 qua children.</p>
-      </Card>
-      {/* (11) Panel có footer + Panel dùng fallback — minh họa slot optional */}
-      <Panel title="Có footer" footer={<button>Lưu</button>}>
-        <p>Body panel 1</p>
-      </Panel>
-      <Panel title="Không footer">
-        <p>Body panel 2 — footer rơi về mặc định</p>
-      </Panel>
-    </Layout>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.tsx`](examples/06-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - Dòng `import type { ReactNode }`: `import type` (không mang runtime) vì `ReactNode` chỉ là type. Vì sao `ReactNode` mà không `JSX.Element`? Vì `ReactNode` chấp nhận string (`<Card>Xin chào</Card>`), mảng, `null` — đúng ý slot nhận bất kỳ nội dung vẽ được.
@@ -185,6 +93,7 @@ export default function App() {
 - Quy tắc **kiểm tra rỗng**: `Boolean(children)` nhanh cho 1 con; `Children.count(children) > 0` đúng cho mọi shape (1 element/mảng/fragment). Dùng để quyết định có render wrapper `<div>` không — tránh `<div>` rỗng lệch layout.
 
 ## Bảng so sánh Angular ↔ React
+Mục này dịch từng khái niệm projection của Angular sang React — nhìn cột phải sẽ thấy React "gỡ bỏ" directive/selector/template để chỉ còn props.
 | Angular | React | Ghi chú |
 |---|---|---|
 | `<ng-content>` | `{children}` | Cùng "khe chèn nội dung từ cha", React chỉ là prop |
@@ -198,68 +107,35 @@ export default function App() {
 | `ng-content` với fallback | `children ?? <Default/>` / `footer ?? <Default/>` | React tự viết fallback bằng `??` |
 | `@HostBinding`/`@HostListener` trên host | props + `children` của component, style/class qua props | React không có host element ẩn |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp cũ ↔ mới; 3 dòng đầu là những gì bạn dùng 90% thời gian (`children`, named props, fragment) — phần còn lại là trường hợp nâng cao, chỉ quay lại khi cần.
+
 ## Lỗi thường gặp (Common pitfalls)
 
+Mục này gom 7 cái bẫy của children — hầu hết xuất phát từ hai rễ: "coi children là mảng thường" và "coi children luôn tồn tại".
+
 ### 1. Quên khai type `children`
-```tsx
-// ❌ SAI: TS any/implicit, mất gợi ý, dễ truyền object lạ
-function Card({ children }: any) { return <div>{children}</div>; }
-```
-```tsx
-// ✅ ĐÚNG: ReactNode rộng đúng ý slot
-import type { ReactNode } from "react";
-function Card({ children }: { children: ReactNode }) { return <div>{children}</div>; }
-```
+> 📄 **Code ví dụ:** [`examples/07-1-quen-khai-type-children.tsx`](examples/07-1-quen-khai-type-children.tsx)
+> 📄 **Code ví dụ:** [`examples/08-1-quen-khai-type-children.tsx`](examples/08-1-quen-khai-type-children.tsx)
 
 ### 2. Nhầm `children` luôn tồn tại
-```tsx
-// ❌ SAI: luôn render wrapper dù không có con — <div> rỗng lệch layout
-function Card({ children }: { children?: ReactNode }) { return <div className="card">{children}</div>; }
-<Card /> // <div class="card"></div> rỗng
-```
-```tsx
-// ✅ ĐÚNG: check hoặc fallback
-function Card({ children }: { children?: ReactNode }) {
-  if (!children) return null; // hoặc render fallback
-  return <div className="card">{children}</div>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/09-2-nham-children-luon-ton-tai.tsx`](examples/09-2-nham-children-luon-ton-tai.tsx)
+> 📄 **Code ví dụ:** [`examples/10-2-nham-children-luon-ton-tai.tsx`](examples/10-2-nham-children-luon-ton-tai.tsx)
 
 ### 3. Đặt children trong attribute cho slot chính
-```tsx
-// ❌ SAI: chạy nhưng khó đọc, mất ý "bọc"
-<Card children={<p>Hi</p>} />
-```
-```tsx
-// ✅ ĐÚNG: lồng inline cho slot chính, attribute cho slot phụ
-<Card><p>Hi</p></Card>
-<Layout header={<h2>Hi</h2>} sidebar={<nav />}><p>Main</p></Layout>
-```
+> 📄 **Code ví dụ:** [`examples/11-3-at-children-trong-attribute-cho-slot-chinh.tsx`](examples/11-3-at-children-trong-attribute-cho-slot-chinh.tsx)
+> 📄 **Code ví dụ:** [`examples/12-3-at-children-trong-attribute-cho-slot-chinh.tsx`](examples/12-3-at-children-trong-attribute-cho-slot-chinh.tsx)
 
 ### 4. Lạm dụng prop-drilling cho slot sâu
 Mô tả: `App > Page > Layout > Card` truyền `header` qua 3 tầng trung gian không dùng. Fix: tách Layout tại nơi dùng (đặt `<Layout>` gần `App`), hoặc Context cho config (theme/locale), không drilling slot.
 
 ### 5. Muốn đếm/sửa children bằng API mảng thường
-```tsx
-// ❌ SAI: children có thể là 1 element/string, không có .map/.length — crash
-children.map((c) => ...); children.length;
-```
-```tsx
-// ✅ ĐÚNG: Children API chuẩn hóa mọi shape (chi tiết DAY 9)
-import { Children } from "react";
-Children.count(children); Children.map(children, (c, i) => ...);
-```
+> 📄 **Code ví dụ:** [`examples/13-5-muon-em-sua-children-bang-api-mang.tsx`](examples/13-5-muon-em-sua-children-bang-api-mang.tsx)
+> 📄 **Code ví dụ:** [`examples/14-5-muon-em-sua-children-bang-api-mang.tsx`](examples/14-5-muon-em-sua-children-bang-api-mang.tsx)
 
 ### 6. Truyền `false` làm vỡ layout
 Mô tả: `{show && <Card/>}` với `show = false` thì children là `false` (bị bỏ qua) — Card không vẽ, khoảng layout mất. Nếu Card luôn cần khung, truyền `null` + fallback hoặc giữ Card và điều kiện bên trong.
-```tsx
-// ❌ SAI: mong Card vẫn khung khi không có nội dung nhưng nó biến mất
-{hasData && <Card>{data}</Card>}
-```
-```tsx
-// ✅ ĐÚNG: Card luôn hiện, nội dung điều kiện bên trong
-<Card>{hasData ? data : <small>Chưa có dữ liệu</small>}</Card>
-```
+> 📄 **Code ví dụ:** [`examples/15-6-truyen-false-lam-vo-layout.tsx`](examples/15-6-truyen-false-lam-vo-layout.tsx)
+> 📄 **Code ví dụ:** [`examples/16-6-truyen-false-lam-vo-layout.tsx`](examples/16-6-truyen-false-lam-vo-layout.tsx)
 
 ### 7. Giả định `children` có `.map`/`.length`
 Như mục 5 — coi `children` là `ReactNode` mờ; cần duyệt thì `Children` API (DAY 9). Đặc biệt khi children là function (render props DAY 6), `Children.map` trả function, không render được — phải tách trường hợp (kiểm tra `typeof children === "function"`).
@@ -272,6 +148,8 @@ Như mục 5 — coi `children` là `ReactNode` mờ; cần duyệt thì `Childr
 - Giữ tên slot nhất quán (`header`/`body`/`footer`, `title`/`actions`) giữa các component. Vì sao? Để chuyển từ `Dialog` sang `Drawer` không phải học lại tên.
 - **Đặt `children` cuối interface props** cho dễ đọc và khớp thói quen viết JSX (nội dung ở giữa thẻ). Vì sao? Vì đọc type từ trên xuống như đọc JSX từ ngoài vào trong.
 - Nếu nhiều slot, `children` cho slot lớn nhất, props cho slot còn lại. Vì sao? Vì slot lớn viết inline tự nhiên nhất, slot nhỏ gọn ở attribute.
+
+> **Tóm gọn 1 câu:** Thiết kế theo slot trước, logic sau: `children` là cửa chính, named props là cửa sổ — và luôn nhớ children là dữ liệu bất biến truyền từ cha.
 
 ## Bài tập nhỏ
 1. Thêm 2 slot mới vào `Layout` (`footer`, `toolbar`) và truyền nội dung tương ứng — kiểm tra thứ tự render và fallback khi thiếu.

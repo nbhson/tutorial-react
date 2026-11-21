@@ -15,9 +15,9 @@
 - Tương đương DI phân cấp của Angular nhưng đơn giản hơn: không module, không decorator, không container —
   chỉ 3 mảnh: `createContext` → `Provider` → `useContext`.
 
-```tsx
-const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null);
-```
+> **Tóm gọn 1 câu:** Context là "đường ống ngầm" từ Provider xuống mọi tầng con — props là ống nước nối từng nhà, context là thủy cục cấp thẳng tới mọi vòi.
+
+> 📄 **Code ví dụ:** [`examples/01-1-context-la-gi-khac-props-o-au.tsx`](examples/01-1-context-la-gi-khac-props-o-au.tsx)
 
 ---
 
@@ -33,6 +33,8 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null
 - `useContext(ThemeCtx)` — con đọc giá trị từ Provider **gần nhất** bao quanh nó.
 - Trong example còn có `ThemeProvider` (component bọc, giữ `useState<Theme>`) và `useTheme()` (hook guard).
 
+> **Tóm gọn 1 câu:** Ba mảnh: `createContext` đào ống, `Provider` bơm nước, `useContext` mở vòi — thiếu mảnh nào là khô.
+
 ---
 
 ## 3. `useTheme()` guard để làm gì? Sao không gọi `useContext` trực tiếp?
@@ -44,6 +46,8 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null
   Hook guard biến nó thành **lỗi rõ ràng**: `"useTheme cần <ThemeProvider>"` — biết ngay thiếu Provider ở đâu.
 - Pattern chuẩn: mỗi context viết một hook guard riêng (`useTheme`, `useAuth`, `useCart`) và **không export
   context thô** — ép mọi consumer đi qua cửa kiểm tra.
+
+> **Tóm gọn 1 câu:** Hook guard là chốt kiểm soát ở cửa: thiếu Provider thì báo rõ "bạn thiếu vé", thay vì để khách lạc vào tầng hầm (crash khó hiểu).
 
 ---
 
@@ -67,6 +71,8 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null
 - Đọc Provider **gần nhất** bao quanh nó (override có phạm vi) — giống provider scoped của Angular.
   Đây chính là ý nghĩa "phân cấp": subtree con có thể ghi đè config của subtree cha mà không ảnh hưởng bên ngoài.
 
+> **Tóm gọn 1 câu:** Provider lồng nhau thì "gần nhà thắng": con đọc Provider bao quanh nó sát nhất — như tòa nhà chung cư có quy định riêng vượt quy định thành phố.
+
 ---
 
 ## 6. Khi nào dùng Context vs props vs store?
@@ -79,6 +85,8 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null
 - **Store (DAY 8)** — state **hay đổi + nhiều subscriber**: giỏ hàng, realtime, form lớn. Có selector giảm re-render.
 - Dấu hiệu sai: nhét counter gõ liên tục vào Context → cả cụm re-render vô tội vạ; hoặc đục props 5 tầng
   cho theme → prop drilling, lúc đó Context đúng hơn.
+
+> **Tóm gọn 1 câu:** Props cho 1-2 tầng, Context cho config ít đổi xuyên tầng, store cho dữ liệu nhảy liên tục — chọn đúng "phương tiện" cho đúng loại hàng.
 
 ---
 
@@ -95,6 +103,8 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null
 | `constructor(private svc: Svc)` | `const { theme } = useTheme()` | Đọc tại chỗ dùng, không constructor |
 | `BehaviorSubject` + `async` pipe | Context KHÔNG thay được — sang store (DAY 8) | Context thiếu selector/tối ưu stream |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp DI Angular ↔ Context React; dòng cuối là dòng cảnh báo quan trọng nhất — Context không thay được BehaviorSubject, đừng cố bơi ngược dòng.
+
 ---
 
 ## 8. Tách Context để giảm re-render: `ThemeValue` + `ThemeActions` thế nào?
@@ -106,29 +116,9 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void } | null>(null
 - Cơ chế tách: tạo 2 context — một chứa **giá trị đổi theo state** (`theme`), một chứa **hàm ổn định** (`toggle`). Component chỉ hiển thị chữ đăng ký context giá trị; component chỉ bấm nút đăng ký context hành động. Đổi `theme` thì nút bấm không re-render vì context nó đọc không đổi.
 - Quy tắc nhận diện: khi thấy một consumer chỉ dùng `toggle` mà vẫn re-render mỗi lần `theme` đổi (check bằng React DevTools highlight), đó là tín hiệu tách. Trước Compiler phải `useMemo` cho value; có Compiler 1.0 thì chi phí giảm nhưng tách vẫn rõ ngữ nghĩa hơn.
 
-```tsx
-import { createContext, useContext, useState, type ReactNode } from "react";
+> 📄 **Code ví dụ:** [`examples/02-8-tach-context-e-giam-re-render-themevalue.tsx`](examples/02-8-tach-context-e-giam-re-render-themevalue.tsx)
 
-type Theme = "light" | "dark";
-const ThemeValueCtx = createContext<Theme>("light"); // context chỉ chứa giá trị theme
-const ThemeToggleCtx = createContext<() => void>(() => {}); // context chỉ chứa hàm toggle
-
-function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light"); // state theme đổi khi toggle
-  const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light")); // hàm đảo theme
-  return (
-    // Lồng 2 Provider: consumer nào đọc context nào thì chỉ re-render theo context đó
-    <ThemeValueCtx.Provider value={theme}>
-      <ThemeToggleCtx.Provider value={toggle}>{children}</ThemeToggleCtx.Provider>
-    </ThemeValueCtx.Provider>
-  );
-}
-
-function ThemeLabel() {
-  const theme = useContext(ThemeValueCtx); // chỉ re-render khi theme đổi
-  return <p>Theme: {theme}</p>;
-}
-```
+> **Tóm gọn 1 câu:** Tách context như chia hệ điện: đèn (giá trị) và công tắc (hàm) mỗi hệ một đường — bật công tắc không phải thay bóng đèn cả tòa.
 
 ---
 
@@ -141,26 +131,9 @@ function ThemeLabel() {
 - Vì sao không export context thô: ép mọi consumer đi qua hook guard, lỗi thiếu Provider lộ ngay với tên domain cụ thể ("useAuth cần <AuthProvider>") thay vì crash `cannot read .user of null` khó trace.
 - Sai thì sao: quên truyền `hookName` thì message generic, debug chậm hơn. Fix: luôn truyền tên hook khi tạo.
 
-```tsx
-import { createContext, useContext, type ReactNode } from "react";
+> 📄 **Code ví dụ:** [`examples/03-9-viet-createsafecontext-generic-tai-dung-cho-moi.tsx`](examples/03-9-viet-createsafecontext-generic-tai-dung-cho-moi.tsx)
 
-// Factory tạo context an toàn: dùng chung cho theme, auth, locale...
-function createSafeContext<T>(hookName: string) {
-  const Ctx = createContext<T | null>(null); // default null để ép kiểm tra scope
-  function Provider({ value, children }: { value: T; children: ReactNode }) {
-    return <Ctx.Provider value={value}>{children}</Ctx.Provider>; // nạp giá trị cho subtree
-  }
-  function useCtx(): T {
-    const ctx = useContext(Ctx); // đọc từ Provider gần nhất
-    if (!ctx) throw new Error(`${hookName} cần Provider tương ứng`); // lỗi rõ thay vì crash null
-    return ctx;
-  }
-  return [Provider, useCtx] as const; // trả cặp để nơi dùng bung ra
-}
-
-// Cách dùng: mỗi domain một cặp riêng, không lẫn nhau
-const [ThemeProvider, useTheme] = createSafeContext<{ theme: string }>("useTheme");
-```
+> **Tóm gọn 1 câu:** `createSafeContext` là "khuôn đúc cửa kiểm soát": mỗi domain gọi một lần là có ngay Provider + hook guard, khỏi lệ re-invented.
 
 ---
 
@@ -179,6 +152,8 @@ const [ThemeProvider, useTheme] = createSafeContext<{ theme: string }>("useTheme
 | Provider sát cụm dùng (layout con) | Consumer trong cụm đó | Mặc định nên làm thế này |
 | Một context khổng lồ cho mọi thứ | Đổi 1 field, cả cụm nhảy | Sai — tách theo domain (theme/user/locale riêng) |
 
+> **Cách đọc bảng này:** mỗi dòng là một cách đặt Provider; đọc cột "Phạm vi re-render" trước để thấy quy luật — Provider càng cao càng "điện giật" rộng, mặc định nên đặt sát cụm dùng.
+
 ---
 
 ## 11. Test component dùng Context và đối chiếu `@Optional()` của Angular?
@@ -190,17 +165,9 @@ const [ThemeProvider, useTheme] = createSafeContext<{ theme: string }>("useTheme
 - Tương đương Angular: `@Optional()` cho phép inject vắng mặt trả `null` thay vì lỗi. Bên React, default `null` + **không throw** chính là `@Optional()` (consumer tự check null, chạy ngoài Provider vẫn sống với giá trị mặc định). Còn default `null` + **throw trong hook** là inject bắt buộc (thiếu là lỗi ngay). Chọn bên nào tùy ngữ cảnh: theme nên bắt buộc (lộ sai scope), còn config có fallback hợp lý thì cho optional.
 - Sai thì sao: test bọc Provider sai tầng (bọc ngoài nhưng consumer đọc context khác) vẫn throw — kiểm tra lại đúng cặp Provider/hook cùng factory.
 
-```tsx
-// Minh họa ý tưởng test (Vitest + RTL, xem chi tiết DAY 21)
-import { render, screen } from "@testing-library/react";
+> 📄 **Code ví dụ:** [`examples/04-11-test-component-dung-context-va-oi-chieu.tsx`](examples/04-11-test-component-dung-context-va-oi-chieu.tsx)
 
-// ĐÚNG: bọc Provider như prod thì button hiện theme
-// render(<ThemeProvider><ThemedButton /></ThemeProvider>);
-// expect(screen.getByRole("button")).toHaveTextContent("light");
-
-// KHÓA CONTRACT: thiếu Provider phải throw message rõ, không được "câm"
-// expect(() => render(<ThemedButton />)).toThrow("useTheme cần <ThemeProvider>");
-```
+> **Tóm gọn 1 câu:** Default `null` + throw = inject bắt buộc; default `null` + tự check = `@Optional()` — chọn "bắt buộc" hay "tùy chọn" theo ý nghĩa domain, không theo thói quen.
 
 ---
 

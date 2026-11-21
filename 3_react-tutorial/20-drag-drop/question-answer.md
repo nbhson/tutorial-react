@@ -14,6 +14,10 @@
   **dnd-kit** (chuẩn prod 2026). Không có `cdkDropList` gắn là xong.
 - Triết lý chung cả hai tầng: kéo **không di chuyển DOM trực tiếp** — chỉ `setState` nguồn/đích,
   lúc thả **tạo mảng mới** theo thứ tự mới; React render lại list. Bất biến (immutability) như DAY 2.
+- Ví von: Angular giao "cần cẩu dựng sẵn", React đưa găng tay + bộ ròng rọc để tự lắp —
+  hiểu cơ chế thì lắp nhanh hơn cả đợi cần cẩu.
+
+> **Tóm gọn 1 câu:** React không có directive drag magic — kéo thả chỉ là events + setState + mảng mới bất biến; demo dùng native, prod dùng dnd-kit.
 
 ---
 
@@ -27,6 +31,10 @@
   mới cho drop. Quên dòng này là `onDrop` **không bao giờ chạy** — lỗi #1 bài này.
 - `onDrop` — chốt: gọi `drop(to)` hoán vị (copy mảng → `splice` lấy ra → `splice` chèn vào → mảng mới),
   reset `dragIdx`. Nguồn trùng đích (`dragIdx === to`) thì bỏ qua.
+- Ví von: ba sự kiện là ba chặng giao hàng — start ký biên bản lấy hàng, over là "bảo vệ cho vào kho"
+  (phải preventDefault), drop là ký biên nhận. Thiếu chữ ký ở cổng (over) thì hàng (drop) chẳng bao giờ vào kho.
+
+> **Tóm gọn 1 câu:** `onDragStart` nhớ nguồn, `onDragOver` phải `preventDefault` cho phép thả, `onDrop` chốt mảng mới — thiếu khâu nào hỏng khâu đó.
 
 ---
 
@@ -38,6 +46,11 @@
 - Chính là quy tắc DAY 2 áp dụng thực tế: reorder **đổi thứ tự liên tục**, `key={index}` sẽ giữ nhầm DOM/state
   mỗi lần thả (index dịch mà React tưởng cùng item). Key theo **giá trị/id ổn định** thì React di chuyển
   đúng node, giữ đúng state nội bộ từng item.
+- Ví von: key là **thẻ căn cước** của item, index chỉ là số ghế trên xe — đổi chỗ hành khách thì số ghế
+  đổi, nhưng căn cước vẫn theo người. Kê theo số ghế là React tưởng "người ở ghế 2" vẫn là người cũ,
+  dù đã sang người khác.
+
+> **Tóm gọn 1 câu:** Key theo giá trị/id ổn định (không phải index) để React giữ đúng DOM và state nội bộ từng item khi reorder.
 
 ---
 
@@ -53,6 +66,10 @@
   `listeners` + `attributes` cho a11y) + `arrayMove(arr, from, to)` (≈ `moveItemInArray` CDK).
 - Kéo **giữa 2 list**: phân biệt container qua `active`/`over` trong `onDragEnd` (≈ `transferArrayItem`);
   thả ra ngoài (`over` null) thì bỏ qua.
+- Ví von: native như xe đạp tự đạp — đi quanh nhà thì vui, chở hàng nặng ra đường (prod, mobile,
+  screen reader) thì cần dnd-kit như xe tải có đèn, có còi.
+
+> **Tóm gọn 1 câu:** Native chỉ đủ cho demo — thiếu touch, a11y và ghost styling; lên prod thật thì chuyển sang dnd-kit.
 
 ---
 
@@ -69,6 +86,8 @@
 | `transferArrayItem` | `onDragEnd` phân biệt `active`/`over` | Kéo liên list |
 | CDK tự lo a11y cơ bản | dnd-kit `attributes` + keyboard | Native không có |
 
+> **Cách đọc bảng này:** mỗi dòng là một khái niệm CDK bên trái, cột giữa là tương đương bên React, cột phải ghi điểm khác chính. Đọc từ trên xuống theo đúng thứ tự dựng: gắn kéo → reorder → kéo liên list → a11y.
+
 ---
 
 ## 6. Tách hàm `move` thuần: vì sao reorder phải là hàm test được, không nằm trong handler?
@@ -80,20 +99,9 @@
 - Cơ chế bất biến giữ nguyên: `move` copy `[...list]`, `splice(from,1)` rút ra, `splice(to,0,m)` chèn vào, trả mảng mới. Handler `drop` chỉ còn `setItems(xs => move(xs, dragIdx, to))` — mỏng, khó sai. Cùng hàm này tái dùng cho nút "Lên/Xuống" (a11y, câu 10) và cho dnd-kit `onDragEnd` (câu 8).
 - Sai thì sao: mutate mảng gốc (`list.splice` trực tiếp trên state) thì React thấy cùng tham chiếu, không re-render — list đứng yên dù đã kéo. Fix: luôn copy trước, hàm thuần ép điều này vì không giữ tham chiếu ngoài.
 
-```tsx
-// Hàm thuần: vào mảng cũ + from/to, ra mảng mới — không mutate, dễ test
-function move<T>(list: T[], from: number, to: number): T[] {
-  if (from === to) return list; // thả về chỗ cũ: no-op, giữ tham chiếu cũ
-  const next = [...list]; // bất biến: copy trước khi sửa
-  const [m] = next.splice(from, 1); // rút item khỏi vị trí cũ
-  next.splice(to, 0, m); // chèn vào vị trí mới
-  return next; // mảng mới cho React re-render
-}
+> **Tóm gọn 1 câu:** Tách `move(list, from, to)` thành hàm thuần bất biến — test được bằng Vitest, handler chỉ còn một dòng setState.
 
-// Test unit mẫu (Vitest): không cần render, không cần giả drag event
-// expect(move(["A", "B", "C"], 0, 2)).toEqual(["B", "C", "A"]);
-// expect(move(["A", "B"], 1, 1)).toEqual(["A", "B"]); // no-op giữ nguyên
-```
+> 📄 **Code ví dụ:** [`examples/01-6-tach-ham-move-thuan-vi-sao-reorder.tsx`](examples/01-6-tach-ham-move-thuan-vi-sao-reorder.tsx)
 
 ---
 
@@ -105,41 +113,12 @@ function move<T>(list: T[], from: number, to: number): T[] {
 - Index là **vị trí tại thời điểm bắt đầu kéo**, không phải danh tính item. Giữa lúc đang kéo mà list đổi (poll thêm item đầu, user khác xóa, filter gõ) thì index cũ trỏ sang item khác — thả là reorder nhầm, bug "kéo A mà B nhảy" rất khó tái hiện vì phụ thuộc timing.
 - Cơ chế fix: mỗi item có `id` ổn định (`{ id: "a", label: "Mục A" }`), `onDragStart` lưu `dragId`, `onDrop` tìm `from = items.findIndex(x => x.id === dragId)` **tại thời điểm thả** — vị trí tươi, không sợ list dịch giữa chừng. `key={it.id}` (không `key={index}`) để React cũng theo danh tính, đúng DAY 2.
 - Quy tắc nhận diện: list tĩnh demo thì index đủ; list có thêm/xóa/filter/realtime thì bắt buộc id. Sai thì sao: giữ index cho list động là bug timing — test đơn không lộ, prod đông user mới lộ.
+- Ví von: lưu index như ghi nhớ "hàng hóa ở kệ số 3" — giữa chừng ai dồn kệ là nhặt nhầm hàng;
+  lưu id là nhớ tên mặt hàng, kệ dịch thế nào cũng tìm ra đúng món.
 
-```tsx
-import { useState } from "react";
+> **Tóm gọn 1 câu:** List động (thêm/xóa/filter) phải lưu `id` và tìm lại index tại thời điểm thả — index chốt lúc bắt đầu kéo là bug timing.
 
-type Item = { id: string; label: string }; // danh tính ổn định, không phải vị trí
-
-function IdList() {
-  const [items, setItems] = useState<Item[]>([
-    { id: "a", label: "Mục A" }, { id: "b", label: "Mục B" }, { id: "c", label: "Mục C" },
-  ]);
-  const [dragId, setDragId] = useState<string | null>(null); // lưu id, không lưu index
-  const drop = (toId: string) => {
-    if (!dragId || dragId === toId) return; // không nguồn hoặc về chỗ cũ -> bỏ qua
-    setItems((xs) => {
-      const from = xs.findIndex((x) => x.id === dragId); // vị trí tươi lúc thả
-      const to = xs.findIndex((x) => x.id === toId); // đích cũng tìm tươi
-      const next = [...xs]; // copy bất biến
-      const [m] = next.splice(from, 1); // rút ra
-      next.splice(to, 0, m); // chèn vào
-      return next;
-    });
-    setDragId(null); // reset nguồn sau thả
-  };
-  return (
-    <ul>
-      {items.map((it) => (
-        <li key={it.id} draggable
-          onDragStart={() => setDragId(it.id)} // ghi danh tính nguồn
-          onDragOver={(e) => e.preventDefault()} // bắt buộc để cho drop
-          onDrop={() => drop(it.id)}>{it.label}</li>
-      ))}
-    </ul>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-7-luu-id-thay-index-khi-nao-index.tsx`](examples/02-7-luu-id-thay-index-khi-nao-index.tsx)
 
 ---
 
@@ -152,27 +131,9 @@ function IdList() {
 - Cơ chế `onDragEnd({ active, over })`: `active.id` là nguồn, `over?.id` là đích — tìm index hai bên rồi `arrayMove(items, from, to)` (bản lib của hàm `move` câu 6). `over` null (thả ra ngoài list) thì bỏ qua, không đổi gì.
 - Sai thì sao: gắn `listeners` vào cả item có nút bên trong mà không `activationConstraint` thì click nút cũng kích kéo. Fix: `useSensor(PointerSensor, { activationConstraint: { distance: 5 } })` — di quá 5px mới tính là kéo (câu 10).
 
-```tsx
-import { DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { useState } from "react";
+> **Tóm gọn 1 câu:** `useSortable` trả nguyên liệu hành vi — thiếu `setNodeRef` là không kéo được, thiếu `listeners`/`attributes` là mất điều khiển và a11y.
 
-function SortableItem({ id }: { id: string }) {
-  // Lấy đủ 4 nguyên liệu hành vi từ hook headless
-  const { attributes, listeners, setNodeRef, transform } = useSortable({ id });
-  return (
-    <li
-      ref={setNodeRef} // bắt buộc: để dnd-kit đo vị trí, thiếu là kéo chết
-      style={{ transform: CSS.Transform.toString(transform) }} // item "nhấc lên" theo chuột
-      {...attributes} // ARIA + role cho screen reader/keyboard
-      {...listeners} // handler kéo (chuột + bàn phím Space/mũi tên)
-    >
-      {id}
-    </li>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-8-dnd-kit-sortableitem-ay-u-setnoderef-transform.tsx`](examples/03-8-dnd-kit-sortableitem-ay-u-setnoderef-transform.tsx)
 
 ---
 
@@ -192,6 +153,8 @@ function SortableItem({ id }: { id: string }) {
 | `cdkDropListConnectedTo` | Một `DndContext` bao nhiều `SortableContext` | Kéo chéo cột |
 | `cdkDragPreview` | `<DragOverlay>` | Bóng item khi kéo (câu 10) |
 
+> **Cách đọc bảng này:** mỗi dòng là một thao tác CDK bên trái, cột giữa là cách dnd-kit làm tương đương, cột phải ghi điều kiện áp dụng. Quy tắc ngắn: cùng cột dùng `arrayMove`, khác cột thì setState bất biến cả hai cột.
+
 ---
 
 ## 10. A11y + cảm giác prod: nút Lên/Xuống, `DragOverlay`, `activationConstraint`?
@@ -203,21 +166,12 @@ function SortableItem({ id }: { id: string }) {
 - **`DragOverlay`** (bóng khi kéo): item gốc giữ chỗ (tránh list nhảy), overlay bay theo chuột — cảm giác "nhấc lên" như CDK `cdkDragPreview`. Kết hợp Motion `layout` (DAY 19) thì item còn lại trượt mượt về chỗ mới.
 - **`activationConstraint`**: item có nút/link bên trong mà kéo nhạy quá thì click cũng thành kéo. Đặt `distance: 5` (di 5px mới kéo) hoặc `delay` cho touch — click thường an toàn, kéo thật vẫn mượt.
 - Sai thì sao: không có phương án bàn phím là rớt audit a11y; không overlay thì ghost mặc định của trình duyệt xấu + hạn chế style; không constraint thì user kêu "bấm nút mà nó kéo". Fix: cả ba từ đầu khi lên prod.
+- Ví von: cả ba mảnh như lái xe an toàn — nút Lên/Xuống là thang máy cho ai không leo được cầu thang,
+  `DragOverlay` là gương chiếu hậu, `activationConstraint` là chân phanh — thiếu cái nào đều có chuyện.
 
-```tsx
-// Nút Lên/Xuống dùng chung hàm move thuần: a11y + test ổn định, không cần giả drag
-function MoveButtons({ index, total, onMove }: {
-  index: number; total: number; onMove: (from: number, to: number) => void;
-}) {
-  return (
-    <span>
-      {/* Disabled ở biên: đầu không lên, cuối không xuống */}
-      <button disabled={index === 0} onClick={() => onMove(index, index - 1)}>Lên</button>
-      <button disabled={index === total - 1} onClick={() => onMove(index, index + 1)}>Xuống</button>
-    </span>
-  );
-}
-```
+> **Tóm gọn 1 câu:** Nút Lên/Xuống lo a11y, `DragOverlay` lo cảm giác, `activationConstraint` lo click an toàn — ba mảnh bắt buộc khi lên prod.
+
+> 📄 **Code ví dụ:** [`examples/04-10-a11y-cam-giac-prod-nut-len-xuong.tsx`](examples/04-10-a11y-cam-giac-prod-nut-len-xuong.tsx)
 
 ---
 

@@ -3,6 +3,8 @@
 > File hỏi–đáp chi tiết cho `3_react-tutorial/11-forms`.
 > Đọc kèm: `README.md` (lý thuyết) + `example.tsx` (controlled form thuần chạy được).
 
+File này giải đáp 11 thắc mắc DAY 11: controlled thuần vs RHF + Zod, khi nào dùng cái nào, và các lỗi thực chiến (coerce số, submit kép, validate chéo/async). Đọc theo câu đang vướng — mỗi câu có "Sai thì sao" để biết hệ quả.
+
 ---
 
 ## 1. Controlled form thuần hoạt động thế nào?
@@ -16,6 +18,10 @@
 - `e.preventDefault()` chặn reload trang mặc định của `<form>` — quên là mất hết state.
 - Đủ cho form 2–3 field. Từ ~5 field + rule phức tạp trở lên, validate tay phình nhanh —
   lúc đó sang RHF + Zod.
+
+Ví von: controlled form thuần như **điền đơn giấy chép tay mỗi dòng vào sổ** — vài dòng thì được; đơn 30 dòng mà chép lại toàn bộ sổ sau mỗi chữ thì mỏi tay.
+
+> **Tóm gọn 1 câu:** Controlled thuần = state là nguồn sự thật, validate tay, đủ dùng cho form nhỏ — đừng quên `preventDefault` kẻo submit là trắng trang.
 
 ---
 
@@ -31,6 +37,8 @@
   Không có class `FormGroup` — "form" chỉ là object + schema.
 - Tương đương: `FormControl` + `Validators` ↔ RHF + Zod; `formControlName` ↔ `{...register("email")}`.
 
+> **Tóm gọn 1 câu:** RHF giữ value trong DOM/ref thay vì state — gõ không re-render form, chỉ blur/submit mới render lỗi.
+
 ---
 
 ## 3. Zod + `zodResolver` + `z.infer` là bộ ba gì?
@@ -42,6 +50,10 @@
 - **`zodResolver`** — cắm schema vào RHF: `handleSubmit` chạy validate trước callback; lỗi vào `formState.errors`.
 - **`z.infer<typeof Schema>`** — suy type TS từ schema: callback nhận `data` đã đúng kiểu, không khai type tay 2 lần.
 - Hiển thị lỗi cạnh field: `{errors.email?.message}` ngay dưới input tương ứng.
+
+Ví von bộ ba: Zod là **hợp đồng quy định chuẩn đầu vào**, `zodResolver` là **người soát hợp đồng trước khi cho vào việc**, còn `z.infer` là **bản sao hợp đồng tự phát hành** cho TypeScript — một bản, dùng ba nơi.
+
+> **Tóm gọn 1 câu:** Zod định nghĩa schema một lần, resolver cắm vào RHF để validate, `z.infer` suy type — một nguồn sự thật cho runtime lẫn compile.
 
 ---
 
@@ -55,6 +67,8 @@
   lỗi theo field có sẵn, schema tái dùng.
 - Dấu hiệu validate tay đang quá tải: `err` thành object nhiều field, `if` lồng nhau, rule lặp ở nhiều form.
 
+> **Tóm gọn 1 câu:** Form nhỏ dùng `useState` cho gọn, form lớn/điều kiện chéo dùng RHF + Zod — thấy `if` validate lồng nhau là tín hiệu đổi "cấp độ".
+
 ---
 
 ## 5. Uncontrolled trong RHF có mâu thuẫn "controlled là chuẩn" không?
@@ -66,6 +80,8 @@
   RHF vẫn đảm bảo điều đó lúc `handleSubmit`, chỉ là **lưu tạm trong DOM** thay vì state để tránh re-render
   từng phím — tối ưu hiệu năng, không thay đổi ngữ nghĩa form.
 - Hiểu nôm na: controlled thuần = "ghi sổ mỗi chữ gõ", RHF = "ghi nháp trên giấy, nộp bài mới chấm".
+
+> **Tóm gọn 1 câu:** Không mâu thuẫn — RHF chỉ đổi cách lưu tạm (DOM thay vì state) cho nhẹ, lúc nộp bài vẫn đảm bảo một nguồn sự thật như controlled.
 
 ---
 
@@ -83,6 +99,8 @@
 | `(ngSubmit)` | `onSubmit={handleSubmit(cb)}` + `preventDefault` | Validate trước callback |
 | Lỗi theo control | `formState.errors` | `{errors.email?.message}` |
 
+> **Cách đọc bảng này:** mỗi dòng là một khái niệm Angular và "twin" bên React — cột Angular để nhận diện điều bạn cần làm, cột React là cách viết thay thế, cột Ghi chú nêu tinh thần khác nhau của cặp đó.
+
 ---
 
 ## 7. `Controller` để làm gì? Khi nào `register` không đủ?
@@ -94,33 +112,9 @@
 - Cơ chế `Controller`: RHF giữ `control` (bộ não form), `Controller` làm cầu — nhận `name` + `control` + `render({ field })`, rồi bạn cắm `field.value`/`field.onChange` vào đúng prop của UI component. Validate Zod vẫn chạy qua `handleSubmit` như thường, `errors` vẫn theo field.
 - Quy tắc nhận diện: thấy component nhận `value`/`onValueChange` thay vì `value`/`onChange` + `ref` là biết phải `Controller`. Sai thì sao: spread `register` vào Select thì gõ không vào form, submit thiếu field mà không báo lỗi — vì RHF chưa từng đăng ký được nó.
 
-```tsx
-import { useForm, Controller } from "react-hook-form";
+> 📄 **Code ví dụ:** [`examples/01-7-controller-e-lam-gi-khi-nao-register.tsx`](examples/01-7-controller-e-lam-gi-khi-nao-register.tsx)
 
-// Giả sử CitySelect là component UI lib: nhận value + onValueChange, không có ref
-function CitySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">Chọn thành phố</option>
-      <option value="hcm">TP.HCM</option>
-      <option value="hn">Hà Nội</option>
-    </select>
-  );
-}
-
-function AddressForm() {
-  const { control, handleSubmit } = useForm<{ city: string }>({ defaultValues: { city: "" } });
-  return (
-    <form onSubmit={handleSubmit((d) => alert(d.city))}>
-      {/* Controller cắm field của RHF vào đúng prop của UI lib */}
-      <Controller name="city" control={control} render={({ field }) => (
-        <CitySelect value={field.value} onChange={field.onChange} />
-      )} />
-      <button type="submit">Lưu</button>
-    </form>
-  );
-}
-```
+> **Tóm gọn 1 câu:** `register` bám được `<input>` chuẩn DOM; component UI lib tự quản value thì cần `Controller` làm cầu nối giữa RHF và prop riêng của nó.
 
 ---
 
@@ -133,40 +127,9 @@ function AddressForm() {
 - Cơ chế `useFieldArray({ control, name: "items" })`: RHF cấp `fields` (có `id` ổn định làm key), `append`/`remove`/`move` thao tác mảng trong form state. Mỗi dòng đăng ký `register(`items.${index}.name`)` — index luôn khớp vì RHF tự dồn sau remove. Zod schema mảng validate cả danh sách một lần, lỗi vào `errors.items?.[i]?.price`.
 - Sai thì sao: dùng `key={index}` cho dòng động thì xóa dòng giữa, React giữ nhầm DOM/input — giá dòng 2 nhảy lên dòng 1. Fix: luôn `key={f.id}` (id của `useFieldArray`).
 
-```tsx
-import { useForm, useFieldArray } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+> 📄 **Code ví dụ:** [`examples/02-8-usefieldarray-cho-form-them-dong-ong-san.tsx`](examples/02-8-usefieldarray-cho-form-them-dong-ong-san.tsx)
 
-// Schema mảng: mỗi dòng có tên + giá dương, ít nhất 1 dòng
-const Schema = z.object({
-  items: z.array(z.object({
-    name: z.string().min(1, "Nhập tên"),
-    price: z.coerce.number().positive("Giá phải > 0"),
-  })).min(1, "Cần ít nhất 1 dòng"),
-});
-
-function OrderForm() {
-  const { register, control, handleSubmit, formState: { errors } } = useForm<{ items: { name: string; price: number }[] }>({
-    resolver: zodResolver(Schema), // cắm schema mảng vào RHF
-    defaultValues: { items: [{ name: "", price: 0 }] }, // 1 dòng khởi đầu
-  });
-  const { fields, append, remove } = useFieldArray({ control, name: "items" }); // quản mảng động
-  return (
-    <form onSubmit={handleSubmit((d) => alert(JSON.stringify(d)))}>
-      {fields.map((f, i) => (
-        <div key={f.id}> {/* key ổn định từ RHF, không dùng index */}
-          <input {...register(`items.${i}.name`)} placeholder="Tên SP" />
-          <input type="number" {...register(`items.${i}.price`)} placeholder="Giá" />
-          <button type="button" onClick={() => remove(i)}>Xóa</button>
-        </div>
-      ))}
-      <button type="button" onClick={() => append({ name: "", price: 0 })}>Thêm dòng</button>
-      <button type="submit">Đặt hàng</button>
-    </form>
-  );
-}
-```
+> **Tóm gọn 1 câu:** `useFieldArray` cấp `fields` có `id` ổn định và tự dồn index sau xóa — đừng tự quản mảng tay, và luôn `key={f.id}` chứ không phải `key={index}`.
 
 ---
 
@@ -185,6 +148,10 @@ function OrderForm() {
 | `onTouched` | Blur khỏi field là báo | Khuyên dùng chung — phản hồi vừa đủ |
 | `onChange` | Gõ phím nào báo phím đó | Chỉ khi cần gắt (password strength live) |
 
+> **Cách đọc bảng này:** 3 dòng là 3 "chế độ báo lỗi" sắp theo độ khó tính tăng dần — đọc cột "Validate khi nào" để biết thời điểm, cột "Hợp khi nào" để chọn; mặc định an toàn là `onTouched`.
+
+> **Tóm gọn 1 câu:** `watch` nghe field để preview live (hẹp thôi, đừng nghe cả form), còn `mode: "onTouched"` là điểm cân bằng giữa báo sớm và báo muộn.
+
 ---
 
 ## 10. Lỗi thực chiến: `z.number()` fail với `<input type="number">` + submit trùng khi gọi API?
@@ -196,30 +163,9 @@ function OrderForm() {
 - Thứ hai: user bấm submit 2 lần khi request đang bay → 2 đơn hàng trùng. Fix: đọc `formState.isSubmitting` (RHF tự set true trong lúc `handleSubmit` callback async chạy) để `disabled` nút + đổi nhãn "Đang lưu...". Callback xong (kể cả throw) RHF tự nhả.
 - Cơ chế chung: form prod phải tách **kiểu hiển thị** (string trong input) khỏi **kiểu dữ liệu** (number khi submit) — `coerce` là cầu, `isSubmitting` là khóa chống đua.
 
-```tsx
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+> 📄 **Code ví dụ:** [`examples/03-10-loi-thuc-chien-z-number-fail-voi.tsx`](examples/03-10-loi-thuc-chien-z-number-fail-voi.tsx)
 
-// coerce: ép string từ input thành number rồi mới check positive
-const Schema = z.object({ qty: z.coerce.number().positive("Số lượng phải > 0") });
-
-function BuyForm() {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<{ qty: number }>({
-    resolver: zodResolver(Schema),
-  });
-  return (
-    <form onSubmit={handleSubmit(async (d) => {
-      await fetch("/api/order", { method: "POST", body: JSON.stringify(d) }); // gọi API thật
-    })}>
-      <input type="number" {...register("qty")} placeholder="Số lượng" />
-      {errors.qty && <small>{errors.qty.message}</small>}
-      {/* Khóa nút khi đang gửi: chống double submit */}
-      <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Đang lưu..." : "Mua"}</button>
-    </form>
-  );
-}
-```
+> **Tóm gọn 1 câu:** Hai lỗi thực chiến cùng một tư duy: tách "kiểu hiển thị" khỏi "kiểu dữ liệu" (`coerce` là cầu), và khóa nút submit khi đang bay (`isSubmitting` là khóa chống đua).
 
 ---
 
@@ -232,19 +178,9 @@ function BuyForm() {
 - Async (check email đã tồn tại qua API) dùng `z.refine(async ...)` — resolver await được nên `handleSubmit` đợi server trả lời rồi mới quyết định lỗi hay cho submit. Chỉ dùng cho check hiếm (blur/submit), không check mỗi phím (tốn request, cần debounce ở tầng gọi).
 - Sai thì sao: viết check chéo trong `validate` của từng field thì không thấy field kia, logic lặp; quên `path` thì lỗi hiện ở root form, user không biết ô nào sai. Fix: chéo → refine object + path; async → refine async + `mode: "onTouched"` để đỡ spam.
 
-```tsx
-import { z } from "zod";
+> 📄 **Code ví dụ:** [`examples/04-11-validate-cheo-async-confirmpass-pass-va-check.tsx`](examples/04-11-validate-cheo-async-confirmpass-pass-va-check.tsx)
 
-// Schema có validate chéo: confirmPass phải khớp pass, lỗi gắn vào confirmPass
-const Schema = z.object({
-  email: z.string().email("Email không hợp lệ"),
-  pass: z.string().min(6, "Tối thiểu 6 ký tự"),
-  confirmPass: z.string(),
-}).refine((d) => d.confirmPass === d.pass, {
-  message: "Nhập lại chưa khớp", // thông điệp hiện dưới ô confirmPass
-  path: ["confirmPass"], // chỉ rõ field nào nhận lỗi chéo này
-});
-```
+> **Tóm gọn 1 câu:** Validate chéo viết ở tầng object bằng `.refine` + `path` chỉ đúng field; async refine chỉ dùng cho check hiếm (blur/submit) — đừng gọi server mỗi phím.
 
 ---
 

@@ -17,6 +17,8 @@
 - Trong example, `Steps` đếm tổng bước (`Children.count`) và đánh số từng bước (`Children.map`
   bọc `<li>Bước {i+1}/{total}</li>`) mà không cần biết cha truyền 3 `<span>` hay fragment.
 
+> **Tóm gọn 1 câu:** Children thô như hàng nhập về đủ mọi hình dạng đóng gói — `Children.*` là băng chuyền chuẩn hóa trước khi bạn phân loại.
+
 ---
 
 ## 2. `cloneElement` là gì? Khi nào dùng thay vì bọc `<li>`?
@@ -31,6 +33,8 @@
   không có lifecycle riêng như `ngAfterContentInit`.
 - Lưu ý: clone **giữ props cũ, không gộp handler cũ** — cần thì tự gọi handler cũ trong handler mới.
 
+> **Tóm gọn 1 câu:** `cloneElement` là "photocopy kèm ghi chú đè lên": props cũ còn, nhưng handler cùng tên bị đè — nhớ gộp tay handler cũ.
+
 ---
 
 ## 3. `isValidElement` để làm gì?
@@ -40,6 +44,8 @@
 **Đáp:**
 - Không — child có thể là **string/number** (không có props). `isValidElement(child)` kiểm tra trước:
   element thì clone/inject, string thì giữ nguyên. Bỏ qua là crash khi clone nhầm text node.
+
+> **Tóm gọn 1 câu:** `isValidElement` là cổng an ninh trước băng chuyền: hàng thật (element) mới được đóng dấu (clone), hàng giả (string) đi đường thường.
 
 ---
 
@@ -53,6 +59,8 @@
 - Gọn (không học thêm lifecycle) nhưng cũng là bẫy: đừng tìm chỗ "đợi content xong" — mọi tính toán
   content làm luôn trong body component trước `return`.
 
+> **Tóm gọn 1 câu:** React không có "sau khi content dựng xong" — bạn cầm sẵn toàn bộ children ngay khi viết render, tính luôn ở đó.
+
 ---
 
 ## 5. Khi nào dùng `cloneElement`, khi nào dùng compound + context?
@@ -64,6 +72,8 @@
   rõ contract, type-check được, thêm con không sửa cha.
 - `cloneElement` giới hạn cho thao tác **"trang trí hàng loạt"** mà composition lẻ tẻ quá rườm rà
   (đánh số Steps, gắn divider Breadcrumb). Thấy mình clone khắp nơi là dấu hiệu nên đổi sang compound.
+
+> **Tóm gọn 1 câu:** Compound + context là con đường chính; `cloneElement` là lối tắt dành riêng cho việc "trang trí hàng loạt" — đi lối tắt mỗi ngày là tín hiệu mở đường chính.
 
 ---
 
@@ -80,6 +90,8 @@
 | `ngAfterContentInit` | Không có — tính trong body trước `return` | Không pha lifecycle riêng |
 | `ng-content` | `{children}` (DAY 5) | Chỉ render, không chỉnh |
 
+> **Cách đọc bảng này:** mỗi dòng là một khả năng của `@ContentChild` và bản dịch React; đọc để thấy React "thủ công hơn" — không selector, không lifecycle, chỉ duyệt lúc render — đổi lại không cần học thêm khái niệm nào.
+
 ---
 
 ## 7. Usecase vàng: `Breadcrumb` tự chèn `/` bằng `Children.toArray` thế nào?
@@ -91,26 +103,9 @@
 - Vì sao không dùng `children.map` trực tiếp: `children` có thể là một element đơn (không có `.map`), hoặc fragment — gọi trực tiếp là crash. `Children.toArray` chuẩn hóa trước nên an toàn mọi shape.
 - Sai thì sao: quên `filter(Boolean)` thì `false` từ `{cond && <a/>}` thành một "phần" rỗng, separator lệch (hiện `/` thừa). Fix: luôn `toArray(...).filter(Boolean)` trước khi map.
 
-```tsx
-import { Children, type ReactNode } from "react";
+> 📄 **Code ví dụ:** [`examples/01-7-usecase-vang-breadcrumb-tu-chen-bang-children.tsx`](examples/01-7-usecase-vang-breadcrumb-tu-chen-bang-children.tsx)
 
-function Breadcrumb({ children }: { children: ReactNode }) {
-  // Chuẩn hóa mọi shape thành mảng phẳng, loại null/false từ render điều kiện
-  const parts = Children.toArray(children).filter(Boolean);
-  return (
-    <nav aria-label="breadcrumb">
-      {parts.map((part, i) => (
-        // key theo index ổn vì parts đã ổn định thứ tự sau toArray
-        <span key={i}>
-          {part}
-          {/* Chèn separator giữa các phần, phần cuối không chèn */}
-          {i < parts.length - 1 && " / "}
-        </span>
-      ))}
-    </nav>
-  );
-}
-```
+> **Tóm gọn 1 câu:** Breadcrumb tự chèn `/` là usecase vàng của `Children.toArray`: chuẩn hóa mọi shape → lọc rỗng → chèn separator theo vị trí.
 
 ---
 
@@ -123,29 +118,9 @@ function Breadcrumb({ children }: { children: ReactNode }) {
 - Fix chuẩn: đọc `child.props.onClick` cũ ra, tạo handler mới gọi **cả hai** — cũ trước, mới sau (hoặc ngược tùy ngữ nghĩa). Đồng thời giữ `isValidElement` check để string child không crash, và giữ `key` gốc để React không remount.
 - Quy tắc nhận diện: bất cứ khi nào clone mà key mới là `onClick/onChange/onBlur` (handler), phải tự hỏi "child có handler cùng tên không?" — nếu có thì gộp, không thì mới được chồng trực tiếp.
 
-```tsx
-import { Children, cloneElement, isValidElement } from "react";
+> 📄 **Code ví dụ:** [`examples/02-8-cloneelement-ma-khong-nuot-onclick-goc-cua.tsx`](examples/02-8-cloneelement-ma-khong-nuot-onclick-goc-cua.tsx)
 
-function TabsList({ children, active, onSelect }: {
-  children: React.ReactNode; active: string; onSelect: (v: string) => void;
-}) {
-  return (
-    <div role="tablist">
-      {Children.map(children, (child) => {
-        // Bỏ qua text node: string không có props để đọc hay clone
-        if (!isValidElement<{ value?: string; onClick?: () => void }>(child)) return child;
-        const value = child.props.value ?? ""; // đọc value từ child gốc
-        const oldClick = child.props.onClick; // giữ handler gốc của người dùng
-        return cloneElement(child, {
-          "aria-selected": value === active, // inject trạng thái active cho a11y
-          // Gộp 2 handler: gọi cũ trước (giữ hành vi người dùng), rồi mới chọn tab
-          onClick: () => { oldClick?.(); onSelect(value); },
-        } as Partial<unknown> as Record<string, unknown>);
-      })}
-    </div>
-  );
-}
-```
+> **Tóm gọn 1 câu:** `cloneElement` đè handler chứ không gộp — clone thứ gì đó có onClick thì phải "bắt tay cả hai": gọi handler cũ rồi mới đến của mình.
 
 ---
 
@@ -164,6 +139,8 @@ function TabsList({ children, active, onSelect }: {
 | `children.map(...)` | `Children.map(children, ...)` | An toàn mọi shape + fragment |
 | `children.filter(...)` | `Children.toArray(children).filter(...)` | Phẳng hóa + key ổn định trước khi lọc |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp "viết sai ↔ viết đúng" trên children thô; nguyên tắc chung cả bảng: không bao giờ coi `children` là mảng — luôn đi qua hàm `Children.*` để chuẩn hóa trước.
+
 ---
 
 ## 10. Lọc child theo `child.type`: chọn đúng `Step` mà bỏ text node thế nào?
@@ -175,28 +152,9 @@ function TabsList({ children, active, onSelect }: {
 - Vì sao cần: content projected thực tế lẫn lộn — người dùng chen text, `<br/>`, comment điều kiện. Không lọc thì text cũng bị đánh số "Bước 2" vô nghĩa.
 - Sai thì sao: so `child.type.name === "Step"` (so tên string) thì minify build đổi tên là vỡ. Fix: so **tham chiếu** `child.type === Step`, không so tên.
 
-```tsx
-import { Children, isValidElement } from "react";
+> 📄 **Code ví dụ:** [`examples/03-10-loc-child-theo-child-type-chon-ung.tsx`](examples/03-10-loc-child-theo-child-type-chon-ung.tsx)
 
-function Step({ title }: { title: string }) {
-  return <span>{title}</span>; // component con hợp lệ để Steps đánh số
-}
-
-function Steps({ children }: { children: React.ReactNode }) {
-  // Lọc: chỉ giữ element có type đúng là Step, bỏ text/host element lạ
-  const steps = Children.toArray(children).filter(
-    (c) => isValidElement(c) && c.type === Step
-  );
-  return (
-    <ol>
-      {steps.map((s, i) => (
-        // Đánh số theo vị trí đã lọc, không theo vị trí thô
-        <li key={i}>Bước {i + 1}: {s}</li>
-      ))}
-    </ol>
-  );
-}
-```
+> **Tóm gọn 1 câu:** So `child.type === Step` (tham chiếu hàm) là cách chọn đúng child — so theo tên string là so "tên biệt danh", build minify là đổi biệt danh.
 
 ---
 
@@ -214,6 +172,8 @@ function Steps({ children }: { children: React.ReactNode }) {
 | Đánh số/divider hàng loạt theo index | Đúng — gọn, một chỗ | Thừa — phải viết context cho việc nhỏ |
 | Tabs/Accordion nhiều tầng cần state chung | Giòn — cha phải biết hết con | Đúng — con tự đọc context |
 | Clone chồng handler khác nhau mỗi nơi | Mùi — dễ nuốt handler gốc | Đúng — mỗi con tự xử lý event |
+
+> **Cách đọc bảng này:** mỗi dòng là một tình huống và kết luận chọn bên nào; đọc cột kết luận trước (Đúng / Thừa / Giòn / Mùi) — ba từ cảm tính đó chính là "mùi code detector" của bạn.
 
 ---
 

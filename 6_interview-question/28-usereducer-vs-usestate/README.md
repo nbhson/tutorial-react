@@ -23,60 +23,13 @@
 | State machine **nhiều state + transition** (chat: `idle → connecting → open → closed`) | `useReducer` (explicit, test được từng transition) |
 | Form nhiều field (≥5) + validate chéo + async (Q19) | **RHF + Zod** (Q18/Q19) — reducer không thay thế form engine; chỉ dùng reducer khi **không dùng RHF** (mô hình MVVM thuần, không lib) |
 
+> **Cách đọc bảng này:** mỗi dòng là một "dấu hiệu" trên state của bạn — càng xuống dưới càng nặng; cột phải là công cụ tương ứng. Nhớ nguyên tắc 3 vế ngay dưới bảng thay vì học vẹt từng dòng.
+
 > **Nguyên tắc quyết định**: (1) **số update liên quan** (không phải số field), (2) **rule transition** (có điều kiện không), (3) **cần test logic riêng** (giữ logic tách khỏi UI). Không đủ 1 trong 3 → `useState` đơn giản hơn.
 
 ### 2. `useReducer` hoạt động ra sao (code + giải thích "ăn điểm" nào)
 
-```tsx
-import { useReducer } from "react";
-
-// (1) STATE: 1 object (không N state rời)
-type State = { status: "idle" | "loading" | "success" | "error"; data: User[] | null; err: string };
-
-// (2) ACTIONS (mô tả "điều xảy ra", không phải "giá trị mới"):
-type Action =
-  | { type: "FETCH_START" }
-  | { type: "FETCH_SUCCESS"; data: User[] }
-  | { type: "FETCH_ERROR"; err: string }
-  | { type: "RETRY" };
-
-// (3) REDUCER: PURE (state + action → state mới) — không side effect, test được
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    // (4) STATE MACHINE: rule transition nằm TẠI ĐÂY (không rải trong onClick/onSubmit)
-    case "FETCH_START":
-      if (state.status === "loading") return state;      // ← guard: đang loading không fetch lại
-      return { ...state, status: "loading", err: "" };
-    case "FETCH_SUCCESS":
-      return { ...state, status: "success", data: action.data };
-    case "FETCH_ERROR":
-      return { ...state, status: "error", err: action.err };
-    case "RETRY":
-      return state.status === "error" ? { ...state, status: "idle" } : state; // ← rule "chỉ từ error mới retry"
-    default:
-      return state;
-  }
-}
-
-function UserList() {
-  const [state, dispatch] = useReducer(reducer, { status: "idle", data: null, err: "" });
-
-  const load = () => {
-    dispatch({ type: "FETCH_START" });           // UI không "biết" fetch — chỉ "đăng ký hành động"
-    fetchUsers()
-      .then((data) => dispatch({ type: "FETCH_SUCCESS", data }))
-      .catch((e) => dispatch({ type: "FETCH_ERROR", err: String(e) }));
-  };
-
-  return (
-    <div>
-      {state.status === "success" && state.data.map((u) => <div key={u.id}>{u.name}</div>)}
-      {state.status === "error" && <button onClick={load}>Thử lại (rule "chỉ từ error")</button>}
-      {state.status === "loading" && <p>Đang tải…</p>}
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-2-usereducer-hoat-ong-ra-sao-code-giai.tsx`](examples/01-2-usereducer-hoat-ong-ra-sao-code-giai.tsx)
 
 **Điểm "ăn điểm" của reducer (nói đúng với interviewer):**
 1. **Rule transition 1 chỗ**: "chỉ từ `error` mới `retry`" nằm trong `reducer` (guard `state.status === "error"`) — không phải rải trong `onClick` (N chỗ, dễ sót).
@@ -86,20 +39,7 @@ function UserList() {
 
 ### 3. Vì sao `useState` KHÔNG TỐT cho "state machine" (nói rõ = ăn điểm)
 
-```tsx
-// ❌ useState "mô phỏng" state machine (rule rải trong handler):
-const [status, setStatus] = useState("idle");
-const [data, setData] = useState(null);
-const [err, setErr] = useState("");
-
-const load = () => {
-  if (status === "loading") return;            // ← guard này PHẢI nhớ viết tay (dễ sót nếu thêm code)
-  setStatus("loading"); setErr("");
-  fetchUsers().then(setData).catch(setErr);
-};
-// (a) Rule "chỉ từ error mới retry" không có — retry được từ state nào cũng (dễ sai)
-// (b) 3 state riêng (status/data/err) — đổi "một phần" = 3 setter (order dễ sai)
-```
+> 📄 **Code ví dụ:** [`examples/02-3-vi-sao-usestate-khong-tot-cho-state.tsx`](examples/02-3-vi-sao-usestate-khong-tot-cho-state.tsx)
 
 Mỗi lần thêm rule ("nếu đang `success` thì không fetch lại") = thêm `if` trong handler (nhiều chỗ) — **reducer: 1 chỗ** (switch case) → **test + sửa** rẻ hơn.
 
@@ -116,6 +56,8 @@ Mỗi lần thêm rule ("nếu đang `success` thì không fetch lại") = thêm
 - **Transitions**: `reducer(state, action)` trả state mới — **rule "chỉ từ error mới retry" = transition có điều kiện** (guard trong case).
 
 Không phải "chỉ dùng cho login" — **bất kỳ logic có nhiều state + rule chuyển** (chat, wizard bước 1→2→3 (không cho skip), animation (idle→running→paused)) đều "state machine" — `useReducer` tổ chức chúng **có cấu trúc** (1 reducer, không rải N handler).
+
+> **Tóm gọn 1 câu:** `useState` là mỗi món đồ một ngăn kéo riêng, `useReducer` là một bàn điều khiển duy nhất: mọi nút bấm (action) đều qua một bảng luật (reducer) để biết đèn nào sáng — luật nằm một chỗ thì test và sửa đều rẻ.
 
 ## Bẫy khi phỏng vấn
 

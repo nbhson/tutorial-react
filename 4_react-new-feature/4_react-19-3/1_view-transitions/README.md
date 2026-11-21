@@ -12,10 +12,16 @@
 - Gắn **`addTransitionType`** để chọn animation theo *nguyên nhân* của transition (ví dụ `next` vs `previous`).
 
 ## Vấn đề giải quyết
-- Chuyển gallery/tab/route muốn hiệu ứng morph (ảnh nhỏ → ảnh lớn) kiểu app native. Tự làm FLIP (First–Last–Invert–Play) rất cực: phải đo vị trí trước/sau, xử lý Suspense thay DOM bất đồng bộ, dễ nhấp nháy.
+
+Mục này nói về khoảng trống giữa "browser có View Transition API" và "React biết lúc nào commit" — chỗ mà tự làm FLIP từng là cơn ác mộng. Đọc để hiểu vì sao component khai báo là lời giải.
+
+- Chuyển gallery/tab/route muốn hiệu ứng morph (ảnh nhỏ → ảnh lớn) kiểu app native. Tự làm FLIP (First–Last–Invert–Play) rất cực: phải đo vị trí trước/sau, xử lý Suspense thay DOM bất đồng bộ, dễ nhấp nháy. Ví von: như tự quay phim từng khung hình để làm cảnh chuyển tiếp, trong khi máy quay của trình duyệt đã có sẵn — React giờ điều khiển máy quay đó hộ bạn.
 - View Transition API của browser giải quyết phần "chụp và morph", nhưng dùng trực tiếp rất khó đồng bộ với React (chụp lúc nào, commit lúc nào). `<ViewTransition>` để React điều phối và gắn chặt với pipeline Transition/Suspense.
 
 ## Khái niệm cốt lõi
+
+Mục này là "bảng phân loại cảnh quay": 4 loại animation, cách đặt `name` cho shared element, và 2 cách tùy biến (CSS class hoặc event props). Hãy hình dung như 4 cú máy khác nhau — vào khung (enter), ra khung (exit), đổi hình trong khung (update), và nối máy hai khung (share).
+
 - **Bọc subtree**: React gắn `view-transition-name` vào inline style của DOM node gần nhất bên trong `<ViewTransition>`. Nếu có nhiều con cùng cấp, React thêm hậu tố để mỗi cái unique nhưng vẫn coi là một nhóm.
 - **Các loại animation (trigger)**:
   - **enter**: `<ViewTransition>` được thêm vào (và là thứ đầu tiên trong subtree đó).
@@ -27,113 +33,31 @@
 - **View Transition Event**: `onEnter/onExit/onShare/onUpdate` nhận `(instance, types)`. `instance` có `old`, `new`, `group`, `imagePair`, `name` (các pseudo-element). Mỗi event nên **trả về hàm cleanup**, được gọi khi transition kết thúc. `onShare` ưu tiên hơn `onEnter`/`onExit`.
 - **`addTransitionType(type)`**: gọi bên trong `startTransition` để ghi lại "nguyên nhân". React cũng thêm type vào element dưới dạng view transition type để CSS dùng selector `:active-view-transition-type(...)`.
 
+> **Tóm gọn 1 câu:** `<ViewTransition>` là "đạo diễn hiệu ứng" khai báo: bọc là có animation, `name` để nối hai khung, `addTransitionType` để nói "vì sao" chuyển cảnh — React lo phần chụp và morph.
+
 ## Cú pháp / API
 
-```tsx
-import { ViewTransition, startTransition, addTransitionType } from 'react';
-
-// 1. Cách dùng cơ bản — đặt TRƯỚC mọi DOM node trong subtree
-<ViewTransition>
-  <Component />
-</ViewTransition>
-
-// 2. Class riêng cho từng loại (tắt hết, chỉ bật enter/exit)
-<ViewTransition default="none" enter="slide-in" exit="slide-out">
-  <Page />
-</ViewTransition>
-
-// 3. Class theo Transition Type
-<ViewTransition
-  enter={{ next: 'from-right', previous: 'from-left' }}
-  exit={{ next: 'to-left', previous: 'to-right' }}
->
-  <Page />
-</ViewTransition>
-
-// 4. Điều khiển bằng JS + cleanup
-<ViewTransition
-  onEnter={(instance) => {
-    const anim = instance.new.animate(
-      [{ opacity: 0 }, { opacity: 1 }],
-      { duration: 300 },
-    );
-    return () => anim.cancel();
-  }}
->
-  <div>...</div>
-</ViewTransition>
-
-// 5. Ghi nguyên nhân để chọn animation
-startTransition(() => {
-  addTransitionType('next');
-  setSlide((s) => s + 1);
-});
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 CSS tùy biến dùng pseudo-selector với class của View Transition Class:
 
-```css
-::view-transition-group(.slide-in) { animation-duration: 300ms; }
-::view-transition-old(.slide-in)   { animation-name: slideOutLeft; }
-::view-transition-new(.slide-in)   { animation-name: slideInRight; }
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-api.css`](examples/02-cu-phap-api.css)
 
 ## Luồng hoạt động (Flow)
+
+Mục này đi qua 5 bước "một cảnh quay": từ startTransition tới cleanup, cho thấy React chèn View Transition API vào pipeline ở khâu nào.
+
 1. Bạn gọi `startTransition(() => setState(...))` (hoặc dùng `useDeferredValue`, hoặc Suspense reveal).
 2. React commit DOM và gọi `startViewTransition` của browser: chụp snapshot "cũ".
 3. React chờ font/ảnh cần thiết (tối đa **500ms** để tránh nhấp nháy), chạy `useLayoutEffect`/refs, rồi đo layout.
 4. Browser morph ảnh cũ → ảnh mới. React gọi `onEnter/onExit/onShare/onUpdate` (nếu có) để bạn thêm animation JS.
 5. Khi transition xong, React gọi cleanup; chỉ **sau** đó mới chạy các `useEffect` liên quan để không cản trở animation.
 
+> **Tóm gọn 1 câu:** Chỉ update đi làn Transition mới được "quay phim" — snapshot cũ/mới do browser chụp, còn thứ tự chờ data, chạy effect thì React biên đạo.
+
 ## Ví dụ chi tiết
 
-```tsx
-// example.tsx — gallery thumbnail ↔ ảnh lớn bằng shared element transition
-import { ViewTransition, startTransition, useState } from 'react';
-
-const PHOTOS = [
-  { id: 'a', thumb: '/a-thumb.jpg', full: '/a-full.jpg' },
-  { id: 'b', thumb: '/b-thumb.jpg', full: '/b-full.jpg' },
-];
-
-export default function Gallery() {
-  const [selected, setSelected] = useState<string | null>(null);
-  const photo = PHOTOS.find((p) => p.id === selected);
-
-  return (
-    <div>
-      <h2>View Transitions (React 19.3)</h2>
-      {!photo ? (
-        // Grid: mỗi thumbnail là một ViewTransition có name riêng
-        <div style={{ display: 'flex', gap: 12 }}>
-          {PHOTOS.map((p) => (
-            <ViewTransition key={p.id} name={`photo-${p.id}`}>
-              <img
-                src={p.thumb}
-                alt={p.id}
-                style={{ cursor: 'zoom-in' }}
-                // BẮT BUỘC đổi state trong startTransition mới animate
-                onClick={() => startTransition(() => setSelected(p.id))}
-              />
-            </ViewTransition>
-          ))}
-        </div>
-      ) : (
-        // Ảnh lớn dùng CÙNG name → React ghép thành shared element transition
-        <ViewTransition name={`photo-${photo.id}`}>
-          <img
-            src={photo.full}
-            alt={photo.id}
-            style={{ cursor: 'zoom-out' }}
-            onClick={() => startTransition(() => setSelected(null))}
-          />
-        </ViewTransition>
-      )}
-      <p><small>Browser hỗ trợ View Transitions sẽ thấy ảnh morph to/nhỏ dần.</small></p>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - `ViewTransition` + `startTransition` import từ `react`; **không** import `startViewTransition` — React tự lo.
@@ -144,6 +68,8 @@ export default function Gallery() {
 
 ## So sánh với cách làm cũ
 
+Bảng dưới đặt FLIP "thủ công" cạnh component khai báo. Đọc theo hàng: mỗi dòng là một phần việc bạn từng tự viết.
+
 | Khía cạnh | Cách cũ (FLIP/`document.startViewTransition` tay) | React 19.3 |
 |---|---|---|
 | Đo vị trí trước/sau | Tự `getBoundingClientRect`, tính transform | React lo, chỉ cần bọc `<ViewTransition>` |
@@ -152,19 +78,30 @@ export default function Gallery() {
 | Chọn animation theo hành động | Tự quản state + class | `addTransitionType` + class object |
 | Animation JS | Tự viết | Event props + Web Animations API |
 
+> **Cách đọc bảng này:** bảng không có cột "Lợi ích" vì cột React 19.3 chính là phần lợi ích — so từng hàng với cột "Cách cũ" để thấy phần việc nào được gạch khỏi tay bạn.
+
 ## Lỗi thường gặp
+
+Mục này là 5 lỗi "không thấy animation" thường gặp — nguyên nhân số một là đặt DOM node trước `<ViewTransition>` (số 1) hoặc đổi state ngoài Transition (số 2).
 1. **Đặt DOM node trước `<ViewTransition>`** → enter/exit không chạy. Vì sao: React chỉ animate enter/exit nếu `<ViewTransition>` là thứ đầu tiên trong subtree. Fix: đưa `<ViewTransition>` lên trước mọi `<div>`.
 2. **Đổi state ngoài Transition** → không thấy animation. Vì sao: update urgent không qua pipeline transition. Fix: bọc trong `startTransition`/`useDeferredValue`.
 3. **Đặt `name` trùng ở hai nơi cùng lúc** → xung đột shared element, animation sai. Vì sao: tại một thời điểm chỉ được có một element mang một `name`. Fix: dùng name unique (hằng số ở module dùng chung).
 4. **Quên `prefers-reduced-motion`** → người dùng nhạy cảm chuyển động bị khó chịu. Vì sao: React không tự tắt animation. Fix: bọc CSS trong `@media (prefers-reduced-motion: reduce)` để tắt/giảm.
 5. **Tưởng `name` dùng để animate reorder list** → không chạy như mong đợi. Vì sao: reorder nên dùng **key**, còn shared element bị bỏ qua nếu một bên ngoài viewport. Fix: dùng `key` ổn định và để `<ViewTransition>` bao quanh từng item.
 
+> **Tóm gọn 1 câu:** Không thấy animation? Kiểm tra 3 thứ trước: `<ViewTransition>` đứng đầu subtree chưa, update có nằm trong Transition không, và `name` có bị trùng không.
+
 ## Khi nào dùng / Khi nào không
 - **Dùng**: gallery expand, tab/carousel switch, route transition, list → detail, reveal dữ liệu từ Suspense, phối hợp với `<Activity>` (enter khi visible, exit khi hidden).
 - **Không dùng**: update urgent cần phản hồi tức thì; hiệu ứng chỉ nhằm trang trí không mang thông tin; khi cần chạy trên React Native (hiện `<ViewTransition>` **chỉ hỗ trợ DOM**); hoặc khi bạn đã có thư viện animation chuyên sâu (Motion) đang đáp ứng tốt.
 
 ## Bài tập nhỏ
+
+Bài tập carousel là "bài kiểm tra tổng hợp": kết hợp `addTransitionType` với class object để slide trượt đúng hướng theo nút bấm.
+
 - Dựng một carousel 3 slide. Thêm hai nút ⬅️/➡️, mỗi nút gọi `startTransition(() => { addTransitionType('previous'|'next'); setSlide(...) })`. Bọc slide trong `<ViewTransition enter={{next:'from-right',previous:'from-left'}} exit={{next:'to-left',previous:'to-right'}} default="none">` và viết CSS cho các class tương ứng. Kiểm tra: bấm tới/lùi thấy slide trượt đúng hướng, và slide không animate khi state đổi ngoài Transition.
+
+> **Tóm gọn 1 câu:** Slide trượt đúng hướng theo nút bấm và "im lặng" khi state đổi ngoài Transition — nghĩa là bạn đã điều phối được cả nguyên nhân lẫn loại animation.
 
 ## Reference
 - [React 19.3 Release — View Transitions](https://react.dev/blog/2026/09/09/react-19-3)

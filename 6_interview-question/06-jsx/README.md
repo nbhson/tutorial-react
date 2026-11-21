@@ -6,22 +6,20 @@
 > Trong `{}`, được đặt những gì, không được đặt gì? Muốn rẽ nhánh hoặc lặp thì viết thế nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- **JSX chỉ là cách viết giao diện trông giống HTML** — lúc build nó biến thành lời gọi hàm trả về object mô tả UI. Không phải HTML thật, không phải chuỗi.
+
+Mục này là câu trả lời 30 giây — chốt cả ba vế: JSX biên dịch ra gì, `{}` nhận gì cấm gì, rẽ nhánh/lặp viết sao.
+
+- **JSX chỉ là cách viết giao diện trông giống HTML** — lúc build nó biến thành lời gọi hàm trả về object mô tả UI. Không phải HTML thật, không phải chuỗi. Ví von: JSX là "tờ ghi chú viết theo kiểu nhà hàng" — đầu bếp (compiler) dịch ra công thức (function call) mới nấu được.
 - Trong `{}` chỉ được đặt **biểu thức** (thứ có giá trị trả về: biến, phép tính, gọi hàm, ternary). `if`/`for` là câu lệnh, không trả về giá trị nên bị cấm.
 - Muốn rẽ nhánh dùng ternary, muốn lặp dùng `.map()`. Biết JS là viết được JSX, không có ngôn ngữ mới nào ở đây.
+
+> **Tóm gọn 1 câu:** JSX = đường (sugar) cho function call trả về object — `{}` chỉ nhận expression để render giữ tính pure, rẽ nhánh/lặp vẫn là JS thuần.
 
 ## Trả lời chi tiết
 
 ### 1. JSX biên dịch thành gì
 
-```tsx
-// Bạn viết:
-const el = <h3>Your name: {name}</h3>;
-
-// Vite (esbuild/Babel) biên dịch gần tương đương:
-const el = jsx("h3", { children: ["Your name: ", name] });
-// el là object thuần { type, props } — React đọc object để Dựng DOM thật.
-```
+> 📄 **Code ví dụ:** [`examples/01-1-jsx-bien-dich-thanh-gi.tsx`](examples/01-1-jsx-bien-dich-thanh-gi.tsx)
 
 Hệ quả thực tế:
 - JSX = **JS function call** → được dùng `import`, biến, hàm, toán tử...
@@ -29,21 +27,9 @@ Hệ quả thực tế:
 
 ### 2. `{}`: expression được, statement không
 
-```tsx
-const user = { name: "Son", age: 30 };
+Mục này trả lời trực tiếp vế thứ hai của đề bài: cửa `{}` chỉ cho "hàng có giá trị" qua. Đọc bảng để nhớ được thay thế cho từng statement.
 
-// ✅ 5 kiểu hợp lệ trong {}
-<p>Biến: {name}</p>
-<p>Phép toán: {user.age + 1}</p>
-<p>Ternary: {user.age >= 18 ? "Người lớn" : "Vị thành niên"}</p>
-<p>Gọi hàm (format): {new Intl.NumberFormat("vi-VN").format(120000)}</p>
-<p>Template literal: {`Name: ${user.name}`}</p>
-
-// ❌ SAI — statement không hợp lệ trong {}
-<p>{if (user.age > 18) { return "lớn"; }}</p>   // if là statement
-<p>{const x = 1; x}</p>                          // declaration là statement
-<p>{for (let i = 0; i < 3; i++) { /* ... */ }}</p> // vòng lặp là statement
-```
+> 📄 **Code ví dụ:** [`examples/02-2-expression-uoc-statement-khong.tsx`](examples/02-2-expression-uoc-statement-khong.tsx)
 
 Bảng "điều gì đặt trong `{}` được, được làm gì thay thế":
 
@@ -54,7 +40,11 @@ Bảng "điều gì đặt trong `{}` được, được làm gì thay thế":
 | Khai báo + dùng | `const x = f(); {x}` | **IIFE** `{(() => { const x = f(); return x; })()}` (rare, tránh được càng tốt) |
 | Bỏ qua nếu không | — | `null` / `undefined` / `false` / `true` → **không render gì** (nền tảng pattern `{cond && <X/>}`) |
 
+> **Cách đọc bảng này:** cột "Muốn làm" là nhu cầu thật của bạn, cột giữa là thứ bị cấm, cột phải là cách viết hợp lệ thay thế — cứ dò theo nhu cầu là ra cú pháp đúng.
+
 ### 3. Vì sao React chọn "expression only" (đây là điểm "ăn điểm")
+
+Mục này giải thích lý do thiết kế — không phải React "kén chọn" mà là để giữ render tinh khiết. Hiểu lý do là nhớ được quy tắc mà không cần học thuộc.
 
 - `{}` nằm **giữa render pass** — bước này phải **tinh khiết (pure)**: cùng input → cùng output, không side-effect. Statement (`if` có thể chứa assignment, `for` có thể đổi biến ngoài...) phá tính pure, làm StrictMode (chạy 2 lần) và reconciliation (diff) "không có nghĩa" (xem [`03-strictmode`](../03-strictmode), [`05-virtual-dom`](../05-virtual-dom)).
 - Angular giải quyết "cùng vấn đề" bằng **DSL riêng** (`*ngIf`, `*ngFor`, `{{}}`) — cú pháp mới, cần học. React "trốn" bằng cách: **chỉ cho expression = toàn bộ sức mạnh JS, không cú pháp gì thêm** — biết JS là biết JSX.
@@ -70,6 +60,8 @@ Bảng "điều gì đặt trong `{}` được, được làm gì thay thế":
 | `*ngIf`, `*ngFor` (directives) | `cond && ...`, `list.map(...)` (pure JS) |
 
 ## Bẫy khi phỏng vấn
+
+Mục này là 5 bẫy thực chiến — bẫy số 3 ("Objects are not valid as a React child") là thông báo lỗi ai cũng từng gặp ít nhất một lần.
 
 1. **Nói "JSX là HTML"** → sai ở 3 điểm: (a) biên dịch thành object JS, không phải parse HTML; (b) cú pháp "gần" nhưng khác thật (camelCase `className` thay vì `class`, `htmlFor` thay vì `for`, tag bắt buộc đóng `/>`, một element mỗi return...); (c) `{}` không nhận statement.
 2. **Nhét `if`/`for` vào `{}`** (còn hay gặp khi chuyển từ Angular) → lỗi compile. Fix: ternary + `.map()`.

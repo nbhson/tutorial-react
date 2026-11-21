@@ -9,6 +9,9 @@
 - Tự viết hàm lọc không phân biệt hoa thường — làm chủ quy tắc của mình thay vì dùng filter có sẵn.
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này nói về cách thay filter template của AngularJS bằng JS thuần: `filter → map`, controlled input, và nguyên tắc "derived data". Đọc để hiểu vì sao tự viết bộ lọc lại hay hơn dùng filter có sẵn.
+
 - AngularJS: `ng-repeat="x in items | filter:q"` — `filter` là **filter chuỗi trong template**, Angular tự gọi (và tự chạy lại mỗi digest). Có thêm `filter: {name: q}` để lọc theo field.
 - React: **không có filter template**. Toàn bộ là JS:
   - Giữ `query` trong state (controlled input): `value={this.state.query}` + `onChange={this.handleQuery}`.
@@ -18,10 +21,17 @@
 - **Derived data**: danh sách đã lọc KHÔNG nên lưu vào state. State giữ `items` gốc + `query`; mảng hiển thị được *suy ra* trong `render()`. Làm ngược lại (lưu `visible` vào state rồi tự đồng bộ) dễ tạo state lệch — không còn "một nguồn sự thật".
 - **So với `filter` của AngularJS**: `filter:q` chỉ lọc khớp chuỗi con trên mọi field (hành vi ngầm); React bắt bạn viết rõ lọc field nào, quy tắc nào — rõ ràng hơn nhưng cũng tự do hơn.
 
+Ví von: `filter:q` của Angular như đầu bếp nấu theo combo có sẵn — nhanh nhưng không đổi được nguyên liệu; tự viết predicate trong React như tự đứng bếp — muốn bỏ dấu tiếng Việt, tìm nhiều field, hay ưu tiên cột nào là quyền của bạn hết.
+
+> **Tóm gọn 1 câu:** Tìm kiếm trong React = state `query` + hàm `.filter()` tự viết chạy lại mỗi render — và kết quả lọc là dữ liệu *suy ra*, không lưu vào state.
+
 ### Keyword chính
 `Array.filter` · `indexOf` · `toLowerCase` · `controlled input` · `derived data` · `filter template`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này chạy vòng lọc trọn vẹn: gõ ký tự → state đổi → render tính lại `visible` → danh sách cập nhật tức thì.
+
 1. `FilterSearchDemo` khởi tạo state `{ query: "", items: [4 thuật toán] }`.
 2. `render()`: `q = this.state.query.toLowerCase()` → `visible = items.filter(x => x.name.toLowerCase().indexOf(q) !== -1)`.
 3. Render `visible.map(...)` → danh sách đã lọc.
@@ -31,42 +41,7 @@
 **Chạy:** mở `index.html`, gõ ô tìm kiếm để lọc.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY class — đối chiếu AngularJS filter:search.
-class FilterSearchDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      query: "", // chuỗi người dùng gõ — "nguồn" của bộ lọc
-      items: [
-        { id: 1, name: "quick sort" },
-        { id: 2, name: "merge sort" },
-        { id: 3, name: "bubble sort" },
-        { id: 4, name: "insertion sort" }
-      ]
-    };
-    this.handleQuery = this.handleQuery.bind(this);
-  }
-  handleQuery(e) { this.setState({ query: e.target.value }); } // ↔ ng-model trên ô tìm kiếm
-  render() {
-    const q = this.state.query.toLowerCase(); // chuẩn hóa KHÔNG phân biệt hoa thường
-    // ↔ | filter:query — lọc JS thuần, kết quả là mảng MỚI (không mutate items)
-    const visible = this.state.items.filter(function (x) {
-      return x.name.toLowerCase().indexOf(q) !== -1; // name CHỨA chuỗi q
-    });
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Filter / Search (≈ filter:q)</h2>
-        <p><input value={this.state.query} onChange={this.handleQuery} placeholder="Tìm kiếm... (↔ ng-model + filter)" /></p>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {visible.map(function (x) { return <li key={x.id}>{x.name}</li>; })}
-        </ul>
-        {visible.length === 0 && <p>Không tìm thấy.</p>} {/* empty state ↔ filter không có kết quả */}
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`this.state.query`**: người dùng gõ → state đổi (như `$scope.q` do `ng-model`). React không tự đồng bộ — chính `onChange` + `setState` làm việc đó (controlled).
@@ -82,6 +57,9 @@ class FilterSearchDemo extends React.Component {
 - **`query` rỗng**: `indexOf("")` trả `0` (khác `-1`) → mọi item đều khớp → hiển thị toàn bộ, đúng hành vi người dùng mong đợi khi chưa gõ gì.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này đối chiếu bộ máy lọc của hai framework từng khâu: giữ từ khóa, lọc, chọn field, và cập nhật tự động.
+
 | AngularJS | React legacy | Ghi chú |
 |---|---|---|
 | `ng-model="q"` trên ô tìm kiếm | `value={state.query}` + `onChange` | Cùng lưu từ khóa |
@@ -90,7 +68,14 @@ class FilterSearchDemo extends React.Component {
 | Digest tự chạy lại filter | `setState` → re-render → filter lại | Cùng hiệu quả "tự cập nhật" |
 | Filter có sẵn (giới hạn tùy chọn) | JS thuần, đổi quy tắc dễ dàng | Cùng khả năng mở rộng |
 
+> **Cách đọc bảng này:** đọc theo cột *Ghi chú* để thấy dáng đi chung: Angular "ngầm làm giúp", React "làm rõ ràng bằng tay" — cuối cùng đều đạt một hiệu quả tự cập nhật như nhau.
+
+> **Tóm gọn 1 câu:** Filter template của AngularJS thành `.filter()` thuần JS: ít magic hơn, nhưng quy tắc lọc nằm trọn trong tay bạn.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Bẫy lớn nhất của filter là biến mảng gốc — một phép gán sai là mất nguồn dữ liệu vĩnh viễn trong phiên.
+
 - **So sánh phân biệt hoa-thường**: gõ "Quick" không khớp "quick sort". → `toLowerCase()` cả hai vế như ví dụ.
 - **Mutate `items` khi lọc** (`this.state.items = this.state.items.filter(...)`) → mất dữ liệu gốc, "unfilter" không về được. → Luôn giữ `items` nguyên, lọc ra mảng tạm.
 - **Filter rỗng so sánh `=== ""`** không khớp "viết hoa" — đã nói ở trên; ngoài ra `indexOf("") === 0 !== -1` → **query rỗng vẫn trả toàn bộ danh sách** — đúng như người dùng mong đợi.
@@ -98,6 +83,8 @@ class FilterSearchDemo extends React.Component {
 - **Gõ tiếng Việt có dấu** (`bubble sort` vs `bubble sort`) — `indexOf` khớp ký tự thô; muốn bỏ dấu phải chuẩn hóa (VD `normalize("NFD")`). → Tùy yêu cầu thêm hàm bỏ dấu.
 - **Lọc ngay trong `map`** (vừa filter vừa transform trong cùng một vòng) → khó đọc, dễ sai. → Tách `.filter().map()` rõ ràng.
 - **Tưởng `filter` chạy một lần rồi lưu** → quên rằng nó chạy lại mỗi render; nếu predicate phụ thuộc state khác thì phải đảm bảo state đó cũng nằm trong điều kiện render. → Giữ luồng một chiều: state → filter → map.
+
+> **Tóm gọn 1 câu:** Nguyên tắc bất di bất dịch: mảng gốc là bất khả xâm phạm — lọc ra mảng mới, không bao giờ gán ngược lại state.
 
 ## Best practices / Mẹo
 - Lọc là "derived data": không lưu kết quả lọc vào state — tính lại trong `render()` từ `items` + `query` (single source of truth).
@@ -110,6 +97,9 @@ class FilterSearchDemo extends React.Component {
 - Không sửa mảng gốc khi lọc: `filter` trả mảng mới, nên `items` bất biến và có thể lọc lại nhiều lần.
 
 ## Bài tập nhỏ
+
+Bài số 1 thú vị: cùng một bộ lọc, viết theo cách Angular và cách React để so sánh trực tiếp.
+
 1. Lọc theo nhiều field: tìm trong cả `name` lẫn `category` (thêm field cho items) và thử `filter: {name:q, category:q}` của AngularJS để so sánh.
 2. Thêm nút "Xóa từ khóa" set `query = ""` và quan sát danh sách về đầy đủ — nhấn mạnh mảng `items` gốc không đổi.
 3. Thêm đếm kết quả: `{visible.length} kết quả` để luyện thêm expression trong JSX.

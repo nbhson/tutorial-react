@@ -4,6 +4,8 @@ Bộ tutorial React đầy đủ, được tổ chức **đối chiếu 1-1** v�
 
 ## Bản đồ tổng thể
 
+Mục này nói về cấu trúc toàn bộ repo — mỗi thư mục React tương ứng với thư mục nào bên Angular. Đọc mục này để biết "tài liệu mình cần nằm ở ngăn nào" trước khi lặn vào chi tiết.
+
 | Angular | React tương ứng | Nội dung |
 |---|---|---|
 | `1_angularjs-tutorial` (AngularJS 1.x) | [`1_react-legacy-tutorial`](1_react-legacy-tutorial) | Class components, lifecycle cũ, CDN `index.html`, đối chiếu `$scope`/`ng-repeat`/`filter`; unit-test Vitest + RTL |
@@ -13,7 +15,11 @@ Bộ tutorial React đầy đủ, được tổ chức **đối chiếu 1-1** v�
 | (không tương ứng) | [`5_react-crud-jsonplaceholder`](5_react-crud-jsonplaceholder) | Bài CRUD thực chiến với JSONPlaceholder (REST API giả lập) |
 | (không tương ứng) | [`6_interview-question`](6_interview-question) | Bộ câu hỏi phỏng vấn React thực chiến (Q1: library vs framework...) |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp thư mục đối chiếu Angular ↔ React; cột giữa là chỗ cần vào trong repo này, cột Nội dung tóm tắt trong đó có gì — đến từ Angular thì đọc cột trái trước để tìm "cái cũ" của mình thành "cái mới" ở đâu.
+
 ## Timeline kiến thức (React)
+
+Mục này nói về các mốc version React từ 18 đến 19.3 và mỗi mốc mang tính năng gì mới. Đọc mục này để biết "kiến thức trong tutorial thuộc thời nào" — rất hữu ích khi bị hỏi "tính năng X ra từ version mấy?".
 
 | Version | Mốc | Feature nổi bật |
 |---|---|---|
@@ -23,6 +29,10 @@ Bộ tutorial React đầy đủ, được tổ chức **đối chiếu 1-1** v�
 | React Compiler 1.0 | 10/2025 | Tự memoize component/hook ổn định (production-ready), lint qua `eslint-plugin-react-hooks` v6 |
 | React 19.3 | 09/2026 | `<ViewTransition>` + `addTransitionType`, Fragment Refs, `browser()`, Trusted Types, `<Context>` trong Server Component |
 | RSC | stable 19 | Server Components, Server Functions/Actions, `"use client"`/`"use server"` |
+
+> **Cách đọc bảng này:** mỗi dòng là một mốc version xếp theo thời gian (từ trên xuống); cột "Feature nổi bật" là thứ sinh ra ở mốc đó — cần trả lời "tính năng X từ version nào" thì quét dọc cột này là thấy.
+
+> **Tóm gọn 1 câu:** Repo này là "từ điển đối chiếu" Angular ↔ React: biết mình đến từ đâu (nhóm nào, version nào) là tìm được đúng bài mình cần.
 
 ## Stack chuẩn trong tutorial
 
@@ -43,16 +53,7 @@ Bộ tutorial React đầy đủ, được tổ chức **đối chiếu 1-1** v�
 
 ## Bắt đầu nhanh
 
-```bash
-# App mới với Vite + TS
-npm create vite@latest my-app -- --template react-ts
-cd my-app && npm i && npm run dev
-
-# (Khuyến nghị) Bật React Compiler cho app mới:
-npm i -D babel-plugin-react-compiler
-npm i -D eslint-plugin-react-hooks@latest
-npx react-compiler-healthcheck
-```
+> 📄 **Code ví dụ:** [`examples/01-bat-au-nhanh.sh`](examples/01-bat-au-nhanh.sh)
 
 ## Lộ trình gợi ý theo mục tiêu
 

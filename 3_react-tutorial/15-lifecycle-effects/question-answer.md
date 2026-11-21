@@ -16,6 +16,10 @@
   trước lần chạy kế (gộp cả `ngOnChanges` dọn).
 - Trong example: effect #1 (`[]`) tạo interval ≈ init + destroy; effect #2 (`[userId, now]`) set title mỗi khi
   user/giờ đổi ≈ changes theo 2 giá trị đó.
+- Ví von: Angular chia vòng đời thành 3 ngăn tủ riêng (init/changes/destroy); React gộp tất cả vào
+  một ngăn duy nhất là effect — cái gì chạy lại, chạy khi nào đều do deps quyết định.
+
+> **Tóm gọn 1 câu:** `useEffect` thay cả bộ lifecycle Angular: mount = `[]`, changes = deps, destroy = `return () => {...}`.
 
 ---
 
@@ -80,6 +84,8 @@
   - Tính dữ liệu từ props/state → **derived value** tính khi render (DAY 1), không effect + setState.
   - "Khi prop X đổi thì fetch" → thường là `useQuery` key theo X (DAY 12) hoặc handler, không phải effect fetch tay.
 - Dấu hiệu sai: effect chỉ để `setState` từ props/state khác — vừa thừa render vừa dễ loop.
+- Ví von: effect là "buổi tổng vệ sinh định kỳ" — đừng dùng nó để trả lời điện thoại (event handler)
+  hay tính tiền hóa đơn (derived); mỗi việc có chỗ của nó.
 
 ---
 
@@ -92,6 +98,10 @@
   thì mãi là `count` lúc mount — gọi là stale closure.
 - Fix trong example: `setNow(new Date())` không đọc state cũ (tạo mới hẳn) và `setTick((t) => t + 1)`
   dùng functional update — luôn nhận giá trị mới nhất. Hoặc đọc qua ref/`useEffectEvent`.
+- Ví von: stale closure như chụp ảnh trạng thái — interval nhìn mãi tấm ảnh chụp lúc mount, dù bối cảnh
+  thực tế đã đổi; functional update là hẹn "lúc chạy hãy nhìn trạng thái thật".
+
+> **Tóm gọn 1 câu:** Effect đóng băng giá trị lúc nó chạy — muốn luôn mới thì functional update, ref hoặc `useEffectEvent`, đừng liệt kê deps gây chạy lại.
 
 ---
 

@@ -10,39 +10,20 @@
 ### 1. Render props — prop là function nhận dữ liệu, trả JSX
 Component con giữ state/logic, gọi `render(data)` (hoặc `children(data)`); người dùng quyết UI vẽ thế nào. Đây là `ngTemplateOutlet` + context của Angular: template nhận context để vẽ.
 
-```tsx
-// Mouse trong example.tsx: giữ vị trí chuột, người dùng quyết hiện thế nào
-function Mouse({ children }: { children: (pos: { x: number; y: number }) => ReactNode }) {
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  return (
-    <div onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}>
-      {children(pos)} {/* GỌI function -> JSX; quên gọi là UI trắng */}
-    </div>
-  );
-}
-// Dùng: <Mouse>{({ x, y }) => <p>Mouse: {x}, {y}</p>}</Mouse>
-// Cùng dữ liệu pos, người A vẽ <p>, người B vẽ tooltip — logic giữ nguyên, UI tự do
-```
+> 📄 **Code ví dụ:** [`examples/01-1-render-props-prop-la-function-nhan-du.tsx`](examples/01-1-render-props-prop-la-function-nhan-du.tsx)
 
-Vì sao? Vì tách "theo dõi chuột thế nào" (logic, khó, cần test) khỏi "hiện tọa độ ra sao" (UI, đổi theo design). Không có pattern này, mỗi nơi cần tọa độ phải copy `onMouseMove` + state. Biến thể hiện đại là **function-as-children** (`<Mouse>{fn}</Mouse>`) gọn hơn `<Mouse render={fn} />` nhưng cùng bản chất. Type `children: (pos) => ReactNode` chặn lúc compile nếu ai truyền element tĩnh thay vì function.
+Vì sao? Vì tách "theo dõi chuột thế nào" (logic, khó, cần test) khỏi "hiện tọa độ ra sao" (UI, đổi theo design). Không có pattern này, mỗi nơi cần tọa độ phải copy `onMouseMove` + state. Biến thể hiện đại là **function-as-children** (`<Mouse>{fn}</Mouse>`) gọn hơn `<Mouse render={fn} />` nhưng cùng bản chất. Type `children: (pos) => ReactNode` chặn lúc compile nếu ai truyền element tĩnh thay vì function. Ví von: component giữ logic như bếp nấu sẵn món, render prop là cách bạn trình bày món lên đĩa theo gu riêng.
+
+> **Tóm gọn 1 câu:** Render props = logic ở bếp, đĩa (UI) do bạn chọn — một nồi cà ri, trăm kiểu bày bàn.
 
 ### 2. Compound components — nhóm chia sẻ state ngầm qua Context
 Một nhóm (`Tabs`, `Tabs.Trigger`, `Tabs.Panel`...) hoạt động thống nhất **không cần truyền state qua props từng phần tử** — chia sẻ qua `Context`. Thêm con mới không sửa cha.
 
-```tsx
-// example.tsx: Tabs root giữ state, Trigger/Panel tự đọc qua useTabs()
-function Tabs({ children, defaultValue = "a" }: { children: ReactNode; defaultValue?: string }) {
-  const [value, setValue] = useState(defaultValue);
-  return <TabsCtx.Provider value={{ value, setValue }}>{children}</TabsCtx.Provider>;
-}
-function Trigger({ value, children }: { value: string; children: ReactNode }) {
-  const ctx = useTabs(); // không nhận active/setValue qua props — đọc ngầm
-  const active = ctx.value === value;
-  return <button role="tab" aria-selected={active ? "true" : "false"} onClick={() => ctx.setValue(value)}>{children}</button>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-compound-components-nhom-chia-se-state-ngam.tsx`](examples/02-2-compound-components-nhom-chia-se-state-ngam.tsx)
 
 Vì sao thắng prop drilling? Vì tabs 5 nút mà truyền `active/onSelect` tay cho từng nút thì thêm nút thứ 6 phải sửa cha + 5 chỗ. Compound chỉ `<Trigger value="c">C</Trigger>` là xong — state đi đường ngầm. Đây là nền tảng của Radix/shadcn (DAY 17): `<Dialog.Root><Dialog.Trigger/><Dialog.Content/></Dialog.Root>`.
+
+> **Tóm gọn 1 câu:** Compound = các mảnh ghép chung mạch điện ngầm (Context): cha cấp điện, con tự cắm — thêm mảnh mới không phải kéo lại dây.
 
 ### 3. Đối chiếu Angular
 Structural directive `ng-template`/`ngTemplateOutlet` cho "template render với context" — render props là bản đồ 1:1 (function nhận context, trả JSX). `ng-container` ↔ fragment. `mat-tab-group` ↔ Radix/shadcn `Tabs` compound — cùng triết lý nhóm chia sẻ state.
@@ -50,13 +31,18 @@ Structural directive `ng-template`/`ngTemplateOutlet` cho "template render với
 ### 4. Năm 2026: hooks đủ cho 90%, pattern này cho UI kit
 Custom hook trả `{ value, setValue }` + children thường là đủ cho app. Render props/compound còn giá trị cho **UI kit headless** (Radix, shadcn/ui, Ark) nơi một logic (tabs, select, dialog) cần vẽ 10 kiểu UI khác nhau. Đừng dùng cho component nhỏ 1 lần — overhead (function mới mỗi render, context value mới) không đáng.
 
+> **Tóm gọn 1 câu:** Hooks là cơm nhà cho app thường; render props/compound là bếp riêng cho UI kit bán "cùng một món, trăm kiểu trình bày".
+
 ### 5. Chi phí của render props
 Function truyền mới mỗi render (trừ khi Compiler memo) → con re-render mỗi lần cha render dù dữ liệu giống. Chỉ dùng khi cần linh hoạt thật; không thì children element tĩnh + hook là đủ.
+
+> **Tóm gọn 1 câu:** Mỗi render là một "lời mời mới" — gọi function trong JSX là gọi lại cả buổi tiệc, nên chỉ mời khi thật cần.
 
 ### Keyword chính
 render props, function-as-children, compound components, `createContext`, `Provider`, `useContext`, `useTabs()` guard, `aria-selected`, headless UI, `useId` cho aria.
 
 ## Luồng hoạt động (Flow)
+Mục này đi qua 12 bước theo vòng đời thật của `Mouse` và `Tabs`: từ mount, di chuột, click trigger, cho tới khi consumer rời trang.
 1. `Mouse` mount: `useState({x: 0, y: 0})` khởi tạo vị trí.
 2. User di chuột trong vùng `onMouseMove` → `setPos({x: e.clientX, y: e.clientY})` → `Mouse` re-render (state đổi).
 3. Trong render mới, `Mouse` gọi `children(pos)` — function người dùng truyền — thu được JSX hiển thị tọa độ mới. Mỗi pixel di là một lần gọi lại.
@@ -73,84 +59,7 @@ render props, function-as-children, compound components, `createContext`, `Provi
 ## Ví dụ chi tiết
 Khớp 1-1 với `example.tsx` cùng thư mục (render prop Mouse + compound Tabs chuẩn + bản rút gọn để so sánh):
 
-```tsx
-// example.tsx — DAY 6: render prop Mouse + compound Tabs + useTabs() chuẩn
-// Mục đích: con giữ state/logic, người dùng quyết UI (render props);
-// nhóm component chia sẻ state ngầm qua Context (compound).
-import { createContext, useContext, useState, type ReactNode } from "react"; // (1) Context + hook đọc
-
-// ── Render props: children là FUNCTION nhận state của Mouse, trả JSX ──────────
-// Người dùng quyết vẽ tọa độ thế nào; Mouse chỉ lo theo dõi chuột.
-function Mouse({ children }: { children: (pos: { x: number; y: number }) => ReactNode }) {
-  const [pos, setPos] = useState({ x: 0, y: 0 }); // (2) State vị trí do Mouse giữ
-  return (
-    <div
-      style={{ border: "1px dashed #888", padding: 16 }}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })} // (3) Di chuột -> setPos -> re-render -> gọi lại children(pos)
-    >
-      {children(pos)} {/* (4) GỌI function để lấy JSX — quên gọi là UI trắng */}
-    </div>
-  );
-}
-
-// ── Compound: Context là "đường ống ngầm" giữa các phần tử Tabs ───────────────
-const TabsCtx = createContext<{ value: string; setValue: (v: string) => void } | null>(null); // (5) Default null ép check scope
-
-// (6) Custom hook an toàn: throw ngay nếu dùng ngoài Provider — lộ lỗi sớm thay vì UI câm.
-function useTabs() {
-  const ctx = useContext(TabsCtx);
-  if (!ctx) throw new Error("Tabs.* phải nằm trong <Tabs>");
-  return ctx;
-}
-
-// (7) Root giữ state tab + cấp Provider cho cả cụm.
-function Tabs({ children, defaultValue = "a" }: { children: ReactNode; defaultValue?: string }) {
-  const [value, setValue] = useState(defaultValue);
-  return <TabsCtx.Provider value={{ value, setValue }}>{children}</TabsCtx.Provider>;
-}
-
-// (8) Trigger đọc context: tự biết mình active hay không, không cần cha truyền tay.
-function Trigger({ value, children }: { value: string; children: ReactNode }) {
-  const ctx = useTabs();
-  const active = ctx.value === value;
-  return (
-    <button role="tab" aria-selected={active ? "true" : "false"} onClick={() => ctx.setValue(value)}>
-      {children} {active ? "●" : ""}
-    </button>
-  );
-}
-
-// (9) Panel chỉ hiện khi value khớp — không cần prop active truyền tay.
-function Panel({ value, children }: { value: string; children: ReactNode }) {
-  const ctx = useTabs();
-  if (ctx.value !== value) return null;
-  return <div role="tabpanel">{children}</div>;
-}
-
-export default function App() {
-  const [value, setValue] = useState("a"); // (10) State cho demo rút gọn (bản compound dùng Tabs root ở trên)
-  return (
-    <>
-      {/* (11) Dùng render props: app quyết hiển thị tọa độ thế nào */}
-      <Mouse>{({ x, y }) => <p>Mouse: {x}, {y}</p>}</Mouse>
-      {/* (12) Compound chuẩn: không prop drilling — Trigger/Panel tự đọc context */}
-      <Tabs defaultValue="a">
-        <div role="tablist">
-          <Trigger value="a">A</Trigger>
-          <Trigger value="b">B</Trigger>
-        </div>
-        <Panel value="a"><p>Nội dung A</p></Panel>
-        <Panel value="b"><p>Nội dung B</p></Panel>
-      </Tabs>
-      {/* (13) Bản rút gọn minh họa Provider trực tiếp (giữ để so sánh với bản Tabs ở trên) */}
-      <TabsCtx.Provider value={{ value, setValue }}>
-        <button onClick={() => setValue("a")}>A {value === "a" ? "●" : ""}</button>
-        <button onClick={() => setValue("b")}>B {value === "b" ? "●" : ""}</button>
-      </TabsCtx.Provider>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - Dòng `children: (pos) => ReactNode`: type render props — children là function, không phải JSX tĩnh. Vì sao type này quan trọng? Vì nó chặn lúc compile khi ai đó `<Mouse><p>Hi</p></Mouse>` (element không gọi được) — TS báo "not callable".
@@ -167,6 +76,7 @@ export default function App() {
 - Quy tắc **không gọi hook trong render prop callback**: `children(pos)` chỉ được vẽ JSX, không `useState`/`useEffect` bên trong. Vì sao? Vì callback chạy như hàm thường trong render, không phải component — gọi hook ở đó vi phạm rules of hooks.
 
 ## Bảng so sánh Angular ↔ React
+Mục này dịch từng khái niệm template/directive của Angular sang hai pattern React của bài — đọc cột Ghi chú để thấy React thay "compiler magic" bằng hàm thuần + Context.
 | Angular | React | Ghi chú |
 |---|---|---|
 | `ng-template` + `*ngTemplateOutlet` (+ `context`) | render prop / function-as-children (`children(pos)`) | Template với context ↔ function trả JSX theo tham số |
@@ -180,81 +90,39 @@ export default function App() {
 | `@Input` của content projected | render props truyền dữ liệu xuống con | Không có `@Input` ngầm, function tham số là đủ |
 | `ng-content` bọc structural directive | compound + context | State chia sẻ ngầm thay vì input drilling |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp cũ ↔ mới; dòng 1 và dòng 2 là cặp dùng nhiều nhất (template-with-context ↔ function children, container ↔ fragment) — phần còn lại là đối chiếu cho người đến từ Angular deep-dive.
+
 ## Lỗi thường gặp (Common pitfalls)
 
+Mục này gom 7 cái bẫy của hai pattern — phần lớn xoay quanh "quên gọi function", "lạm dụng context" và "che lỗi scope".
+
 ### 1. Quên gọi function render props
-```tsx
-// ❌ SAI: truyền function nhưng render như element — UI trắng
-function Mouse({ children }: { children: (p: Pos) => ReactNode }) {
-  const [pos] = useState({ x: 0, y: 0 });
-  return <div>{children}</div>; // children là function, không phải JSX
-}
-```
-```tsx
-// ✅ ĐÚNG: gọi với dữ liệu
-return <div>{children(pos)}</div>;
-```
+> 📄 **Code ví dụ:** [`examples/04-1-quen-goi-function-render-props.tsx`](examples/04-1-quen-goi-function-render-props.tsx)
+> 📄 **Code ví dụ:** [`examples/05-1-quen-goi-function-render-props.tsx`](examples/05-1-quen-goi-function-render-props.tsx)
 
 ### 2. Truyền element thay vì function
-```tsx
-// ❌ SAI: mất khả năng nhận pos — TS báo nếu type đúng
-<Mouse><p>Hi</p></Mouse>
-```
-```tsx
-// ✅ ĐÚNG: truyền function, type chặn lúc compile
-<Mouse>{({ x, y }) => <p>Mouse: {x}, {y}</p>}</Mouse>
-```
+> 📄 **Code ví dụ:** [`examples/06-2-truyen-element-thay-vi-function.tsx`](examples/06-2-truyen-element-thay-vi-function.tsx)
+> 📄 **Code ví dụ:** [`examples/07-2-truyen-element-thay-vi-function.tsx`](examples/07-2-truyen-element-thay-vi-function.tsx)
 
 ### 3. Context value object mới mỗi render → consumer re-render thừa
-```tsx
-// ❌ SAI (khi chưa Compiler, data lớn): mọi consumer render lại dù value không đổi
-<TabsCtx.Provider value={{ value, setValue }}>{children}</TabsCtx.Provider>
-```
-```tsx
-// ✅ ĐÚNG: Compiler 1.0 tự lo; chưa có thì tách context hoặc useMemo
-const value = useMemo(() => ({ value, setValue }), [value]); // setValue ổn định
-// Hoặc tách TabsValueContext + TabsActionsContext
-```
+> 📄 **Code ví dụ:** [`examples/08-3-context-value-object-moi-moi-render-consumer.tsx`](examples/08-3-context-value-object-moi-moi-render-consumer.tsx)
+> 📄 **Code ví dụ:** [`examples/09-3-context-value-object-moi-moi-render-consumer.tsx`](examples/09-3-context-value-object-moi-moi-render-consumer.tsx)
 
 ### 4. Compound thiếu check null → crash khó hiểu ngoài Provider
-```tsx
-// ❌ SAI: useContext trực tiếp, ngoài Provider thì ctx null -> crash "cannot read value"
-const ctx = useContext(TabsCtx); ctx.value;
-```
-```tsx
-// ✅ ĐÚNG: custom hook throw với thông điệp rõ (như useTabs trong ví dụ)
-function useTabs() { const ctx = useContext(TabsCtx); if (!ctx) throw new Error("Tabs.* phải nằm trong <Tabs>"); return ctx; }
-```
+> 📄 **Code ví dụ:** [`examples/10-4-compound-thieu-check-null-crash-kho-hieu.tsx`](examples/10-4-compound-thieu-check-null-crash-kho-hieu.tsx)
+> 📄 **Code ví dụ:** [`examples/11-4-compound-thieu-check-null-crash-kho-hieu.tsx`](examples/11-4-compound-thieu-check-null-crash-kho-hieu.tsx)
 
 ### 5. Quên `role`/`aria-selected` → a11y vỡ
-```tsx
-// ❌ SAI: div onClick — keyboard không focus, screen reader không hiểu
-<div onClick={() => setValue("a")}>A</div>
-```
-```tsx
-// ✅ ĐÚNG: button + role + aria chuỗi (như Trigger trong ví dụ)
-<button role="tab" aria-selected={active ? "true" : "false"} onClick={() => setValue("a")}>A</button>
-// Đầy đủ: tablist/tab/tabpanel + aria-controls + keyboard ArrowLeft/Right
-```
+> 📄 **Code ví dụ:** [`examples/12-5-quen-role-aria-selected-a11y-vo.tsx`](examples/12-5-quen-role-aria-selected-a11y-vo.tsx)
+> 📄 **Code ví dụ:** [`examples/13-5-quen-role-aria-selected-a11y-vo.tsx`](examples/13-5-quen-role-aria-selected-a11y-vo.tsx)
 
 ### 6. Gọi hook bên trong render prop callback
-```tsx
-// ❌ SAI: hook trong hàm thường — vi phạm rules of hooks
-<Mouse>{(pos) => { const [x] = useState(0); return <p>{pos.x}</p>; }}</Mouse>
-```
-```tsx
-// ✅ ĐÚNG: callback chỉ vẽ JSX; hook (nếu cần) nằm ở component chứa <Mouse>
-function Wrap() { const [x] = useState(0); return <Mouse>{(pos) => <p>{pos.x + x}</p>}</Mouse>; }
-```
+> 📄 **Code ví dụ:** [`examples/14-6-goi-hook-ben-trong-render-prop-callback.tsx`](examples/14-6-goi-hook-ben-trong-render-prop-callback.tsx)
+> 📄 **Code ví dụ:** [`examples/15-6-goi-hook-ben-trong-render-prop-callback.tsx`](examples/15-6-goi-hook-ben-trong-render-prop-callback.tsx)
 
 ### 7. Đặt Trigger ngoài Provider rồi dùng `?.` che lỗi
-```tsx
-// ❌ SAI: UI câm — nút hiện nhưng không active bao giờ, không lỗi để tìm
-{useContext(TabsCtx)?.value === "a" ? <p>A</p> : <p>B</p>}
-```
-```tsx
-// ✅ ĐÚNG: useTabs() throw để lộ ngay chỗ đặt sai (xem ví dụ chuẩn)
-```
+> 📄 **Code ví dụ:** [`examples/16-7-at-trigger-ngoai-provider-roi-dung-che.tsx`](examples/16-7-at-trigger-ngoai-provider-roi-dung-che.tsx)
+> 📄 **Code ví dụ:** [`examples/17-7-at-trigger-ngoai-provider-roi-dung-che.tsx`](examples/17-7-at-trigger-ngoai-provider-roi-dung-che.tsx)
 
 ## Best practices / Mẹo
 - **Chọn đúng bậc:** props (nông, 1-2 tầng) → render props (một logic nhiều UI) → compound + context (nhóm chia sẻ state) → store (toàn app hay đổi). Vì sao bậc? Vì mỗi bậc thêm chi phí (function/context/store), chỉ lên bậc khi bậc dưới rối.
@@ -263,6 +131,8 @@ function Wrap() { const [x] = useState(0); return <Mouse>{(pos) => <p>{pos.x + x
 - UI kit theo **headless**: tách hành vi (compound + context) khỏi style (class qua props). Vì sao? Để cùng `Tabs` dùng được cho 3 design khác nhau mà không fork logic.
 - Cung cấp `useTabs()` check null + JSDoc ví dụ ngắn ("children là function nhận pos"). Vì sao? Vì người mới không đoán được `children` là function nếu không đọc type.
 - Cân nhắc `useId` cho `id`/`aria-controls` để nhiều instance không trùng (SSR an toàn). Vì sao? Vì hardcode `id="tab-1"` mà trang có 2 Tabs là trùng, aria trỏ sai panel.
+
+> **Tóm gọn 1 câu:** Chọn pattern theo "bậc thang": props → render props → compound → store — chỉ lên bậc trên khi bậc dưới rối, đừng dùng dao mổ trâu giết gà.
 
 ## Bài tập nhỏ
 1. Hoàn chỉnh `Tabs` compound: `Tabs`, `Tabs.List`, `Tabs.Trigger`, `Tabs.Panel` với ARIA đầy đủ (`tablist`/`tab`/`tabpanel`, `aria-selected`, `aria-controls` bằng `useId`).

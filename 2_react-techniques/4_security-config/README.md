@@ -2,7 +2,7 @@
 
 > Nguồn: https://react.dev/learn/keeping-components-pure — https://owasp.org/www-project-top-ten/
 
-Nhóm này gom 4 mảnh ghép bảo mật tưởng rời rạc nhưng thực ra bổ trợ nhau: **chống XSS ở tầng render**, **quản lý cấu hình an toàn**, **siết header ở tầng HTTP**, và **xác thực bằng cookie httpOnly**. Đọc theo thứ tự sẽ thấy mỗi bài là một lớp phòng thủ (defense-in-depth) cho lớp kế tiếp.
+Nhóm này gom 4 mảnh ghép bảo mật tưởng rời rạc nhưng thực ra bổ trợ nhau: **chống XSS ở tầng render**, **quản lý cấu hình an toàn**, **siết header ở tầng HTTP**, và **xác thực bằng cookie httpOnly**. Đọc theo thứ tự sẽ thấy mỗi bài là một lớp phòng thủ (defense-in-depth) cho lớp kế tiếp. Ví von: bảo mật như thành trì nhiều tầng tường — xuyên được tường ngoài thì còn tường trong chờ sẵn, chứ không phải một cánh cửa then chốt duy nhất.
 
 ## Nhóm này giải quyết gì
 
@@ -30,6 +30,8 @@ Bảo mật frontend là **nhiều lớp chồng nhau**, không phải một "vi
 | 3 | [3-secure-headers/](3-secure-headers/README.md) | Secure headers + **CSP** (nonce/hash), HSTS, nosniff, Referrer-Policy, Permissions-Policy; set ở Nginx/CDN/host config. | Tầng HTTP |
 | 4 | [4-auth-httpOnly-cookie/](4-auth-httpOnly-cookie/README.md) | Auth bằng cookie **HttpOnly; Secure; SameSite**, refresh rotation chống reuse, phòng CSRF, `credentials: 'include'`. | Tầng phiên |
 
+> **Cách đọc bảng này:** mỗi dòng là một bài con và một "lớp phòng thủ" (cột cuối); đọc cột Nội dung để biết kỹ thuật trong bài, cột Lớp phòng thủ để hiểu vị trí của nó trong chuỗi defense-in-depth — thủng lớp nào, lớp sau còn giữ.
+
 ## Mô tả chi tiết từng bài
 
 ### 1. Chống XSS trong React
@@ -51,6 +53,8 @@ Không lưu token trong `localStorage` (dính XSS là mất). Dùng cookie `Http
 ```
 
 Đọc từ trong ra ngoài: bắt đầu ở tầng gần code React nhất (render/XSS), rồi ra cấu hình, rồi tầng HTTP, và cuối cùng là phiên xác thực — mỗi bước là một vành đai bảo vệ cho bước trước. Nếu chỉ quan tâm auth, có thể đọc 4 trước nhưng nhớ bài 1 & 3 là điều kiện để cookie không bị đánh cắp.
+
+> **Tóm gọn 1 câu:** Bốn bài là bốn lớp tường thành: render → cấu hình → HTTP → phiên, đọc theo thứ tự từ trong ra ngoài để hiểu vì sao lớp sau luôn là kế hoạch B của lớp trước.
 
 ## Liên kết với các nhóm khác
 

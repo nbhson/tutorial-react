@@ -1,8 +1,8 @@
 # Thuật ngữ React — Glossary toàn `3_react-tutorial` (DAY 0 → 21)
 
-> Từ điển tra cứu nhanh cho cả track `3_react-tutorial`.
+> Từ điển tra cứu nhanh cho cả track `3_react-tutorial`. Hãy xem nó như cuốn từ điển bỏ túi: cần tra từ gì thì mở đúng trang đó, không cần đọc từ đầu tới cuối.
 > **Cách dùng:** bấm vào từng DAY để mở bảng tra cứu — cột *Ví dụ* chỉ giữ đoạn code ngắn nhất đủ hiểu.
-> Cần chi tiết đầy đủ (luồng hoạt động, pitfalls, bài tập) thì mở README của DAY đó.
+> Cần chi tiết đầy đủ (luồng hoạt động, pitfalls, bài tập) thì mở README của DAY đó — bảng này chỉ là bản tóm tắt nhanh.
 
 ## Mục lục
 
@@ -31,6 +31,8 @@
 | 20 | [Drag & Drop](20-drag-drop/) | [Bảng thuật ngữ](#day-20--drag--drop) |
 | 21 | [Testing & E2E](21-testing-e2e/) | [Bảng thuật ngữ](#day-21--testing--e2e) |
 
+> **Cách đọc bảng này:** mỗi dòng là một DAY; cột *Chủ đề* nói DAY đó học gì, cột *Mở nhanh* bấm vào là tới thẳng bảng thuật ngữ của DAY đó.
+
 ---
 
 ## DAY 0 — Khám phá React + Vite
@@ -51,6 +53,8 @@
 | `.render()` | Mount lần đầu thành DOM thật; mọi cập nhật sau do state/hooks re-render | Chỉ gọi 1 lần, không gọi lại khi update |
 | `StrictMode` | Kiểm tra dev-only: render/effect 2 lần để lộ side-effect thiếu cleanup; prod không ảnh hưởng | `<StrictMode><App /></StrictMode>` |
 | `VITE_*` | Biến môi trường Vite qua `import.meta.env`; chỉ `VITE_*` lộ ra client — cấm secret | `import.meta.env.VITE_API_URL` |
+
+> **Cách đọc bảng này:** cột *Thuật ngữ* là tên gọi cần nhớ, *Giải thích* là ý nghĩa ngắn gọn, *Ví dụ* là code tối thiểu đủ hình dung.
 
 </details>
 
@@ -73,6 +77,8 @@
 | Derived data | Tính được từ state/props thì tính khi render, đừng `useState` dư gây lệch | `const nextYear = age + 1` |
 | Batching + functional update | React gộp `setState` cùng event thành 1 render; update theo giá trị cũ dùng dạng hàm | `setCount((c) => c + 1)` |
 
+> **Cách đọc bảng này:** đọc từng dòng như một "thẻ ghi nhớ": tên thuật ngữ, ý chính, rồi ví dụ code ngắn nhất.
+
 </details>
 
 ---
@@ -92,6 +98,8 @@
 | `key` | Identity cho reconciliation (≈ `track` của `@for`); id ổn định, cấm `key={index}` khi list đổi | `key={t.id}` |
 | `reconciliation` | Diff cây cũ/mới: giữ node cùng key, mount key mới, unmount key mất, di chuyển node đổi chỗ | Tự động sau mỗi render |
 
+> **Cách đọc bảng này:** cột *Thuật ngữ* là khái niệm, *Giải thích* là quy tắc cần nhớ, *Ví dụ* là cách viết trong code thật.
+
 </details>
 
 ---
@@ -107,6 +115,8 @@
 | Default value | Mặc định qua destructuring (`greeting = "Hi"`); `defaultProps` đã bị gỡ | `{ name, age = 0 }: Props` |
 | Callback prop | Prop hàm để con báo sự kiện lên cha (≈ `@Output` + `EventEmitter`); tên quy ước `on*`; payload là dữ liệu | `onAdd: (step: number) => void` |
 | Lifting state up | Đưa `useState` lên cha chung gần nhất khi nhiều con chia sẻ dữ liệu đổi theo thời gian | Cha giữ `count`, con nhận `count` + `onAdd` |
+
+> **Cách đọc bảng này:** cột *Giải thích* có so sánh với Angular (`@Input`, `@Output`) — ai quen Angular sẽ vào rất nhanh.
 
 </details>
 
@@ -124,6 +134,8 @@
 | Ref là prop (R19) | `<MyInput ref={...}>` không cần `forwardRef` nữa (giữ cho code cũ) | `function MyInput({ ref }: { ref: Ref })` |
 | Escape hatch + `useImperativeHandle` | Ref là đường vòng quanh React, chỉ dùng khi chưa có API trừu tượng; con lộ API chọn lọc qua `useImperativeHandle` | Dùng khiêm tốn |
 
+> **Cách đọc bảng này:** nhớ mấu chốt ở dòng đầu — ref đổi `.current` không làm component re-render; các dòng sau là cách dùng.
+
 </details>
 
 ---
@@ -139,6 +151,8 @@
 | Named slots | Không có `select` như `ng-content` — tự định nghĩa nhiều props `ReactNode` | `<Layout header={...} sidebar={...}>` |
 | Composition > inheritance | Không thừa kế component — bọc hoặc cấu hình qua props; nền tảng UI kit tái dùng | `<Card><SpecialContent /></Card>` |
 
+> **Cách đọc bảng này:** ba dòng này xếp theo thứ tự từ cơ bản đến nâng cao: `children` → named slots → tư duy composition.
+
 </details>
 
 ---
@@ -153,6 +167,8 @@
 | Render props | Prop là function nhận dữ liệu từ cha, trả JSX (≈ `ngTemplateOutlet` + context); con giữ logic, user quyết UI | `<Mouse render={(pos) => <p>{pos.x}</p>} />` |
 | Function-as-children | Biến thể hiện đại: children chính là function | `<Mouse>{(pos) => <p/>}</Mouse>` |
 | Compound components | Nhóm component chia sẻ state ngầm qua Context; chuẩn UI kit headless + a11y | `Tabs.Trigger` / `Tabs.Panel` + `aria-selected` |
+
+> **Cách đọc bảng này:** mỗi dòng là một kiểu "chia sẻ logic giữa cha và con", từ render props đến compound.
 
 </details>
 
@@ -170,6 +186,8 @@
 | Provider gần nhất | Consumer đọc Provider gần nó nhất (scoped như Angular providers) | Lồng 2 Provider → con dưới đọc con gần |
 | Prop drilling | Truyền tay qua tầng trung gian không dùng — dấu hiệu cần Context (config) hoặc store (DAY 8) | Thay `a→b→c→d` bằng context |
 
+> **Cách đọc bảng này:** dòng đầu là bộ ba API tạo–cung–dùng Context; các dòng sau là quy tắc và dấu hiệu nên dùng Context.
+
 </details>
 
 ---
@@ -186,6 +204,8 @@
 | Zustand | Mặc định 2026: `create()` không Provider; subscribe đúng slice (`Object.is`) giảm re-render | `useCart((s) => s.items.length)` |
 | Redux Toolkit | App lớn: `createSlice` + Immer, DevTools time-travel, thunk/RTK Query (≈ NgRx gọn hơn) | `dispatch(add(item))` |
 
+> **Cách đọc bảng này:** dòng đầu định nghĩa external store là gì; hai dòng sau là hai lựa chọn thư viện và khi nào chọn cái nào.
+
 </details>
 
 ---
@@ -199,6 +219,8 @@
 |---|---|---|
 | `Children.count / map / toArray` | Xử lý children thô đồng nhất; `toArray` phẳng hóa + gán key; traversal ngay lúc render (không có `ngAfterContentInit`) | `Children.count(children)` |
 | `cloneElement` + `isValidElement` | Sao chép element chồng props mới — inject hàng loạt (`onClick`, `aria-selected`); kiểm tra trước khi clone; dùng khiêm tốn | `cloneElement(child, { selected: true })` |
+
+> **Cách đọc bảng này:** chỉ 2 thuật ngữ nhưng đều là API "can thiệp sâu" — cột *Giải thích* nhắc cả giới hạn nên dùng.
 
 </details>
 
@@ -216,6 +238,8 @@
 | `useMemo` | Cache tính toán nặng theo deps; có chi phí bộ nhớ + so deps — không lạm dụng | `useMemo(() => rows.reduce(...), [rows])` |
 | React Compiler 1.0 | Tự memoize ở build-time; viết tự nhiên, **đo trước memo sau** | Bật `babel-plugin-react-compiler` |
 
+> **Cách đọc bảng này:** nhớ thứ tự ưu tiên: format bằng hàm + `Intl` → `memo`/`useMemo` khi đo thấy chậm → Compiler tự lo khi bật.
+
 </details>
 
 ---
@@ -230,6 +254,8 @@
 | Controlled (form) | State là nguồn duy nhất + validate tay; re-render mỗi phím | `value` + `onChange` + `err` thủ công |
 | react-hook-form | `useForm` + `register` (uncontrolled + ref, ít re-render) + `handleSubmit` validate rồi gọi callback | `{...register("email")}` |
 | Zod + `zodResolver` | Schema runtime, suy type `z.infer`, tái dùng API/server; lỗi ở `formState.errors` (≈ Reactive Forms + Validators) | `errors.email?.message` |
+
+> **Cách đọc bảng này:** ba dòng là ba mảnh ghép của form: cách tự viết (controlled), thư viện giữ form (react-hook-form), thư viện validate (Zod).
 
 </details>
 
@@ -246,6 +272,8 @@
 | TanStack Query v5 | Managed fetching: `useQuery({ queryKey, queryFn })` — cache, dedupe, retry, `staleTime`/`gcTime`, refetch nền; mutation qua `useMutation` + `invalidateQueries` | `useQuery({ queryKey: ["users"], queryFn })` |
 | `use()` + Suspense | Đọc Promise trong render, suspend tới khi resolve (RSC/framework) | `<Suspense fallback>` + `use(promise)` |
 
+> **Cách đọc bảng này:** từ tay đến trọn gói: `fetch` thô → TanStack Query lo toàn → `use()` + Suspense theo phong cách framework mới.
+
 </details>
 
 ---
@@ -260,6 +288,8 @@
 | `lazy` + `import()` | Tách chunk riêng, tải lần đầu render (≈ `loadChildren`) | `lazy(() => import("./HeavyChart"))` |
 | `<Suspense fallback>` | UI chờ cho component suspend; thiếu là lỗi boundary; remount sau dùng cache | `<Suspense fallback={<p>Đang tải...</p>}>` |
 | Error Boundary + prefetch | Chunk lỗi → cần Boundary **ngoài** Suspense; `import()` sớm khi hover/idle giảm chờ | `onMouseEnter={() => import("./HeavyChart")}` |
+
+> **Cách đọc bảng này:** cột *Giải thích* đi theo cặp nguyên nhân–cách xử lý; cột *Ví dụ* là code của phần sau mỗi dòng.
 
 </details>
 
@@ -277,6 +307,8 @@
 | `loader` + `useLoaderData` | Chạy **trước** render route (≈ resolver) → ít skeleton | `loader: ({ params }) => fetchUser(params.id)` |
 | `errorElement` + lazy route | Hiện khi loader throw 401/404; `lazy` tách chunk ngay trong route | `errorElement: <Err/>` |
 
+> **Cách đọc bảng này:** mỗi dòng là một bộ phận của router: khai báo route, điều hướng, tải dữ liệu, xử lý lỗi.
+
 </details>
 
 ---
@@ -293,6 +325,8 @@
 | `useLayoutEffect` | Chạy **trước paint** — đo DOM rồi set state tránh nháy; mặc định dùng `useEffect` | Tooltip position |
 | `useEffectEvent` (R19.2+) | Tách logic không-reactive khỏi deps — thay `eslint-disable exhaustive-deps` | Handler đọc giá trị mới nhất |
 
+> **Cách đọc bảng này:** dòng đầu là quy tắc chạy của `useEffect`; ba dòng sau là các tình huống đặc biệt quanh nó.
+
 </details>
 
 ---
@@ -307,6 +341,8 @@
 | Custom hook (`use*`) | Hàm gọi hook khác, gói logic tái dùng; **không singleton/DI** — mỗi lần gọi state riêng (khác Service) | `useLocalStorage("name")` |
 | Rules of hooks | Top-level only (React phân state theo **thứ tự gọi**) · tên `use*` · chỉ trong component/hook | Cấm hook trong `if`/loop |
 | Lazy initializer | `useState(() => ...)` chạy 1 lần (đọc storage); `useFetch` + AbortController chỉ để học — prod dùng Query | `useState(() => localStorage.getItem(k) ?? "")` |
+
+> **Cách đọc bảng này:** dòng đầu định nghĩa custom hook; dòng sau là luật chơi bắt buộc; dòng cuối là mẹo khởi tạo.
 
 </details>
 
@@ -324,6 +360,8 @@
 | Tailwind v4 + pipeline | CSS-first (`@import "tailwindcss"`); `cva` biến thể + `clsx` + `tailwind-merge` là "style API" | `cn(variantClass, className)` |
 | MUI | Full-suite ≈ Angular Material: sẵn dùng + theming mạnh, đổi lại theo design MUI, bundle lớn | `<Button variant="contained">` |
 
+> **Cách đọc bảng này:** mỗi dòng là một hướng chọn thư viện UI: headless (tự style), shadcn (sở hữu code), Tailwind (hệ style), MUI (trọn gói).
+
 </details>
 
 ---
@@ -338,6 +376,8 @@
 | react-i18next | Dịch **runtime** key-JSON, đổi ngôn ngữ không reload (khác Angular XLIFF build-time) | `const { t } = useTranslation()` |
 | Interpolation / plural / namespace | `{{name}}`, `_one`/`_other`, tách JSON theo domain + lazy load; `fallbackLng` + detector | `t("hello", { name: "Son" })` |
 | `Intl` + `<html lang>` | Format số/ngày theo locale đang chọn; cập nhật `lang` cho a11y/SEO | `new Intl.NumberFormat(i18n.language, ...)` |
+
+> **Cách đọc bảng này:** từ thư viện dịch đến chi tiết: i18next dịch chữ, interpolation/plural xử lý biến số, `Intl` lo format.
 
 </details>
 
@@ -354,6 +394,8 @@
 | Motion | Tên mới Framer Motion: `motion.div`, `initial/animate/exit`, `layout`, `whileHover`; `<AnimatePresence>` hoãn gỡ DOM tới khi exit xong | `<AnimatePresence>{open && <motion.div exit={...}/>}</AnimatePresence>` |
 | `prefers-reduced-motion` | Tôn trọng cài đặt giảm chuyển động (media query / `useReducedMotion`) | Nội dung đúng, chỉ tắt animate |
 
+> **Cách đọc bảng này:** từ cách tự làm (CSS) đến thư viện (Motion), rồi quy tắc accessibility phải nhớ.
+
 </details>
 
 ---
@@ -368,6 +410,8 @@
 | HTML5 native | `draggable` + `onDragStart` (ghi index) + `onDragOver` (**phải `preventDefault`** mới drop) + `onDrop`; touch kém, không a11y | Đủ demo/học cơ chế |
 | State-driven reorder | Kéo không dời DOM — set nguồn, thả **tạo mảng mới** (`splice` trên copy), React render lại | `setItems((xs) => hoán vị bất biến)` |
 | dnd-kit | Chuẩn prod: `DndContext` + `SortableContext` + `useSortable` + `arrayMove` (≈ `moveItemInArray`); 2 list phân biệt `active`/`over` | Keyboard + touch + screen reader |
+
+> **Cách đọc bảng này:** theo thứ tự tăng dần mức độ: kéo thả thuần HTML → tự reorder bằng state → thư viện dnd-kit cho prod.
 
 </details>
 
@@ -384,12 +428,18 @@
 | Triết lý RTL | Test **hành vi người dùng** (role/label/text), không chọc state nội bộ; `user-event` mô phỏng thật; `renderHook` cho hook | `getByRole("button", { name: "+1" })` |
 | Playwright + auto-wait | E2E browser thật đa trình duyệt, locator tự chờ thay sleep tay; phân tầng unit → integration → E2E | `page.getByRole(...)` · `toBeVisible()` |
 
+> **Cách đọc bảng này:** từ công cụ test từng tầng (Vitest + RTL) đến triết lý viết test và test E2E trình duyệt thật.
+
 </details>
 
 ---
 
 ## Reference
 
+Phần này liệt kê nguồn đọc sâu hơn — sau khi tra bảng xong mà vẫn thắc mắc thì vào đây.
+
 - Từng DAY trong `3_react-tutorial/0..21/README.md` (nguồn chi tiết của mọi thuật ngữ trên)
 - https://react.dev/learn · https://react.dev/reference/react
 - https://vite.dev/guide/ · https://tanstack.com/query/latest
+
+> **Tóm gọn 1 câu:** GLOSSARY là từ điển tra nhanh theo từng DAY; muốn hiểu sâu thì theo chân phần Reference về README của từng DAY.

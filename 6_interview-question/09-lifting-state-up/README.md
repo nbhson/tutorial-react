@@ -7,51 +7,26 @@
 > Nếu cần chia sẻ qua 5-10 tầng thì lifting state còn đủ không, nên chuyển sang gì? So với Angular thì xử lý kiểu gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- Hai con cùng cần một dữ liệu thì **đưa state lên ông cha chung gần nhất**: con nhận qua props, muốn đổi thì gọi callback cha đưa xuống. Một nơi giữ sự thật duy nhất.
+
+Mục này là câu trả lời 30 giây — chốt cả ba vế: đặt đâu, vì sao không lên root, sâu quá thì làm sao.
+
+- Hai con cùng cần một dữ liệu thì **đưa state lên ông cha chung gần nhất**: con nhận qua props, muốn đổi thì gọi callback cha đưa xuống. Ví von: như gia đình có **một sổ tiết kiệm** giữ ở tủ nhà cha mẹ — con nào cần thì "đề nghị rút", không ai tự chép sổ riêng (hai sổ = hai nguồn sự thật = cãi nhau). Một nơi giữ sự thật duy nhất.
 - Đừng đẩy lên tận root: state càng cao, mỗi lần đổi càng nhiều component vẽ lại. Đặt vừa đủ cao để các con cần nó đều với tới.
 - Cần chia sẻ qua 5–10 tầng hoặc nhiều chỗ không họ hàng thì hết đất lifting — chuyển Context/store.
+
+> **Tóm gọn 1 câu:** Lifting = đưa state lên "ông tổ chung gần nhất" — một nguồn sự thật, props xuống, callback lên; sâu quá thì chuyển Context/store.
 
 ## Trả lời chi tiết
 
 ### 1. Vấn đề "hai con, mỗi đứa một state riêng"
 
-```tsx
-// ❌ SAI — Plus và Minus mỗi bên giữ state riêng: không ai đọc được tổng
-function Plus() {
-  const [count, setCount] = useState(0);
-  return <button onClick={() => setCount(count + 1)}>+1</button>;
-}
-function Minus() {
-  const [count, setCount] = useState(0);
-  return <button onClick={() => setCount(count - 1)}>-1</button>;
-}
-// App: <Plus /> <Minus /> → Plus và Minus "không biết nhau", count lệch nhau
-```
+> 📄 **Code ví dụ:** [`examples/01-1-van-e-hai-con-moi-ua-mot.tsx`](examples/01-1-van-e-hai-con-moi-ua-mot.tsx)
 
 Hai state **riêng rẽ** = **hai nguồn sự thật** → bug "state không đồng bộ" (Plus "cộng" nhưng Minus "không giảm" cùng count). Cách sửa: **đưa state lên App (cha chung)**, con nhận giá trị + callback.
 
 ### 2. Pattern chuẩn (lifting)
 
-```tsx
-// ✅ App (cha) là single source of truth: Plus/Minus/Greeting/TextInput
-// tất cả "đọc chung" một state, không ai "giữ riêng".
-import { useState } from "react";
-
-function App() {
-  const [count, setCount] = useState(0);        // number state
-  const [isOn, setIsOn] = useState(false);       // boolean state
-  const [name, setName] = useState("Son");        // string state (controlled input)
-
-  return (
-    <>
-      <Badge count={count} />                    // đọc
-      <CounterButton onAdd={(step) => setCount((c) => c + step)} /> // "đề nghị"
-      <Switch isOn={isOn} onToggle={() => setIsOn((v) => !v)} />
-      <TextInput value={name} onValueChange={setName} />
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-pattern-chuan-lifting.tsx`](examples/02-2-pattern-chuan-lifting.tsx)
 
 Cơ chế (một chiều xuống + một chiều lên):
 
@@ -65,6 +40,8 @@ Sự kiện:      con ──callback──▶  cha (cha "quyết định" đổi
 
 ### 3. "Dấu hiệu" (heuristic) — khi nào "phải" lifting
 
+Mục này cho 3 "thuốc thử" nhận biết khi nào bắt buộc lifting — gặp một trong ba dấu hiệu là state phải lên cha chung.
+
 Trả lời câu "Khi nào phải đưa state lên cha?" với **3 dấu hiệu**:
 
 | Dấu hiệu | Ví dụ | Không lifting → hậu quả |
@@ -73,9 +50,13 @@ Trả lời câu "Khi nào phải đưa state lên cha?" với **3 dấu hiệu*
 | **Cha cần đọc giá trị con đang giữ** | Form: `<TextInput value={name}/>` mà `name` ở App (cha validate/hiển thị tên) | Con "giữ" → cha không thấy (prop không "đổi ngược") |
 | **Sự kiện con A phải đổi giao diện con B** | `<TextInput/>` gõ → `<Preview/>` (anh em) cập nhật | Hai con "không nói chuyện được" nếu không chung cha |
 
+> **Cách đọc bảng này:** cột "Dấu hiệu" là tình huống bạn đang gặp, cột "Không lifting → hậu quả" là giá phải trả nếu để state ở con — dò theo tình huống của mình để quyết định.
+
 > **Quy tắc thực chiến**: nếu hai component **không là cha–con của nhau** và **cùng cần một dữ liệu** → **state phải ở "cha chung gần nhất"**.
 
 ### 4. "Đưa lên cao nhất (root) luôn" — KHÔNG (đây là "bẫy")
+
+Mục này chặn trước phản xạ "đưa lên root cho chắc" — giải thích vì sao đặt cao thừa là tự làm khó mình, và khi nào thì chuyển hẳn sang Context/store.
 
 - **Đặt cao quá** (root) khi chỉ cần "hai anh em trong một section":
   - **Re-render lan rộng**: mỗi lần state đổi, **cả app** re-render (mặc định React không "chặn" con re-render khi props đổi — xem [`10-memo-format`](../../3_react-tutorial/10-memo-format)).
@@ -94,6 +75,8 @@ Trả lời câu "Khi nào phải đưa state lên cha?" với **3 dấu hiệu*
 > Điểm khác **cơ bản**: Angular có **DI container** (service "một instance" tự nhiên) — React **không có DI** (chỉ Context/store "tự viết" chia sẻ) — vì React là **library**, không phải framework full (xem [`01-library-vs-framework`](../01-library-vs-framework/README.md)).
 
 ## Bẫy khi phỏng vấn
+
+Mục này là 5 bẫy khi trả lời về lifting — bẫy số 2 ("đưa lên root cho chắc") và số 4 (nhầm lifting với prop-drilling sâu) là hai chỗ interviewer hay vặn.
 
 1. **"State 'luôn' ở component con (gần nơi 'dùng')"** (nói suông) → **sai**: đúng "khi chỉ con cần". Nhưng **hai anh em** hoặc **cha cần đọc** → **bắt buộc** lifting (xem "dấu hiệu" ở §3).
 2. **"Đưa lên root 'cho chắc'"** → **sai** (re-render lan, không "nói rõ" intent). Quy tắc "đặt cao nhất *cần*", không phải "cao nhất *có thể*".

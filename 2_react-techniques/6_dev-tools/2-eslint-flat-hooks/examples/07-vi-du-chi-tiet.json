@@ -1,0 +1,2 @@
+// .lintstagedrc.json — tự sửa file staged trước commit (nhanh, không lint cả repo)
+{ "*.{ts,tsx,js,mjs}": ["eslint --fix", "prettier --write"] }

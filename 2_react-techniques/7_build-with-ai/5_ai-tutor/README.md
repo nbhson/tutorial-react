@@ -2,7 +2,11 @@
 
 > Nguồn: tương đương `angular.dev/ai/ai-tutor` (tool `ai_tutor`)
 
+Mệt vì hỏi AI thì được đáp án liền tay, copy về chạy được nhưng chẳng hiểu gì? Mục này dựng một "gia sư AI" hỏi ngược lại bạn — dạy đúng lộ trình, chấm bài bằng test thật, và nhớ bạn đã học đến đâu.
+
 ## Mục tiêu
+
+Mục này nêu 3 mục tiêu của AI Tutor: cách dạy, cách chấm, và cách nhớ tiến độ. Đọc để hiểu triết lý trước khi cấu hình.
 
 ### 1. Hiểu mô hình AI Tutor: agent dạy theo curriculum + quiz, gợi ý Socratic thay vì đưa đáp án
 
@@ -18,14 +22,24 @@
 
 `learner-progress.md` (level từng chặng ✓/~/✗, điểm yếu, đã hiểu, bài sau) là bộ nhớ giữa buổi. Không lưu là mỗi buổi dạy lại từ đầu. Tutor đọc đầu buổi, ghi cuối buổi —DEF loop khép kín.
 
+> **Tóm gọn 1 câu:** Ba trụ cột: dạy kiểu Socratic để bạn phải suy, chấm bằng test để feedback khách quan, và lưu progress để buổi sau học tiếp chứ không học lại.
+
 ## Tổng quan
+
+Mục này đặt AI Tutor vào bối cảnh: React chưa có tool chính thức, hai vấn đề học tập cần giải, và ai nên dùng. Đọc để biết nó phù hợp với bạn không.
 
 - Angular có tool `ai_tutor` trong docs; React không chính thức — ta xây tutor là **agent + curriculum + tool** (đọc repo, chạy test, ghi progress).
 - Vấn đề kép: learner nhận đáp án ngay thì không tiến bộ; AI dạy tràn lan không lộ trình thì hổng nền.
 - Giải pháp: prompt Socratic (hỏi trước, đáp án sau cùng), curriculum bám repo này, chấm tự động (vitest), feedback 3 lỗi lớn nhất, lưu `learner-progress.md`.
 - Áp dụng tự học React 19, onboarding dev mới, lớp nội bộ có lộ trình chuẩn. Không thay mentor người ở debug khó — tutor lo nền + thói quen, người lo kiến trúc + trade-off.
 
+Ví von: tutor người giống **huấn luyện viên gym** — không thay bạn nâng tạ, nhưng vạch lộ trình, đếm set, nhắc tư thế và ghi lại bạn đã nâng cỡ nào; còn khi bạn bị chấn thương nặng thì vẫn cần bác sĩ (mentor người).
+
+> **Tóm gọn 1 câu:** AI Tutor = huấn luyện viên cá nhân cho code React: lộ trình rõ, chấm bằng máy, nhớ bạn học tới đâu — nhưng không thay được người ở chỗ khó.
+
 ## Khái niệm cốt lõi
+
+Mục này bóc 5 khái niệm nền của tutor: phương pháp Socratic, curriculum 6 chặng, chấm tự động, feedback có mục tiêu, và lưu tiến độ. Đọc để hiểu "cỗ máy dạy học" chạy thế nào.
 
 ### 1. Socratic tutoring — hỏi dẫn dắt, giới hạn gợi ý, đáp án sau cùng
 
@@ -39,7 +53,7 @@ Tutor: "Hay lắm — trước khi trả lời, em thử đoán: mỗi lần ste
 chạy lại mấy lần? Và setInterval cũ có bị dọn không? (gợi ý 1/3)"
 ```
 
-Tối đa 3 gợi ý rồi mới hé đáp án (không để learner kẹt mãi). Mỗi gợi ý thu hẹp dần (câu hỏi → chỉ chỗ → phác thảo). Mục tiêu là learner tự nói ra đáp án.
+Tối đa 3 gợi ý rồi mới hé đáp án (không để learner kẹt mãi). Mỗi gợi ý thu hẹp dần (câu hỏi → chỉ chỗ → phác thảo). Mục tiêu là learner tự nói ra đáp án. Giống như **dạy con học xe đạp**: giữ phía sau thay vì chở luôn — buông dần từng vòng, cuối cùng đứa trẻ tự đạp được.
 
 ### 2. Curriculum có cấu trúc — 6 chặng bám repo (giữ bảng gốc + giải thích)
 
@@ -52,15 +66,21 @@ Tối đa 3 gợi ý rồi mới hé đáp án (không để learner kẹt mãi)
 | 5 | Kiến trúc & patterns | `2_architecture-patterns` | Tách feature, tránh drill |
 | 6 | Bảo mật + best practices | `4_security-config`, `8_best-practices` | a11y pass, boundary đúng |
 
+| 6 | Bảo mật + best practices | `4_security-config`, `8_best-practices` | a11y pass, boundary đúng |
+
+> **Cách đọc bảng này:** mỗi dòng là một chặng học, xếp đúng thứ tự nên học (nền trước, nâng cao sau). Đọc cột "Tiêu chí qua chặng" để biết qua chặng nghĩa là làm được gì cụ thể — không phải "cảm thấy hiểu".
+
 Mỗi chặng: khái niệm → quiz trắc nghiệm → bài tập repo → chấm → đạt tiêu chí mới qua (không học vội). Tiêu chí cụ thể (viết được gì, test nào xanh) thay vì "hiểu là qua".
+
+> **Tóm gọn 1 câu:** Curriculum 6 chặng giống tòa nhà có 6 tầng: mỗi tầng có bài kiểm tra đầu ra cụ thể, đậu mới được lên.
 
 ### 3. Chấm tự động — `vitest` trước, nhận xét sau
 
-Luôn chạy test trước khi khen/chê. Đọc failure (expected/received) rồi map tới luật (deps, closure, cleanup). Không test mà chấm là feedback chủ quan, dễ sai và mất uy tín tutor.
+Luôn chạy test trước khi khen/chê. Đọc failure (expected/received) rồi map tới luật (deps, closure, cleanup). Không test mà chấm là feedback chủ quan, dễ sai và mất uy tín tutor. Hãy coi test là **bàn cân điện tử** — kim chỉ lên là có số, không cần ai "cảm nhận" đồ nặng bao nhiêu.
 
 ### 4. Feedback có mục tiêu — lớn trước, style sau, tối đa 3
 
-Stale closure/deps sai (sai chức năng) trước; đặt tên/format sau. 3 lỗi + cách sửa từng cái + bài ôn. Hết 3 mới sang đợt sau — learner sửa xong 3 là tiến bộ thấy được.
+Stale closure/deps sai (sai chức năng) trước; đặt tên/format sau. 3 lỗi + cách sửa từng cái + bài ôn. Hết 3 mới sang đợt sau — learner sửa xong 3 là tiến bộ thấy được. Giống **bác sĩ kê đơn**: chỉ kê loại thuốc quan trọng nhất, uống hết hẹn lại khám, chứ không đổ cả tủ thuốc xuống đầu bệnh nhân.
 
 ### 5. Progress persistence — markdown là bộ nhớ
 
@@ -72,9 +92,13 @@ Stale closure/deps sai (sai chức năng) trước; đặt tên/format sau. 3 l�
 - Buổi sau: ôn useEffect cleanup + làm bài 1_advanced-features/4-web-worker.
 ```
 
-Không file này, tutor mỗi buổi hỏi lại "em học tới đâu" — phí và nản. File này cũng là bằng chứng tiến bộ (xem lại tháng trước ✗ nay ✓).
+Không file này, tutor mỗi buổi hỏi lại "em học tới đâu" — phí và nản. File này cũng là bằng chứng tiến bộ (xem lại tháng trước ✗ nay ✓). Nó đóng vai trò **cuốn sổ sức khỏe của người học**: bác sĩ mở ra là biết bệnh sử, khỏi hỏi lại từ đầu.
+
+> **Tóm gọn 1 câu:** Năm khái niệm khép thành vòng: Socratic ép suy nghĩ, curriculum định lộ trình, test chấm khách quan, 3 lỗi giữ nhịp, progress giữ trí nhớ.
 
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là kịch bản một buổi học hoàn thành 6 bước, từ nạp prompt đến ghi progress. Đi theo thứ tự — mỗi bước là một chặng của buổi học.
 
 ### Bước 1. Nạp system prompt tutor (Socratic, Việt, không đáp án trước)
 
@@ -100,7 +124,11 @@ Bài thật trong repo (Stepper deps sai, Worker thiếu cleanup...) — sửa x
 
 Ghi level, điểm yếu mới, bài ôn. Buổi sau đọc là tiếp được ngay.
 
+> **Tóm gọn 1 câu:** 6 bước = 1 buổi học khép kín: nạp luật → nhớ lại chỗ cũ → dạy + quiz → giao bài repo → chấm 3 lỗi → ghi sổ cho buổi sau.
+
 ## Ví dụ chi tiết
+
+Mục này là mirror đầy đủ dùng được ngay: system prompt, file progress, và một lượt đối thoại Socratic thật. Đọc để thấy lý thuyết biến thành lời thoại như thế nào.
 
 Mirror đầy đủ (system prompt + curriculum + bài tập + progress + lượt Socratic), khớp `example.tsx`:
 
@@ -115,31 +143,7 @@ Bạn là tutor React 19 dạy theo kiểu Socratic. Quy tắc bắt buộc:
 5. Kết thúc buổi: cập nhật learner-progress.md (level, điểm yếu, bài sau).
 ```
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-// Bài tập tutor giao (chủ đề: useEffect deps):
-// 👉 Sửa component dưới để interval không tạo mới mỗi lần render
-//    nhưng vẫn log đúng `step` mới nhất. Không xem đáp án vội!
-import { useEffect, useState } from 'react';
-
-export function Stepper() {
-  const [step, setStep] = useState(1);
-
-  useEffect(() => {
-    // Mỗi lần step đổi, effect chạy lại: dọn interval cũ, tạo interval mới — tốn + giật
-    // Vấn đề: deps [step] khiến setInterval tạo lại mỗi lần bấm; muốn 1 interval duy nhất mà vẫn thấy step mới
-    const id = setInterval(() => console.log('step:', step), 1000); // closure giữ step cũ của lần effect đó
-    return () => clearInterval(id); // dọn interval cũ mỗi lần effect chạy lại — đúng nhưng chưa đủ (vẫn tạo mới)
-  }, [step]); // ❓ tutor hỏi: deps [step] gây vấn đề gì? sửa sao? (gợi ý: ref giữ mới nhất / functional update)
-
-  return <button onClick={() => setStep((s) => s + 1)}>Step: {step}</button>;
-}
-
-// Đáp án (tutor hé sau 3 gợi ý — learner không đọc trước):
-// Cách 1: ref giữ step mới nhất, effect deps [] (1 interval duy nhất)
-// const stepRef = useRef(step); stepRef.current = step;
-// useEffect(() => { const id = setInterval(() => console.log('step:', stepRef.current), 1000); return () => clearInterval(id); }, []);
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.tsx`](examples/01-vi-du-chi-tiet.tsx)
 
 ```md
 <!-- learner-progress.md — bộ nhớ giữa các buổi (mirror từ README gốc) -->
@@ -159,7 +163,11 @@ Tutor: "Hay lắm — trước khi trả lời, em thử đoán: mỗi lần `st
 # Đáp án (sau 3 gợi ý): useRef + deps [] như khối trên.
 ```
 
+> **Tóm gọn 1 câu:** Bộ ví dụ gồm 3 mảnh: system prompt khóa 5 luật, file progress làm bộ nhớ, và một lượt hỏi-đáp Socratic 3 gợi ý — ghép lại là một buổi học.
+
 ## Giải thích từng phần
+
+Mục này trả lời "vì sao thiết kế vậy" cho từng quy tắc và từng ví dụ. Đọc khi muốn tinh chỉnh tutor theo nhu cầu riêng.
 
 ### Quy tắc 1 (không đáp án ngay) — từ máy giải bài thành người dẫn
 
@@ -187,9 +195,13 @@ Tutor đọc là biết bỏ qua controlled input/key, xoáy deps/closure/cleanu
 5. Test           (có test hành vi)     — 10%
 ```
 
-Chức năng nặng nhất (sai là hỏng), compiler-safe kế (sai là nợ), a11y có phần (sản phẩm thật cần), còn lại khuyến khích. Mục nào < 50% → bài ôn buổi sau. Điểm ghi vào progress để thấy đường tiến.
+Chức năng nặng nhất (sai là hỏng), compiler-safe kế (sai là nợ), a11y có phần (sản phẩm thật cần), còn lại khuyến khích. Mục nào < 50% → bài ôn buổi sau. Điểm ghi vào progress để thấy đường tiến. Cách đọc: khối trên là 5 trọng số chấm điểm, cộng đúng 100% — mục nào điểm thấp là mục cần ôn.
+
+> **Tóm gọn 1 câu:** Rubric 5 mục với trọng số rõ ràng — sai chức năng nặng nhất, đẹp đẽ nhẹ nhất, và điểm thấp nào cũng ra bài ôn.
 
 ## Lỗi thường gặp / Chống chỉ định
+
+Mục này liệt kê 5 lỗi làm tutor "hỏng" nhất. Đọc để không biến gia sư thành máy phát đáp án.
 
 ### 1. Tutor đáp án ngay lượt đầu → learner thụ động
 
@@ -211,11 +223,17 @@ Luôn `vitest` trước. Không test cho bài đó thì viết test trước khi
 
 Bài nào cũng trỏ thư mục thật (`1_advanced-features/...`). Refactor repo mà curriculum cũ là tutor giao bài ma — cập nhật cùng PR.
 
+> **Tóm gọn 1 câu:** Năm lỗi làm tutor sập nguồn: đáp án ngay, quên lưu tiến độ, chấm cảm tính, dội hết lỗi vào người học, và giao bài không tồn tại trong repo.
+
 ## Best practices / Mẹo
+
+Mục này gom mẹo nâng chất lượng giảng dạy. Đọc sau khi tutor chạy được một buổi hoàn chỉnh.
 
 ### Chặng rõ + quiz giải thích + đoán trước khi chạy + thi lại điểm yếu + skills chuẩn hóa chấm
 
 Mỗi chặng 1 chủ đề + tiêu chí qua cụ thể. Quiz ngắn có giải thích (sai là hiểu ngay). Learner viết dự đoán trước khi chạy (đoán sai mới nhớ). Định kỳ thi lại điểm yếu cũ (chống quên). Kết hợp agent skills (bài 2) để tutor chấm theo chuẩn repo (không phải gu chung chung).
+
+> **Tóm gọn 1 câu:** Mẹo vận hành: chặng có tiêu chí, quiz có giải thích, đoán trước khi chạy, thi lại cái đã quên, và chấm theo chuẩn repo chứ không theo cảm tính.
 
 ## Bài tập nhỏ
 

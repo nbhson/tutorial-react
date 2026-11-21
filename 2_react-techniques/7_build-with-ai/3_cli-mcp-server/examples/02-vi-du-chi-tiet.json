@@ -1,0 +1,9 @@
+// .vscode/mcp.json — cú pháp giống cho VSCode Copilot
+{
+  "servers": {
+    "repo-fs": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"]
+    }
+  }
+}

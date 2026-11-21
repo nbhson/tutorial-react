@@ -6,11 +6,16 @@
 > Có mấy pha, mỗi pha làm gì? Và khi component cha render, con có nhất thiết render theo không (chưa kể `memo`)? Con nào render, con nào không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
+
+Mục này là "bản nói 30 giây" — giống lòng thòng giới thiệu món trước khi vào bàn ăn chi tiết. Học thuộc khung 3 gạch đầu dòng này trước, phần chi tiết bên dưới dùng để đỡ khi bị hỏi đào sâu.
+
 - 4 bước từ `setState` tới mắt thấy: (1) **lên lịch** — không vẽ ngay, gộp nhiều set thành một; (2) **tính lại giao diện** bằng object JS (chưa chạm trình duyệt); (3) **so cũ/mới** tìm chỗ khác; (4) **sửa đúng chỗ đó** trên DOM thật rồi mới hiện.
 - Mặc định cha vẽ thì **mọi con vẽ theo** (dù props y hệt) — đó là lý do có `memo` để chặn.
 - Con đứng yên khi: cha không vẽ, hoặc con bọc `memo` mà props không đổi. Nhớ phân biệt: "vẽ lại" (tính toán) khác "đổi DOM" (mắt thấy).
 
 ## Trả lời chi tiết
+
+Mục này đi từng pha một của quy trình vẽ lại UI, kèm bảng so với Angular — đọc để chứng minh với người phỏng vấn rằng bạn hiểu cơ chế, không chỉ học thuộc câu.
 
 ### 1. 4 pha pipeline (từng pha + vì sao)
 
@@ -37,11 +42,11 @@
     - chạy "useEffect" SAU paint (fetch/subscription, không chặn vẽ)
 ```
 
-**Vì sao tách pha (nói được = ăn điểm)**: render (tính JSX) **nặng + pure** (React có thể **bỏ dở/hoãn** — concurrent, Q29); commit (chạm DOM) **có thứ tự + không đảo ngược** (tính đúng DOM). Tách "tính" khỏi "chạm" = **interruptible** (urgent cắt non-urgent được).
+**Vì sao tách pha (nói được = ăn điểm)**: render (tính JSX) **nặng + pure** (React có thể **bỏ dở/hoãn** — concurrent, Q29); commit (chạm DOM) **có thứ tự + không đảo ngược** (tính đúng DOM). Tách "tính" khỏi "chạm" = **interruptible** (urgent cắt non-urgent được). Hãy hình dung nhà hàng: đầu bếp (pha render) ngưng nấu giữa chừng để ưu tiên món vội vẫn được, nhưng khi dọn món ra bàn (pha commit) thì phải trọn vẹn — không ai phục vụ "nửa đĩa".
 
 ### 2. "Cha render → con render theo" — chính xác (chưa kể `memo`)
 
-Khi cha **nhập pha 2 (render)**, React **gọi lại function con** (mỗi con là "element mới") — vì **cây element được tạo lại từ trên xuống** (cha tạo con mới, dù props "giống").
+Khi cha **nhập pha 2 (render)**, React **gọi lại function con** (mỗi con là "element mới") — vì **cây element được tạo lại từ trên xuống** (cha tạo con mới, dù props "giống"). Ví von: sếp gọi họp thì cả team phải có mặt dù agenda không liên quan tới mình — ngồi vào bàn (render) chưa có nghĩa là mình phải phát biểu (đổi DOM).
 
 > **Mấu chốt**: "render lại con" ≠ "chạm DOM con". Con **chạy function render** (có thể "đắt" nếu render con nặng), rồi **reconcile** so con cũ/mới — **props/DOM không đổi** thì **không chạm DOM con** (DOM con giữ nguyên). Vì vậy con **có render (CPU) nhưng không nhất thiết "đổi UI" (DOM)**.
 
@@ -52,6 +57,8 @@ Khi cha **nhập pha 2 (render)**, React **gọi lại function con** (mỗi con
 | Component **đang đổi state** (gọi `setState`) | **Có** (rất) | **Có** (nếu DOM khác) |
 | **Con của component đang render** (cha render) | **Có** (cha render → con "cascading" render) | **Chỉ khi reconcile** "dù khác" (props/DOM đổi) |
 | Component **không đổi state + cha không render** | **Không** (đứng yên) | **Không** |
+
+> **Cách đọc bảng này:** mỗi dòng là một loại component xét theo vị trí của nó trong cây; cột giữa trả lời "có tốn CPU chạy function không", cột phải trả lời "màn hình có đổi không" — đọc theo dòng khớp với tình huống bạn đang xét, và nhớ rằng cột giữa Có không đồng nghĩa cột phải Có.
 
 → **Giới hạn render = "component đổi state + mọi con của nó" (cha → cascade)**. Ngoài "vùng cascade" → **không render** (state "độc lập", Q8/`key` + Context Q14 chọn "vùng").
 
@@ -69,9 +76,15 @@ Cha render → con **chạy function** (CPU) **dù props không đổi**. `memo`
 | CDK "lên từ root, xuống từng component" (mỗi lần = "so" binding) | "Cha render kéo con render theo (cascade)" (mặc định) | "Giống" ("root xuống"), khác "khi nào chạy" (Zone vs `setState` + concurrent) |
 | `OnPush` (chỉ check khi `@Input` ref đổi) | **`memo`** (Q16, chặn cascade khi props không đổi) | "Cùng ý": "con không đổi props → bỏ qua" (Angular `OnPush` là **class + `@Input`**; React `memo` là **function wrap**) |
 
+> **Cách đọc bảng này:** mỗi dòng ghép một khái niệm Angular với khái niệm React tương đương; cột Ghi chú nêu khác biệt bản chất chứ không chỉ khác tên — đến từ Angular thì đọc ngang từng dòng, còn dòng 3 (`OnPush` vs `memo`) là dòng được hỏi nhiều nhất.
+
 > **Nói đúng câu chốt**: "React **báo cáo** (explicit, `setState`) + **concurrent** (bỏ dở/hoãn); Angular **ngửi** (Zone.js, mọi async). Pipeline React: **schedule → render (tính JSX, pure, interruptible) → reconcile (so type+key) → commit (chạm DOM + `useLayoutEffect`) → paint → `useEffect`**. **Cha render kéo con render (cascade, CPU) — `memo` chặn 'CPU con', DOM con giữ nguyên.**"
 
+> **Tóm gọn 1 câu:** `setState` là đặt vé chứ chưa lên sân khấu — React lên lịch, tính lại JSX trên giấy nháp, so cũ với mới, rồi mới chạm DOM; cha vẽ thì cả đàn con tính theo (CPU), muốn chặn thì `memo`.
+
 ## Bẫy khi phỏng vấn
+
+Mục này là "bản đồ mìn": 5 câu trả lời nghe rất hợp lý nhưng sai, mà người phỏng vấn hay thả câu mồi để bạn dính vào — đọc để biết chỗ nào cần "gác kèn".
 
 1. **"Nói 'giữa React là DOM thật, không virtual DOM' (hoặc ngược: 'virtual DOM nhanh hơn DOM thật')"** → (a) React **có** virtual DOM (cây element, pha 2/3), so bằng reconcile (Q5 "vì sao cần", "nhanh hơn DOM?" — thường **không**, mục tiêu là **giới hạn DOM mutations**). (b) "UI cập nhật" thật = **pha 4 (commit, paint)** — không phải lúc `setState` (pha 1 chỉ **schedule**).
 2. **"Nói 'con component không render nếu props không đổi' (thiếu điều kiện 'memo')"** → **sai**: **mặc định** cha render → con **render (CPU)** dù props không đổi (cascade). **Không** "render theo" chỉ khi **`memo`** (Q16) chặn. "Đâu cần 'cụ thể'" là điểm ăn điểm.
@@ -79,7 +92,11 @@ Cha render → con **chạy function** (CPU) **dù props không đổi**. `memo`
 4. **Nhiều `setState` "mỗi cái = 1 render"** → **sai** (React 18+ **batch**, Q26: N set cùng tick = 1 render). "React 17 (chỉ batch trong React event)" = trường hợp cũ (không phải 2026).
 5. **"Đổi state ở con = cả app render"** → **sai**: state "ở đâu" (colocation, Q9 "lifting state up") quyết định "vùng cascade" (state ở root = cả cây; state ở List = chỉ List) — "state gần nơi dùng" (bài performance guide).
 
+> **Tóm gọn 1 câu:** Bẫy to nhất là lẫn "tính JSX" với "đổi DOM" — render không đảm bảo UI đổi, và con render theo cha là mặc định trừ khi `memo` chặn.
+
 ## Gợi ý câu chốt
+
+Mục này gói toàn bộ bài thành một đoạn trả lời mẫu — đọc để tập nói trôi chảy trong một hơi thở, rồi diễn đạt lại bằng giọng của mình.
 
 > "Pipeline: **setState → (1) Schedule (dirty + batch, không render ngay) → (2) Render (tính JSX, pure, từ dirty xuống, 'con cascade') → (3) Reconcile (so type+key, Q8, 'chênh lệch' thành 'hành động DOM') → (4) Commit (chạm DOM + `useLayoutEffect`) → Paint → `useEffect` (sau paint)**. **Cha render → mọi con 'cascading' render (chạy function con, CPU) dù props không đổi — đây là 'giới hạn mặc định'; `memo` (Q16) chặn 'CPU con' khi props `Object.is` giống, DOM con giữ nguyên (reconcile 'dù khác').** 'Render = tính JSX (CPU, pha 2)' ≠ 'commit = chạm DOM (pha 4, paint)' — UI thật cập nhật ở **commit**, không phải `setState`. 2026: batch (18), concurrent (giản interruptible), Compiler (tự memo, 'viết tự nhiên')."
 

@@ -29,31 +29,17 @@ Quy tắc 3 vế (nói được đủ 3 vế là "ăn điểm"):
 | **Tầng trung gian** không đọc Context | **Không** (React "xuyên qua") |
 | Consumer ở **ngoài** subtree của Provider đó (không được bọc) | **Không** (đọc default) |
 
+> **Cách đọc bảng này:** chỉ 3 dòng — tra loại component của bạn ở cột trái, nhìn cột phải ra "Có/Không" là xong; dòng giữa ("tầng trung gian") là dòng đắt giá nhất khi phỏng vấn.
+
 Ví dụ (2 Provider lồng — scoped như `providers: [...]` của Angular):
 
-```tsx
-<ThemeProvider>                     {/* value = A */}
-  <ThemedButton />                   {/* consumer: đọc A */}
-  <ThemeProvider>                    {/* value = B (lồng trong) */}
-    <ThemedButton />                 {/* consumer: đọc B (Provider gần nhất) */}
-  </ThemeProvider>
-</ThemeProvider>
-```
+> 📄 **Code ví dụ:** [`examples/01-1-ai-re-render-khi-value-oi-chinh.tsx`](examples/01-1-ai-re-render-khi-value-oi-chinh.tsx)
 
 Toggle **provider trong** (B đổi) → chỉ consumer trong subtree **trong** render; **consumer ngoài** (đọc A) **không đổi**. Provider lồng "gần nhất thắng" — cùng cơ chế scoped của Angular DI.
 
 ### 2. Vì sao `value={{ theme, toggle }}` (object literal) gây re-render thừa
 
-```tsx
-// Provider render lại (state phụ đổi) → value MỚI
-// (object literal tạo lại mỗi render) → React so Object.is → "khác" →
-// mọi consumer render lại DÙ theme không đổi
-function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState("light");
-  const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light"));
-  return <ThemeCtx.Provider value={{ theme, toggle }}>{children}</ThemeCtx.Provider>; // ❌ mỗi render = object mới
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-vi-sao-value-theme-toggle-object-literal.tsx`](examples/02-2-vi-sao-value-theme-toggle-object-literal.tsx)
 
 3 cách xử lý:
 
@@ -65,24 +51,15 @@ function ThemeProvider({ children }) {
 
 Value đổi **qua** 1 trong 2 đường — không có đường thứ ba:
 
-```tsx
-// (a) Provider (component giữ state) tự đổi:
-function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState("light");
-  // setTheme → Provider re-render → value mới → consumer re-render
-}
-
-// (b) Consumer "đẩy" đổi lên (callback do Provider cấp qua value — pattern chuẩn):
-const { theme, toggle } = useTheme();
-<button onClick={toggle}>Đổi theme</button> // consumer không tự sửa context;
-                                            // nó gọi hàm mà Provider "cấp"
-```
+> 📄 **Code ví dụ:** [`examples/03-3-cach-thay-value-ung-lien-he-q.tsx`](examples/03-3-cach-thay-value-ung-lien-he-q.tsx)
 
 **Không có cách "viết trực tiếp" vào Context** (context là read-only từ góc nhìn consumer; mutation phải đi qua **state ở Provider** — tức lifting state up, xem [`09-lifting-state-up`](../09-lifting-state-up/README.md)).
 
 ### 4. Khi nào chuyển sang Store (vượt phạm vi Context)
 
 Dữ liệu **đổi liên tục** (mỗi phím gõ, cart, stream) → Context **đắt** (mọi consumer render mỗi lần value đổi). **Store** (Zustand/Redux, [`8-external-store`](../../3_react-tutorial/8-external-store)) cho **selector**: mỗi consumer **chỉ subscribe đúng slice** nó đọc → đổi slice A không kéo consumer slice B. Đây là **giới hạn hiệu năng** của Context.
+
+> **Tóm gọn 1 câu:** Đổi value Context chỉ làm "đèn sáng" ở những phòng có cắm điện (consumer) chứ không phải cả tòa nhà — nhưng nhớ lấy cơn ác mộng `value={{...}}`: object mới mỗi lần vẽ là đèn nhấp nháy oan.
 
 ## Bẫy khi phỏng vấn
 

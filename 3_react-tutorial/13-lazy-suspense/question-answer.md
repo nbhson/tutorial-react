@@ -14,6 +14,10 @@
   Vite nhận diện và tách module đó thành **chunk riêng**, trình duyệt chỉ tải **lần đầu component được render**.
 - `lazy` bọc component để React hiểu "đây là component tải muộn, có thể suspend".
 - Tương đương `loadChildren` của Angular Router: màn hình nặng (chart, editor) không bắt user tải ngay.
+- Ví von: import thường như mang nguyên cả tủ sách theo từ nhà; `import()` động là đi mượn đúng quyển
+  khi cần đọc — mỗi quyển (chunk) một chuyến đi riêng.
+
+> **Tóm gọn 1 câu:** `import()` tách code thành chunk riêng, `lazy` báo React "tải muộn được" — màn nặng không kéo bundle đầu đi theo.
 
 ---
 
@@ -26,6 +30,8 @@
   `fallback` (`Đang tải biểu đồ...`) là UI chờ bắt buộc cho mọi thứ suspend bên trong
   (lazy ở bài này, `use()` đọc promise ở DAY 12).
 - Chu kỳ: mount → suspend → fallback → chunk về → render thật. Remount sau **không tải lại** (đã cache).
+- Ví von: suspend là lúc hàng chưa tới kho — không treo tấm biển "đang bốc xếp" thì khách cứ tưởng
+  cửa hàng đóng cửa (React báo lỗi boundary).
 
 ---
 
@@ -39,6 +45,8 @@
   **bên ngoài** Suspense mới bắt được: `Boundary > Suspense > HeavyChart`.
 - Thứ tự đúng trong example: `show && <ErrorBoundary><Suspense><HeavyChart/></Suspense></ErrorBoundary>`.
   Đây là phần hay quên nhất bài này.
+
+> **Tóm gọn 1 câu:** Suspense bắt "chờ", Boundary bắt "hỏng" — hai tầng hai việc, nhớ thứ tự `Boundary > Suspense > Component`.
 
 ---
 
@@ -62,6 +70,8 @@
 - Chỉ tách thứ **nặng + ít dùng ngay**: chart, editor, trang admin, modal phức tạp.
   Tách bừa component nhỏ → thêm request HTTP + hiện fallback giật cục, tổng còn chậm hơn.
 - Nguyên tắc: bundle đầu nhỏ (route chính + UI khung), còn lại tải theo nhu cầu + prefetch điểm nóng.
+- Ví von: tách chunk như phân loại hành lý đi du lịch — vali (bundle đầu) chỉ để đồ cần ngay trên máy bay,
+  đồ cắm trại gửi theo chuyến sau; bỏ cả dép tông vào vali thì vali nặng mà chẳng dùng tới.
 
 ---
 
@@ -74,15 +84,7 @@
 - Cơ chế fix: chêm `.then` để ánh xạ named export thành default ngay tại chỗ `lazy`. Không sửa file gốc (giữ named export cho nơi khác import thường), chỉ adapter ở điểm lazy.
 - Quy tắc nhận diện: mở file định lazy — thấy `export default` thì `lazy(() => import(...))` trực tiếp; thấy `export function/chart` thì phải có `.then(m => ({ default: m.Chart }))`. Sai shape này là lỗi top 3 của bài lazy.
 
-```tsx
-import { lazy } from "react";
-
-// File HeavyChart.tsx chỉ có named export: export function HeavyChart() {...}
-// Adapter: gói named export thành default để lazy hiểu được
-const HeavyChart = lazy(() =>
-  import("./HeavyChart").then((m) => ({ default: m.HeavyChart }))
-);
-```
+> 📄 **Code ví dụ:** [`examples/01-6-lazy-oi-default-component-named-export-thi.tsx`](examples/01-6-lazy-oi-default-component-named-export-thi.tsx)
 
 ---
 
@@ -95,25 +97,7 @@ const HeavyChart = lazy(() =>
 - Fix: đặt **Suspense nhỏ sát từng vùng lazy** (mỗi widget/chart một boundary với fallback dòng nhỏ như skeleton gọn), vùng nào tải thì vùng đó chờ, phần còn lại đứng yên. Nhiều Suspense lồng nhau thì boundary gần nhất thắng — tận dụng để trang có skeleton tổng + widget có spinner riêng.
 - Fallback nên nhỏ (dòng "Đang tải biểu đồ..." hoặc skeleton cùng kích thước) — fallback to bằng cả trang khi tải nhanh sẽ "nháy" khó chịu. Kết hợp `useTransition` khi điều hướng để giữ UI cũ thay vì nháy fallback.
 
-```tsx
-import { Suspense, lazy } from "react";
-
-const HeavyChart = lazy(() =>
-  Promise.resolve({ default: () => <div>Biểu đồ nặng (chunk riêng)</div> })
-);
-
-function Dashboard() {
-  return (
-    <div>
-      <h1>Tổng quan (luôn hiện, không bị fallback nuốt)</h1>
-      {/* Suspense nhỏ ôm sát widget lazy: chỉ vùng này chờ, trang còn lại yên */}
-      <Suspense fallback={<p>Đang tải biểu đồ...</p>}>
-        <HeavyChart />
-      </Suspense>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-7-suspense-long-nhau-fallback-nho-at-boundary.tsx`](examples/02-7-suspense-long-nhau-fallback-nho-at-boundary.tsx)
 
 ---
 
@@ -126,18 +110,7 @@ function Dashboard() {
 - Khác với `lazy()` tay ở DAY 13 ở chỗ: `lazy()` tay tách **component lẻ trong trang** (chart, editor, modal nặng) và bạn tự bọc Suspense + ErrorBoundary; `lazy` route tách **cả trang** theo URL và Router tự lo. Prod dùng cả hai: route cho trang, `lazy()` tay cho widget nặng trong trang.
 - Sai thì sao: vừa dùng `lazy` route vừa bọc thêm Suspense tay quanh `RouterProvider` là thừa, fallback chồng nhau. Fix: route để Router lo; chỉ bọc tay cho widget trong component.
 
-```tsx
-import { createBrowserRouter } from "react-router";
-
-// Route lazy: vào /chart lần đầu mới tải chunk ChartPage, Router tự chờ + bắt lỗi
-const router = createBrowserRouter([
-  {
-    path: "/chart",
-    lazy: () => import("./pages/Chart"), // module export { Component, loader?, action? }
-    // errorElement: <p>Không tải được trang.</p>, // bắt lỗi chunk/loader ở tầng route
-  },
-]);
-```
+> 📄 **Code ví dụ:** [`examples/03-8-route-level-lazy-react-router-v7-khac.tsx`](examples/03-8-route-level-lazy-react-router-v7-khac.tsx)
 
 ---
 
@@ -156,6 +129,8 @@ const router = createBrowserRouter([
 | `requestIdleCallback` sau mount | Màn tiếp theo rất hay mở | Bước 2 của wizard |
 | Không prefetch | Màn hiếm, chunk to | Trang admin, editor nặng ít dùng |
 
+> **Cách đọc bảng này:** mỗi dòng là một "tín hiệu" đoán user sắp cần gì — cột 2 nói khi nào tin tín hiệu đó, cột 3 cho ví dụ thực tế. Chọn trigger theo xác suất user mở tiếp, không bắn tung toé mọi trigger.
+
 ---
 
 ## 10. Lỗi thực chiến: `lazy` trong `if` + prefetch mỗi render + tự viết `componentDidCatch`?
@@ -168,34 +143,7 @@ const router = createBrowserRouter([
 - **Tự viết class `componentDidCatch` cho từng chỗ**: lặp code, khó reset sau lỗi (kẹt fallback). Fix: dùng `react-error-boundary` với `fallback` + `resetKeys` (đổi key như route là tự thử lại), `onError` log tập trung.
 - Cơ chế chung: `lazy` là khai báo tĩnh (như route), Suspense/ErrorBoundary là khung tĩnh bao quanh — không tạo mới chúng theo điều kiện render.
 
-```tsx
-// ĐÚNG: lazy ở module scope, prefetch trong event, boundary có resetKeys
-import { Suspense, lazy, useState } from "react";
-import { ErrorBoundary } from "react-error-boundary";
-
-// Khai một lần ngoài component: promise ổn định, không remount oan
-const HeavyChart = lazy(() =>
-  Promise.resolve({ default: () => <div>Biểu đồ nặng (chunk riêng)</div> })
-);
-const preload = () => import("./example"); // helper prefetch dùng lại cache
-
-function App() {
-  const [show, setShow] = useState(false); // mở/tắt biểu đồ
-  return (
-    <>
-      {/* Prefetch khi hover, mở khi click: 2 hành động tách bạch */}
-      <button onMouseEnter={preload} onClick={() => setShow(true)}>Mở biểu đồ</button>
-      {show && (
-        <ErrorBoundary fallback={<p>Tải thất bại, thử lại.</p>}>
-          <Suspense fallback={<p>Đang tải...</p>}>
-            <HeavyChart />
-          </Suspense>
-        </ErrorBoundary>
-      )}
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-10-loi-thuc-chien-lazy-trong-if-prefetch.tsx`](examples/04-10-loi-thuc-chien-lazy-trong-if-prefetch.tsx)
 
 ---
 
@@ -213,6 +161,8 @@ function App() {
 | `npm run build` kích thước chunk | `index` nhỏ, chart tách riêng | `index` to, không thấy chunk chart |
 | Network lần 1 mở chart | Có request chunk mới + fallback ngắn | Không request mà vẫn chậm (nằm trong index) |
 | Mở lần 2 | Không request (cache) | Tải lại (lazy khai trong render) |
+
+> **Cách đọc bảng này:** đây là checklist nghiệm thu sau khi split — mỗi dòng một phép thử, cột giữa là kết quả "đạt", cột phải là tín hiệu đang hỏng. Chạy đủ 3 dòng là yên tâm code splitting không tự làm chậm app.
 
 ---
 

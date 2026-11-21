@@ -15,26 +15,7 @@
 
 React là **một chiều**: con chỉ nhận props, không biết ai là cha. Muốn con làm gì thì cha **đổi props**, con tự phản ứng. Gọi thẳng method con vừa khó test, vừa khó tái dùng (ai giữ sự thật?).
 
-```tsx
-// Cha muốn con focus khi submit lỗi: truyền prop, con tự focus trong effect
-function Form() {
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <>
-      <EmailInput focusSignal={error} />
-      <button onClick={() => setError("Email sai")}>Submit</button>
-    </>
-  );
-}
-
-function EmailInput({ focusSignal }: { focusSignal: string | null }) {
-  const inner = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (focusSignal) inner.current?.focus();
-  }, [focusSignal]);
-  return <input ref={inner} />;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-uong-chinh-props-event-cha-ra-lenh.tsx`](examples/01-1-uong-chinh-props-event-cha-ra-lenh.tsx)
 
 - Muốn con "focus khi lỗi" → prop `error`/`focusSignal` + effect như trên.
 - Muốn con "reset" → prop `resetToken` tăng dần, hoặc dùng **`key`** để ép mount lại sạch (xem [`3_react-tutorial/3-props-interaction`](../../3_react-tutorial/3-props-interaction)).
@@ -45,38 +26,7 @@ function EmailInput({ focusSignal }: { focusSignal: string | null }) {
 
 Chỉ dùng khi hành vi **không gắn được với state** (focus theo click tự do, clear từ toolbar ngoài) và component là hàng dùng chung:
 
-```tsx
-// Con (Search) chỉ LỘ focus + clear, không lộ toàn bộ input DOM:
-import { useImperativeHandle, useRef, useState } from "react";
-
-export type SearchHandle = { focus: () => void; clear: () => void };
-
-function Search({ ref }: { ref?: React.Ref<SearchHandle> }) {
-  const inner = useRef<HTMLInputElement>(null);
-  const [q, setQ] = useState("");
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      focus: () => inner.current?.focus(),
-      clear: () => setQ(""),
-    }),
-    [] // deps — handle tạo lại khi deps đổi
-  );
-  return <input ref={inner} value={q} onChange={(e) => setQ(e.target.value)} />;
-}
-
-// Cha gọi:
-function Parent() {
-  const searchRef = useRef<SearchHandle>(null);
-  return (
-    <>
-      <Search ref={searchRef} />
-      <button onClick={() => searchRef.current?.focus()}>Tìm</button>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-uong-du-phong-useimperativehandle-con-chu-ong.tsx`](examples/02-2-uong-du-phong-useimperativehandle-con-chu-ong.tsx)
 
 Điểm mấu chốt (nói "ăn điểm" với interviewer):
 - **React 19**: `ref` là **prop thường** (bỏ `forwardRef` — xem [`02-react-18-vs-19`](../02-react-18-vs-19/README.md)) — function component nhận `ref` như props bình thường.
@@ -85,19 +35,15 @@ function Parent() {
 
 ### 3. "Truyền ref xuống, con gắn vào input" (nhanh nhưng thô)
 
-```tsx
-// Con "nhận" ref của cha và "gắn" vào input DOM:
-function Search({ inputRef }: { inputRef: React.Ref<HTMLInputElement> }) {
-  return <input ref={inputRef} />;
-}
-// Cha: const r = useRef<HTMLInputElement>(null); r.current?.focus();
-```
+> 📄 **Code ví dụ:** [`examples/03-3-truyen-ref-xuong-con-gan-vao-input.tsx`](examples/03-3-truyen-ref-xuong-con-gan-vao-input.tsx)
 
 - **Ưu điểm**: không cần `useImperativeHandle`, type đơn giản.
 - **Nhược điểm**: cha **biết con có input** (lộ nội bộ) — con đổi giao diện (input thành textarea) là type của cha sai theo.
 - **Khi nào dùng**: component nội bộ ngắn, hoặc wrapper quanh input của thư viện mà bạn cần focus thật.
 
 ### 4. Chọn đường nào — bảng quyết định
+
+Bảng dưới là bản đồ chọn đường: đọc cột "Tình huống", tìm dòng giống case của bạn nhất, rồi đi theo cột "Đường đi".
 
 | Tình huống | Đường đi | Vì sao |
 |---|---|---|
@@ -112,6 +58,8 @@ function Search({ inputRef }: { inputRef: React.Ref<HTMLInputElement> }) {
 2. **Ngoại lệ: API công khai** — component bán cho người khác dùng (thư viện) thì lộ 1–2 method qua `useImperativeHandle`.
 3. **Cực chẳng đã: ref DOM trần** — chỉ trong nội bộ, khi thật cần focus/scroll/đo.
 4. **Tuyệt đối không**: cha gọi mọi method của con — đó là dấu hiệu logic đặt sai chỗ, tách ra custom hook.
+
+> **Tóm gọn 1 câu:** Con như nhân viên nhận công văn (props) chứ không nhận điện thoại riêng (method) — chỉ khi việc không tả được bằng công văn mới phát cho hắn một đường dây nóng (`useImperativeHandle`).
 
 ## Bẫy khi phỏng vấn
 

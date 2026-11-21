@@ -4,6 +4,8 @@
 
 ## Mục tiêu
 
+Mục này nói về ba đích của bài: chia code theo feature, cài luật import một chiều, và đóng gói slice bằng public API. Đọc để thấy bài giải ba vấn đề gì của dự án dài hạn.
+
 ### 1. Chia code theo feature nghiệp vụ thay vì theo loại file kỹ thuật (components/, hooks/, utils/ phẳng)
 
 **Vì sao:** thư mục phẳng (`components/` 100 file, `hooks/` 50 file, `utils/` 30 file) không trả lời được "tính năng giỏ hàng nằm ở đâu, chạm vào có vỡ gì". Thêm một tính năng phải sửa rải rác 10 nơi, xóa một tính năng không biết còn ai dùng. Chia theo feature gom mọi thứ của một nghiệp vụ (UI, state, API, type) vào một slice — đọc tên slice là biết phạm vi, xóa slice là xóa tính năng.
@@ -12,20 +14,13 @@
 
 **Sai thì sao:**
 
-```tsx
-// ❌ SAI: folder by type — AddToCart rải 4 nơi, không biết thuộc về ai
-// components/AddToCart.tsx + hooks/useCart.ts + api/cart.ts + utils/cartHelper.ts
-// Sửa giá phải mở 4 thư mục, xóa tính năng sợ sót file
-
-// ✅ ĐÚNG: folder by feature — mọi thứ của cart một chỗ
-// features/cart/{ui/AddToCart.tsx, model/useAddToCart.ts, api/cartApi.ts, index.ts}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-chia-code-theo-feature-nghiep-vu-thay.tsx`](examples/01-1-chia-code-theo-feature-nghiep-vu-thay.tsx)
 
 **Usecase thực tế:** app 20 màn hình, 5 dev. Dev A làm giỏ hàng, dev B làm auth — mỗi người chỉ chạm slice của mình, PR không conflict. Quy tắc nhận diện "khi nào dùng": app vượt ~10 màn hình, hoặc hai người trở lên sửa chung, hoặc dự án sống > 6 tháng → áp ngay. Prototype 3 màn hình một người ship nhanh → bulletproof tối giản, nâng dần.
 
 ### 2. Thiết lập quy tắc import một chiều giữa các tầng để dễ hiểu, dễ thay đổi, dễ test
 
-**Vì sao:** không luật, `shared/Button` import `features/cart/store` (ngược tầng) tạo vòng phụ thuộc: sửa cart vỡ Button, Button vỡ 100 nơi. Build chậm, test phải mock cả thế giới, bug "race" khó truy. Luật một chiều (chỉ import tầng thấp hơn) biến dependency thành DAG — sửa tầng thấp ảnh hưởng có kiểm soát, sửa tầng cao không lan xuống.
+**Vì sao:** không luật, `shared/Button` import `features/cart/store` (ngược tầng) tạo vòng phụ thuộc: sửa cart vỡ Button, Button vỡ 100 nơi. Build chậm, test phải mock cả thế giới, bug "race" khó truy. Luật một chiều (chỉ import tầng thấp hơn) biến dependency thành DAG — sửa tầng thấp ảnh hưởng có kiểm soát, sửa tầng cao không lan xuống. Ví von: luật này như dòng chảy của nước — nước chảy từ cao xuống thấp là tự nhiên, ai bơm ngược lên thì cả hệ thống ống phải trả giá.
 
 **Cơ chế:** tầng từ cao xuống thấp `app → pages → widgets → features → entities → shared`. `features` được dùng `entities` + `shared`; `entities` không được biết `features`; cùng tầng cấm import chéo (hai feature muốn dùng chung phải đẩy xuống entity/shared hoặc nâng lên widget). Cưỡng chế bằng ESLint `boundaries`/`import/no-restricted-paths` thành lỗi CI, không dựa kỷ luật miệng.
 
@@ -33,14 +28,13 @@
 
 **Vì sao:** cho phép `import {x} from '@/features/cart/model/store'` nghĩa là nội bộ slice lộ hết — đổi tên file trong slice vỡ 20 nơi ngoài. `index.ts` là hợp đồng: slice lộ gì thì export ở đó, còn lại là chi tiết triển khai được tự do refactor.
 
-```ts
-// ❌ SAI: import sâu — sửa nội bộ vỡ nơi khác
-import { useCartStore } from '@/features/cart/model/store';
-// ✅ ĐÚNG: chỉ qua public API
-import { AddToCart } from '@/features/cart'; // index.ts quyết định lộ gì
-```
+> 📄 **Code ví dụ:** [`examples/02-3-ong-goi-moi-slice-bang-public-api.ts`](examples/02-3-ong-goi-moi-slice-bang-public-api.ts)
+
+> **Tóm gọn 1 câu:** Ba mục tiêu: slice theo nghiệp vụ, import chỉ đi xuống tầng thấp, và `index.ts` là hợp đồng duy nhất slice mở ra thế giới.
 
 ## Tổng quan
+
+Mục này nói về bức tranh lớn: hai trường phái FSD và bulletproof-react hội tụ ở một ý — nhóm code theo nghiệp vụ, giới hạn phụ thuộc. Đọc để chọn trường phái phù hợp trước khi đi sâu luật lệ.
 
 Ứng dụng phát triển tự do thường rơi vào "thư mục spaghetti": 100 component, 50 hook, 30 util không rõ nơi ấy thuộc về đâu, ai được dùng ai. **Feature-Sliced Design (FSD)** và **bulletproof-react** đưa ra cấu trúc tầng bậc có luật chơi:
 
@@ -52,11 +46,15 @@ import { AddToCart } from '@/features/cart'; // index.ts quyết định lộ g�
 
 Áp dụng khi: app vượt ~10–20 màn hình, nhiều dev làm chung, hoặc dự án dài hạn cần scale. Bắt đầu bằng bulletproof tối giản (`features/`, `shared/`), nâng lên FSD đầy đủ khi team/quy mô tăng.
 
+> **Tóm gọn 1 câu:** FSD và bulletproof-react là hai mức "dọn nhà theo phòng chức năng" — cùng nguyên lý nhóm theo nghiệp vụ và chặn chiều phụ thuộc.
+
 ## Khái niệm cốt lõi
+
+Mục này nói về bốn khái niệm nền của FSD/bulletproof: ba cấp tổ chức, luật import một chiều, public API, và phân biệt entity với feature. Đọc để hiểu "bản vẽ" trước khi dựng nhà.
 
 ### 1. Layer / Slice / Segment — ba cấp tổ chức
 
-**Vì sao:** chỉ có "thư mục" mà không có cấp sẽ sinh slice khổng lồ hoặc slice 1 hàm. Ba cấp cho chỗ đứng rõ: layer là tầng ngang (ai được dùng ai), slice là đơn vị nghiệp vụ trong tầng (cart, auth, product), segment là loại file trong slice (`ui/`, `api/`, `model/`, `lib/`). Khi slice phình, tách theo segment trước khi tách slice mới.
+**Vì sao:** chỉ có "thư mục" mà không có cấp sẽ sinh slice khổng lồ hoặc slice 1 hàm. Ba cấp cho chỗ đứng rõ: layer là tầng ngang (ai được dùng ai), slice là đơn vị nghiệp vụ trong tầng (cart, auth, product), segment là loại file trong slice (`ui/`, `api/`, `model/`, `lib/`). Ví von: layer là số tầng của tòa nhà, slice là căn hộ trên từng tầng, segment là các phòng trong căn hộ. Khi slice phình, tách theo segment trước khi tách slice mới.
 
 **Cơ chế:** `features/cart/ui/AddToCart.tsx` (render) + `features/cart/model/useAddToCart.ts` (logic) + `features/cart/api/cartApi.ts` (fetch). Đổi API chỉ đụng `api/` trong slice; đổi luật chỉ đụng `model/`; đổi giao diện chỉ đụng `ui/`.
 
@@ -78,32 +76,23 @@ src/
 
 **Sai thì sao:**
 
-```ts
-// ❌ SAI: entities đọc features — ngược tầng, tạo vòng
-// entities/product/model.ts
-import { useCart } from '@/features/cart'; // entity biết feature → cycle
-
-// ✅ ĐÚNG: features đọc entities — xuôi chiều
-// features/cart/ui/AddToCart.tsx
-import { useProduct } from '@/entities/product'; // feature dùng entity
-// Muốn hai feature chia sẻ → đẩy xuống entities/shared hoặc nâng lên widgets
-```
+> 📄 **Code ví dụ:** [`examples/03-2-quy-tac-import-mot-chieu-thang-chi.ts`](examples/03-2-quy-tac-import-mot-chieu-thang-chi.ts)
 
 ### 3. Public API — `index.ts` là hợp đồng
 
 **Vì sao:** không hợp đồng, mọi file nội bộ đều là "public" — refactor là vỡ. Có hợp đồng, slice tự do đổi cấu trúc trong (tách `model/` thành 3 file) mà ngoài không hay.
 
-```ts
-// features/cart/index.ts — chỉ lộ thứ cần thiết
-export { AddToCart } from './ui/AddToCart';
-// KHÔNG export model/store nội bộ → ngoài không với tới, không phụ thuộc
-```
+> 📄 **Code ví dụ:** [`examples/04-3-public-api-index-ts-la-hop-ong.ts`](examples/04-3-public-api-index-ts-la-hop-ong.ts)
 
 ### 4. Entity vs Feature — object tái dùng vs hành động user
 
-**Entity** là danh từ nghiệp vụ xuyên suốt (Product, User, Cart) — dùng ở 10 nơi, có `types` + `api` + `store`. **Feature** là động từ của user (AddToCart, LoginForm, TodoFilter) — thường đứng trên entity, gom UI + hook + gọi API cho một hành vi. Nhầm (đặt Product vào features) khiến 10 nơi import từ một feature cụ thể — sai tầng, khó tái dùng.
+**Entity** là danh từ nghiệp vụ xuyên suốt (Product, User, Cart) — dùng ở 10 nơi, có `types` + `api` + `store`. **Feature** là động từ của user (AddToCart, LoginForm, TodoFilter) — thường đứng trên entity, gom UI + hook + gọi API cho một hành vi. Ví von: entity là "nguyên liệu" (trứng, bột, đường), feature là "món ăn" (bánh kem) — bánh dùng nhiều nguyên liệu, nhưng nguyên liệu không biết mình sẽ thành món gì. Nhầm (đặt Product vào features) khiến 10 nơi import từ một feature cụ thể — sai tầng, khó tái dùng.
+
+> **Tóm gọn 1 câu:** Nhớ bộ ba layer → slice → segment như tầng → căn hộ → phòng, và phân biệt entity (danh từ) với feature (động từ).
 
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này nói về 5 bước dựng cấu trúc từ khung tới cưỡng chế bằng CI. Đọc để có trình tự làm việc cụ thể.
 
 ### Bước 1. Dựng khung + alias `@/`
 
@@ -125,58 +114,23 @@ Widget lắp nhiều feature (Header gồm Search + CartBadge + UserMenu). Page 
 
 Mỗi slice một `index.ts` tường minh (tránh `export *` lộ nội bộ). Cài `eslint-plugin-boundaries`/`import/no-restricted-paths` để luật thành lỗi CI. Chạy `madge`/`dependency-cruiser` mỗi PR để bắt vòng.
 
+> **Tóm gọn 1 câu:** Dựng khung → đặt entity → đặt feature → chắp widget → cài luật CI — luật muốn sống thì phải thành lỗi máy, không phải lời nhắn miệng.
+
 ## Ví dụ chi tiết
+
+Mục này nói về code hoàn chỉnh mirror 1-1 với file gốc. Đọc để thấy mọi khái niệm phía trên "sống" trong một cây thư mục thật.
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn):
 
-```tsx
-// features/cart/add-to-cart.tsx — ví dụ slice đúng tầng
-// Slice nằm ở tầng features → chỉ được dùng entities + shared (không được đọc pages/widgets)
-import { useState } from 'react';
-
-// entities/cart/store.ts (giả lập — thực tế dùng Zustand)
-// "entity" Cart giữ state nghiệp vụ dùng chung, features/pages cùng đọc
-// Vì sao giả lập ở đây: demo một file cho gọn; dự án thật tách entities/cart/store.ts riêng
-function useAddToCart() {
-  const [pending, setPending] = useState(false); // trạng thái của hành động (đang gửi hay không)
-  return {
-    pending,
-    add: async (id: number) => {
-      setPending(true); // bật trạng thái đang gửi → Button disabled, tránh bấm đúp
-      await fetch('/api/cart', {
-        method: 'POST',
-        body: JSON.stringify({ id }), // giao tiếp qua shared/api client (ở đây fetch thẳng cho gọn)
-      });
-      setPending(false); // xong thì tắt → Button bấm lại được
-    },
-  };
-}
-
-// shared/ui/button.tsx (giả lập) — UI-kit dùng chung mọi tầng
-// Vì sao ở shared: Button dùng ở 100 nơi, đổi style 1 chỗ cả app đổi theo; shared không biết feature nào
-function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} />;
-}
-
-export function AddToCart({ id }: { id: number }) {
-  const { add, pending } = useAddToCart(); // features chỉ dùng entity + shared — đúng chiều import
-  return (
-    <Button disabled={pending} onClick={() => add(id)}>
-      {pending ? 'Đang thêm…' : 'Thêm vào giỏ'}
-    </Button>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
 Public API đi kèm (pattern chuẩn):
 
-```ts
-// features/cart/index.ts — hợp đồng của slice (file cần thêm cạnh example)
-export { AddToCart } from './add-to-cart';
-// Chỉ lộ AddToCart; useAddToCart nội bộ không export → ngoài không phụ thuộc chi tiết
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.ts`](examples/06-vi-du-chi-tiet.ts)
 
 ## Giải thích từng phần
+
+Mục này nói về từng mảnh trong ví dụ và vì sao nó nằm đúng vị trí của nó. Đọc như đọc bản chú thích kiến trúc sau khi đi tham quan.
 
 ### `features/cart/…` — toàn bộ "thêm vào giỏ" một nơi
 
@@ -196,6 +150,8 @@ Thực tế là `entities/cart/store` (Zustand) + `shared/api` client. Component
 
 ## So sánh (nếu có)
 
+Mục này nói về ba cặp lựa chọn thiết kế đặt cạnh nhau: folder phẳng vs by-feature, bulletproof vs FSD, by-type vs by-feature. Đọc để tự quyết theo quy mô đội và dự án.
+
 ### Folder phẳng by-type vs FSD by-feature
 
 Phẳng: dễ bắt đầu (3 thư mục là chạy), nhưng 50+ file thì "component này của tính năng nào?" vô phương, sửa một tính năng chạm 10 nơi. FSD: tìm file theo tên nghiệp vụ, import theo luật, xóa slice là xóa tính năng. Đánh đổi: cần kỷ luật (index.ts, boundaries) và vài thư mục trống lúc đầu.
@@ -206,29 +162,21 @@ bulletproof gọn (không có `widgets`, ít tầng), hợp team 5–15 người
 
 ### Folder by-type vs by-feature — tái dùng vs định vị
 
-By-type dễ tái dùng (mọi Button một chỗ) nhưng khó định vị tính năng. By-feature dễ định vị nhưng cần kỷ luật để không lặp code giữa feature (đẩy phần chung xuống shared khi có nơi thứ ba dùng).
+By-type dễ tái dùng (mọi Button một chỗ) nhưng khó định vị tính năng. By-feature dễ định vị nhưng cần kỷ luật để không lặp code giữa feature (đẩy phần chung xuống shared khi có nơi thứ ba dùng) — như quy tắc "đồ ai dùng từ 3 người trở lên thì dời vào phòng khách chung".
+
+> **Tóm gọn 1 câu:** Bắt đầu bulletproof, nâng FSD khi cần; by-feature để định vị, và đồ nào 3 nơi dùng thì đẩy xuống shared.
 
 ## Lỗi thường gặp / Chống chỉ định
 
+Mục này nói về 5 bẫy kiến trúc phổ biến — từ import ngược tầng đến áp FSD quá sớm cho prototype. Đọc để khỏi tự đào hố cho chính mình.
+
 ### 1. Import ngược tầng → vòng phụ thuộc
 
-```ts
-// ❌ SAI: shared biết features — cycle, build chậm, bug khởi tạo
-// shared/ui/Button.tsx
-import { useCart } from '@/features/cart';
-// ✅ ĐÚNG: features biết shared — xuôi chiều
-// features/cart/ui/AddToCart.tsx
-import { Button } from '@/shared/ui';
-```
+> 📄 **Code ví dụ:** [`examples/07-1-import-nguoc-tang-vong-phu-thuoc.ts`](examples/07-1-import-nguoc-tang-vong-phu-thuoc.ts)
 
 ### 2. Import sâu vào slice → vỡ đóng gói
 
-```ts
-// ❌ SAI: với tay vào nội bộ — đổi tên file là vỡ
-import { store } from '@/features/cart/model/store';
-// ✅ ĐÚNG: qua public API
-import { AddToCart } from '@/features/cart';
-```
+> 📄 **Code ví dụ:** [`examples/08-2-import-sau-vao-slice-vo-ong-goi.ts`](examples/08-2-import-sau-vao-slice-vo-ong-goi.ts)
 
 ### 3. Business logic trong UI shared/widget → rải rác, khó test
 
@@ -242,7 +190,11 @@ Logic nằm `model/`/hook của entity/feature, UI chỉ render. Đặt `fetch` 
 
 < 5 màn hình ship nhanh — FSD ngày 1 chỉ thêm 5 thư mục trống và cảm giác nặng. Bắt đầu bulletproof tối giản, nâng dần khi quy mô/team tăng.
 
+> **Tóm gọn 1 câu:** Bốn lỗi đều bắt nguồn từ một gốc: vi phạm biên giới — ngược tầng, xuyên cửa khóa, logic sai nhà, và cắt slice sai kích cỡ.
+
 ## Câu hỏi thường gặp
+
+Mục này nói về các câu hỏi ranh giới hay đắn nhất (widgets vs features, entities vs features, cưỡng chế luật) — tra nhanh khi đang bối rối phân loại.
 
 ### Dự án nhỏ có cần FSD không?
 
@@ -266,11 +218,15 @@ Không. Cần chung → đẩy xuống `entities`/`shared`; cần chắp nối �
 
 ## Ghi chú 2026
 
+Mục này nói về những cập nhật mới nhất của hệ sinh thái FSD/bulletproof — đọc để không áp quy tắc cũ đã đổi.
+
 - **FSD v2/v3 + `@x` cross-import:** cho phép ngoại lệ có kiểm soát giữa các entity (ghi rõ trong code vì sao), thay vì cấm tuyệt đối gây workaround bẩn.
 - **bulletproof-react vẫn là tham chiếu `features/` + `lib/` + `providers/`:** kết hợp alias `@/` và template generator (plop/hygen) để thêm slice đúng chuẩn.
 - **Monorepo:** áp FSD giúp tách package theo layer, dùng workspace để cưỡng chế phụ thuộc ở tầng package (mạnh hơn cả ESLint).
 
 ## Best practices / Mẹo
+
+Mục này nói về ba thói quen giữ cấu trúc sống khỏe lâu dài: luật thành lỗi CI, entity tự chủ, và generator + tài liệu. Đọc để cấu trúc không suy biến sau 6 tháng.
 
 ### Alias `@/*` + ESLint boundaries thành lỗi CI
 
@@ -284,7 +240,11 @@ Import ngắn, chuyển thư mục không vỡ file. Luật thành lỗi tự đ
 
 Plop/hygen sinh slice đúng chuẩn (tránh sai tầng). README trong `src/` mô tả luật cho người mới. Tên slice là danh từ nghiệp vụ (cart, auth), không phải kỹ thuật (common, utils). Export tường minh qua `index.ts`, tránh `export *`.
 
+> **Tóm gọn 1 câu:** Cấu trúc bền nhờ ba trụ: máy gác luật (CI), slice tự chủ, và người mới đọc README là hiểu.
+
 ## Bài tập nhỏ
+
+Mục này nói về bài thực hành dựng app "todos" 2 trang theo FSD — làm một lần để mọi tầng "chắc tay".
 
 Dựng app "todos" 2 trang (danh sách + chi tiết) theo FSD:
 
@@ -292,6 +252,8 @@ Dựng app "todos" 2 trang (danh sách + chi tiết) theo FSD:
 2. Viết `index.ts` cho mỗi slice, chỉ export thứ cần.
 3. Viết 2 test/ESLint check: (1) shared không import entities/features; (2) features không import pages. Cố tình import ngược để xem ESLint báo đỏ ra sao.
 4. Chạy `madge --circular src` xác nhận không có vòng. Ghi lại: file nào được sửa, file nào trở nên sạch, PR chạm mấy slice.
+
+> **Tóm gọn 1 câu:** Xong bài tập là bạn đã đi trọn vòng đời một slice: đặt đúng tầng, khóa cửa bằng `index.ts`, và để máy xác nhận không có vòng.
 
 ## Reference
 

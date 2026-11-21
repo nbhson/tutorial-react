@@ -4,7 +4,13 @@ Tổng hợp **React Compiler 1.0** — chính thức **stable từ 10/2025**
 ([react.dev/blog/2025/10/07/react-compiler-1](https://react.dev/blog/2025/10/07/react-compiler-1)).
 Đây là một **build-time compiler** tự động memoize component/hook, chạy trên **cả React và React Native**, cho phép bạn bỏ dần `useMemo` / `useCallback` / `memo` thủ công cho các case phổ biến mà **không cần rewrite** code.
 
+Hãy hình dung compiler như một trợ lý dọn nhà tự động: bạn cứ sống bình thường (viết code), trợ lý tự biết chỗ nào cần sắp gọn (memoize) — miễn là bạn không xả rác liên tục (vi phạm Rules of React).
+
+> **Tóm gọn 1 câu:** React Compiler là "useMemo/useCallback tự động" — build-time, không cần rewrite code, đổi điều kiện là code phải sạch theo Rules of React.
+
 ## Tổng quan theo nhóm
+
+Mục này là bản đồ của cả chương: 3 bài con xếp theo trình tự setup → hiểu cơ chế → cấu hình lint. Đọc để biết nên đi vào bài nào trước.
 
 | # | Feature | Mô tả |
 |---|---------|-------|
@@ -12,7 +18,11 @@ Tổng hợp **React Compiler 1.0** — chính thức **stable từ 10/2025**
 | 2 | [Memoization & Rules](2_memoization-rules/README.md) | Compiler memoize cái gì, cơ chế reactivity, và Rules of React bắt buộc để compile an toàn |
 | 3 | [Lint Rules](3_lint-rules/README.md) | Compiler-powered lint nay nằm trong `eslint-plugin-react-hooks@6` — bắt lỗi vi phạm ngay trong IDE/CI |
 
+> **Cách đọc bảng này:** đọc theo thứ tự số — bài 1 cài đặt, bài 2 hiểu bản chất, bài 3 bắt lỗi; mỗi dòng có link dẫn thẳng vào bài chi tiết.
+
 ## ĐÁNH GIÁ TỔNG QUAN
+
+Mục này cho cái nhìn "mua hàng trước khi đặt": điểm mạnh, điểm cần lưu ý, và kế hoạch áp dụng vào project thật.
 
 ### Điểm mạnh
 
@@ -34,38 +44,27 @@ Tổng hợp **React Compiler 1.0** — chính thức **stable từ 10/2025**
 - **Project cũ** → chạy `npx react-compiler-healthcheck`, bật dần từng route, đo tỉ lệ component được compile.
 - **Giữ memo cũ** — compiler tôn trọng `memo`/`useMemo` thủ công đúng; xóa dần sau, đừng gỡ hàng loạt.
 
+Ví von rollout như thay động cơ trên máy bay đang bay: thay từng phần (từng route), kiểm tra định kỳ (healthcheck), đừng tháo phụ tùng cũ (memo thủ công) khi chưa chắc cái mới hoạt động ổn.
+
+> **Tóm gọn 1 câu:** Áp dụng compiler như thăm dò mức nước: project mới bật đàng hoàng từ đầu, project cũ đo đếm rồi bật dần — đừng gỡ memo cũ hàng loạt.
+
 ## Cú pháp nhanh
 
-```bash
-# Cài compiler + healthcheck
-npm install -D babel-plugin-react-compiler
-npx react-compiler-healthcheck
-```
+Mục này gom các lệnh cài đặt và cấu hình tối thiểu để compiler chạy được — copy là dùng ngay.
 
-```ts
-// vite.config.ts — Vite
-react({ babel: { plugins: [['babel-plugin-react-compiler', { target: '19' }]] } });
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-nhanh.sh`](examples/01-cu-phap-nhanh.sh)
 
-// next.config.ts — Next.js 16 top-level (Next 15: experimental.reactCompiler)
-const nextConfig = { reactCompiler: true };
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-nhanh.ts`](examples/02-cu-phap-nhanh.ts)
 
-```tsx
-'use memo';    // opt-in compile cho file/component
-'use no memo'; // opt-out khi code không compile-safe
-```
+> 📄 **Code ví dụ:** [`examples/03-cu-phap-nhanh.tsx`](examples/03-cu-phap-nhanh.tsx)
 
 Lint (khuyến nghị), thay cho plugin cũ `eslint-plugin-react-compiler`:
 
-```js
-// eslint.config.js
-import reactHooks from 'eslint-plugin-react-hooks';
-import { defineConfig } from 'eslint/config';
-
-export default defineConfig([reactHooks.configs.flat['recommended-latest']]);
-```
+> 📄 **Code ví dụ:** [`examples/04-cu-phap-nhanh.js`](examples/04-cu-phap-nhanh.js)
 
 ## Tính năng quan trọng khác
+
+Mục này liệt kê các công cụ và directive lẻ xung quanh compiler — những mảnh ghép nhỏ nhưng dùng dính lúc thật.
 
 | Feature | Mô tả | Ghi chú |
 |---------|-------|---------|
@@ -75,7 +74,11 @@ export default defineConfig([reactHooks.configs.flat['recommended-latest']]);
 | Playground | [playground.react.dev](https://playground.react.dev) thử compile online | Tool |
 | Compiler-powered lint | Rules trong `eslint-plugin-react-hooks@6` (`immutability`, `purity`, `refs`...) | Khuyến nghị |
 
+> **Cách đọc bảng này:** mỗi dòng một công cụ, đọc cột "Mô tả" để biết nó làm gì, cột "Ghi chú" cho biết độ chín (stable/tool/khuyến nghị) — chọn dòng nào phù hợp nhu cầu hiện tại.
+
 ## Yêu cầu
+
+Mục này là "điều kiện tham gia": môi trường và version tối thiểu để compiler chạy được.
 
 - React 17+ (khuyến nghị React 19), Node.js 18+.
 - Babel 8 / Next.js 15+ / Vite 5+.
@@ -83,10 +86,9 @@ export default defineConfig([reactHooks.configs.flat['recommended-latest']]);
 
 ## Chạy thử
 
-```bash
-npm install -D babel-plugin-react-compiler eslint-plugin-react-hooks@^6
-npx react-compiler-healthcheck
-```
+Mục này là lệnh chạy cụ thể để xác nhận compiler đã hoạt động trong project của bạn.
+
+> 📄 **Code ví dụ:** [`examples/05-chay-thu.sh`](examples/05-chay-thu.sh)
 
 ## Tài liệu tham khảo
 

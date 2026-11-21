@@ -17,9 +17,9 @@
 - Trong example, `Mouse` giữ `pos` (tọa độ chuột), gọi `children(pos)`; người dùng quyết hiển thị
   `<p>Mouse: {x}, {y}</p>` hay bất kỳ UI nào khác từ cùng một `pos`.
 
-```tsx
-<Mouse>{({ x, y }) => <p>Mouse: {x}, {y}</p>}</Mouse>
-```
+> **Tóm gọn 1 câu:** Render props là "cà vạt chưa thắt": component đưa số đo (dữ liệu), bạn tự thắt kiểu nào tùy ý — logic một nơi, UI muôn nơi.
+
+> 📄 **Code ví dụ:** [`examples/01-1-render-props-la-gi-khac-props-thuong.tsx`](examples/01-1-render-props-la-gi-khac-props-thuong.tsx)
 
 ---
 
@@ -32,6 +32,8 @@
   Function-as-children (`<Mouse>{(pos) => ...}</Mouse>`) đọc tự nhiên hơn vì vẫn đúng cú pháp lồng JSX,
   nên là dạng hiện đại được ưa dùng.
 - Nhận diện: thấy `{children(pos)}` trong thân component là biết children-dạng-hàm.
+
+> **Tóm gọn 1 câu:** Function-as-children chỉ là render props "đổi chỗ để hàm": cùng một ý tưởng, đọc tự nhiên hơn.
 
 ---
 
@@ -46,6 +48,8 @@
 - Chuẩn thường khai các con là static members (`Tabs.List`, `Tabs.Trigger`, `Tabs.Panel`) để IDE gợi ý
   và API "tự tài liệu". Example rút gọn dùng button thường + `Provider` để thấy rõ cơ chế.
 
+> **Tóm gọn 1 câu:** Compound = các mảnh ghép chung một "mạch điện ngầm" (Context): cha cấp điện, con tự cắm — không dây nào (prop) phải kéo ngang từng tầng.
+
 ---
 
 ## 4. Đặt Trigger ngoài Provider thì sao?
@@ -56,6 +60,8 @@
 - `useContext` trả về **default value** (`null` trong example) → đọc `.value` trên `null` là **crash lúc render**.
 - Vì vậy default nên là `null` (không phải object giả) để lỗi lộ ngay, và pattern chuẩn bọc hook guard
   `if (!ctx) throw new Error(...)` như DAY 7 — "chạy sai ngầm" tệ hơn "crash rõ ràng".
+
+> **Tóm gọn 1 câu:** Ra ngoài Provider là rơi về default `null` — guard throw ngay để lỗi hiện mặt, đừng để app chạy câm sai ngầm.
 
 ---
 
@@ -70,6 +76,8 @@
 - Render props có chi phí: function mới mỗi render (trừ khi Compiler memo) — chỉ dùng khi cần linh hoạt thật,
   đừng dùng cho mọi component.
 
+> **Tóm gọn 1 câu:** Hooks là "cơm nhà" cho 90% nhu cầu; render props/compound là "bếp riêng" cho UI kit cần đổi trăm kiểu mặt ăn từ một nồi logic.
+
 ---
 
 ## 6. Re-render lan thế nào trong compound + context?
@@ -81,6 +89,8 @@
   (cả Trigger lẫn Panel). Component không đọc context thì đứng yên.
 - Dữ liệu lớn cập nhật nhanh (gõ search, drag) mà nhét vào context → re-render cả cụm vô tội vạ.
   Lúc đó tách context (state riêng/context riêng) hoặc dùng store + selector (DAY 8).
+
+> **Tóm gọn 1 câu:** Value context đổi là cả "tòa nhà consumer" mất điện nghỉ render lại — dữ liệu gõ từng phím đừng để chung tòa.
 
 ---
 
@@ -96,6 +106,8 @@
 | `ng-container` | fragment `<>...</>` | Nhóm không thêm DOM |
 | Directive + template linh hoạt | compound + Context | Không macro template, dùng component + context |
 
+> **Cách đọc bảng này:** mỗi dòng là một khái niệm template Angular và bản dịch React; đọc để thấy React thay "macro template" bằng hai công cụ thuần component: hàm (render props) và Context (compound).
+
 ---
 
 ## 8. Usecase thực tế: viết `Select` headless bằng render props thế nào?
@@ -107,41 +119,9 @@
 - Cơ chế: component `Select` giữ `useState` cho `open`/`selected`, rồi gọi `children({ open, selected, toggle, select })`. Mỗi lần state đổi, `Select` re-render và gọi lại function với giá trị mới, nên UI luôn đồng bộ mà không cần prop drilling. Đây chính là chỗ hooks thuần thua: hooks trả state nhưng không "ôm" được a11y (`aria-expanded`, `role="listbox"`) và cấu trúc DOM dùng chung.
 - Quy tắc nhận diện: nếu bạn thấy mình copy 3 hàm `open/toggle/select` sang 2 component khác nhau và mỗi nơi vẽ UI khác, đó là tín hiệu chuyển sang render props hoặc compound.
 
-```tsx
-import { useState, type ReactNode } from "react";
+> **Tóm gọn 1 câu:** Render props "đáng tiền" khi một nồi logic phải phục vụ nhiều bàn UI khác nhau — copy hàm sang 2 nơi là tín hiệu chuyển pattern.
 
-// Component headless: giữ logic, nhả quyền vẽ UI cho người dùng
-function Select({ children }: {
-  children: (api: { open: boolean; selected: string; toggle: () => void; select: (v: string) => void }) => ReactNode;
-}) {
-  const [open, setOpen] = useState(false); // trạng thái đóng/mở dropdown
-  const [selected, setSelected] = useState("a"); // giá trị đang chọn
-  const toggle = () => setOpen((o) => !o); // đảo trạng thái mở
-  const select = (v: string) => { setSelected(v); setOpen(false); }; // chọn xong tự đóng
-  return <div>{children({ open, selected, toggle, select })}</div>;
-}
-
-// Nơi dùng 1: UI đơn giản kiểu nút + list
-function App() {
-  return (
-    <Select>
-      {({ open, selected, toggle, select }) => (
-        <div>
-          {/* Nút hiện giá trị đang chọn, kèm aria-expanded cho screen reader */}
-          <button aria-expanded={open} onClick={toggle}>Đang chọn: {selected}</button>
-          {open && (
-            <ul role="listbox">
-              {["a", "b", "c"].map((v) => (
-                <li key={v} role="option" aria-selected={v === selected} onClick={() => select(v)}>{v}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </Select>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-8-usecase-thuc-te-viet-select-headless-bang.tsx`](examples/02-8-usecase-thuc-te-viet-select-headless-bang.tsx)
 
 ---
 
@@ -161,6 +141,8 @@ function App() {
 | Compound + Context (cùng DAY 6) | `Tabs.Trigger` đọc `useContext` | Nhóm component phối hợp (Tabs, Accordion) |
 | HOC `withX` | `withAuth(Page)` ở export | Legacy, hạn chế dùng mới |
 
+> **Cách đọc bảng này:** đọc cột "Cú pháp nhận diện" trước — nó cho bạn cách phân biệt 4 pattern ngay khi mở file code; cột "Khi nào dùng" là lời khuyên chọn theo 2026.
+
 ---
 
 ## 10. Lỗi thực chiến: gọi hook bên trong callback render prop thì sao?
@@ -172,24 +154,9 @@ function App() {
 - Cơ chế đúng: callback render prop chỉ được **vẽ JSX thuần** từ dữ liệu nhận được. Mọi state/effect phải nằm ở component bao ngoài (nơi khai `<Mouse>{...}</Mouse>`) hoặc trong chính `Mouse`, rồi truyền kết quả xuống qua tham số function.
 - Sai thì sao: app crash lúc render, message khó hiểu nếu không biết quy tắc thứ tự hook. Fix: nâng hook ra component cha, callback chỉ đọc giá trị đã tính.
 
-```tsx
-// SAI: gọi hook trong callback render prop -> vi phạm Rules of Hooks
-// <Mouse>{(pos) => { const [x] = useState(0); return <p>{pos.x}</p>; }}</Mouse>
+> 📄 **Code ví dụ:** [`examples/03-10-loi-thuc-chien-goi-hook-ben-trong.tsx`](examples/03-10-loi-thuc-chien-goi-hook-ben-trong.tsx)
 
-// ĐÚNG: hook nằm ở component bao ngoài, callback chỉ vẽ JSX
-import { useState } from "react";
-
-function MouseView() {
-  const [label] = useState("Tọa độ:"); // hook ở top-level component -> hợp lệ
-  return (
-    <div>
-      {/* Callback chỉ nhận pos và vẽ, không gọi hook nào bên trong */}
-      {/* Giả sử Mouse đã định nghĩa như example.tsx */}
-      {/* <Mouse>{({ x, y }) => <p>{label} {x}, {y}</p>}</Mouse> */}
-    </div>
-  );
-}
-```
+> **Tóm gọn 1 câu:** Callback render prop là "nhân viên quầy" chỉ được bày hàng (vẽ JSX), không được mở kho (gọi hook) — kho chỉ component bao ngoài mới có chìa.
 
 ---
 
@@ -202,22 +169,9 @@ function MouseView() {
 - Vì sao cần `useId`: Tabs chuẩn cần nối `tab` với `panel` qua `id`/`aria-controls`. Nếu hardcode `id="panel"` mà trang có 2 cụm Tabs là trùng id, screen reader trỏ sai. `useId()` sinh id ổn định, SSR-safe (server và client sinh cùng giá trị, không lệch hydration), mỗi instance Tabs một id riêng.
 - Lỗi thực chiến: quên `useId` mà copy Tabs sang chỗ khác trong trang, test a11y báo duplicate id. Fix: mỗi cụm Tabs gọi `const base = useId()` rồi suy ra `tabId = base + "-tab-a"`.
 
-```tsx
-import { useId } from "react";
+> 📄 **Code ví dụ:** [`examples/04-11-so-sanh-sau-angular-ngtemplateoutletcontext-function-children.tsx`](examples/04-11-so-sanh-sau-angular-ngtemplateoutletcontext-function-children.tsx)
 
-function AccessibleTabsDemo({ value }: { value: string }) {
-  const base = useId(); // sinh id duy nhất cho cụm Tabs này, an toàn SSR
-  const tabId = `${base}-tab-a`; // id cho nút tab A
-  const panelId = `${base}-panel-a`; // id cho panel A, nối qua aria-controls
-  return (
-    <>
-      {/* aria-selected báo tab nào đang active, aria-controls trỏ tới panel */}
-      <button role="tab" id={tabId} aria-selected={value === "a"} aria-controls={panelId}>A</button>
-      <p role="tabpanel" id={panelId} aria-labelledby={tabId}>Nội dung A</p>
-    </>
-  );
-}
-```
+> **Tóm gọn 1 câu:** `ngTemplateOutletContext` ↔ function children là cặp song sinh về ý tưởng, còn `useId` là "số căn cước" cho mỗi cụm Tabs để aria không trùng nhau.
 
 ---
 

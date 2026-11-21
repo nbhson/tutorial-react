@@ -46,14 +46,7 @@ useSyncExternalStore   ← nền tảng (hook React: hợp đồng subscribe/get
 
 Hiểu nó = hiểu "mọi" store:
 
-```ts
-// Hợp đồng 2 hàm (trích store "tự viết" trong DAY 8):
-subscribe(fn) {
-  listeners.add(fn);            // React "gửi" callback, bạn "cất"
-  return () => listeners.delete(fn); // BẠN "TRẢ" "hàm" "hủy", React "gọi" "khi unmount"
-},
-getSnapshot() { return items; } // React "gọi" "để so" (cũ vs mới)
-```
+> 📄 **Code ví dụ:** [`examples/01-3-usesyncexternalstore-subscribe-getsnapshot-hop-ong-nen-tang.ts`](examples/01-3-usesyncexternalstore-subscribe-getsnapshot-hop-ong-nen-tang.ts)
 
 - React gọi `subscribe` 1 lần sau mount; gọi `getSnapshot` mỗi lần cần so; gọi hàm hủy khi unmount.
 - **Bẫy "ăn điểm"**: `getSnapshot` **phải trả cùng tham chiếu khi không đổi** (React so `Object.is` snapshot) — trả object mới mỗi lần (dù nội dung giống) → React "tưởng" "đổi" → **render loop** + cảnh báo "getSnapshot should be cached". Zustand/RTK đã lo việc này; tự viết thì phải giữ (chỉ gán mảng mới khi thật sự đổi).
@@ -68,16 +61,7 @@ getSnapshot() { return items; } // React "gọi" "để so" (cũ vs mới)
 | **Client state** (UI thuần) | sidebar đóng/mở, modal đang mở, filter "tạm", giỏ "nháp" | **Zustand** (hoặc RTK nếu app lớn) |
 | **Form đang nhập** | input chưa submit | **`useState` / react-hook-form** — KHÔNG đưa vào store |
 
-```tsx
-// ✅ MỖI LOẠI STATE MỘT NƠI — KHÔNG copy server data vào Zustand
-const sidebarOpen = useUiStore((s) => s.sidebarOpen);   // client (Zustand)
-const { data: user } = useQuery({
-  queryKey: ["users", id],
-  queryFn: () => fetch(`/api/users/${id}`).then((r) => r.json()), // server (Query)
-});
-
-// ❌ SAI: fetch rồi "thả" user vào Zustand = 2 nguồn sự thật, tự viết lại cache/retry/dedupe
-```
+> 📄 **Code ví dụ:** [`examples/02-4-client-state-vs-server-state-noi-hay.tsx`](examples/02-4-client-state-vs-server-state-noi-hay.tsx)
 
 > **Khi nào chọn RTK Query** (thay TanStack Query): đã dùng Redux toàn app + muốn fetch hợp nhất vào store (tags, DevTools, undo) — nhưng **mặc định 2026 cho server state là TanStack Query** (lib riêng, chạy song song với bất kỳ client state nào: Zustand/RTK).
 
@@ -93,6 +77,8 @@ const { data: user } = useQuery({
 | Muốn học "nền" / cần control tối đa | store "thủ công" + `useSyncExternalStore` | Hiểu hợp đồng = đọc lib nào cũng hiểu |
 | localStorage đơn giản | custom hook `useLocalStorage` | **KHÔNG** phải "store" (mỗi lần gọi = state riêng, không chia sẻ) |
 
+> **Cách đọc bảng này:** cột "Nhu cầu" là mô tả tình huống thật của bạn — đọc từ trên xuống, dừng ở dòng đầu tiên khớp rồi nhìn cột "Chọn"; hai dòng cuối là chỗ nhiều người đi sai nước rút nhất.
+
 ### 6. Đối chiếu Angular (điểm "ăn điểm" cho người từ Angular)
 
 | Angular | React 2026 | Ghi chú |
@@ -101,6 +87,8 @@ const { data: user } = useQuery({
 | NgRx (effect, reducer, store) | **Redux Toolkit** (+ RTK Query) | Team "quen NgRx" → RTK "gần" "tư duy" |
 | HttpClient + interceptor | **TanStack Query** | "Server state" "chia riêng" |
 | `OnPush` + change detection | Selector "mảnh" (Object.is) | "Cả hai" "tránh re-render thừa bằng so sánh" |
+
+> **Tóm gọn 1 câu:** Store ngoài là căn hộ sống ngoài tòa nhà React — ai cần gì thuê đúng căn đó (selector), hết hợp đồng component vẫn chưa phải dọn; Zustand là căn hộ vừa phải, RTK là chung cư có bảo vệ (DevTools/audit) cho app lớn.
 
 ## Bẫy khi phỏng vấn
 

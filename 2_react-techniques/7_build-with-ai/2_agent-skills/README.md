@@ -2,7 +2,11 @@
 
 > Nguồn: https://agentskills.io/ — tương đương `angular.dev/ai/agent-skills`
 
+Bạn cứ phải nhắc đi nhắc lại "nhớ dùng Zustand nhé, nhớ viết test nhé" mỗi lần hỏi AI? Mục này dạy bạn cách "đóng khung" quy trình đó thành skill — viết một lần, agent tự áp mãi.
+
 ## Mục tiêu
+
+Mục này trả lời 3 câu hỏi: skill là gì, viết skill React như thế nào, và kết nối nó với AGENTS.md ra sao. Đọc để có bản đồ trước khi vào chi tiết kỹ thuật.
 
 ### 1. Hiểu Agent Skill là gì và cách nó chuẩn hóa hành vi AI agent (Gemini CLI, Antigravity, Claude...)
 
@@ -18,14 +22,24 @@ Frontmatter `name` + `description` (description là bộ lọc trigger — mơ h
 
 `AGENTS.md` là quy ước repo agent luôn đọc (stack, pattern cấm, lệnh kiểm tra). Khai skill ở đó ("Skill có sẵn: react-developer... Xem .agents/skills/") để host biết tồn tại + khi nào mở. Một nguồn sự thật: AGENTS.md quy ước chung, skill đào sâu từng quy trình — không mâu thuẫn nhau.
 
+> **Tóm gọn 1 câu:** Agent Skill là "sổ tay quy trình" bạn viết một lần — đúng skill nạp đúng lúc, update một nơi là mọi phiên làm sau đổi theo.
+
 ## Tổng quan
+
+Mục này đặt skill vào bối cảnh: React chưa có bộ chính thức như Angular, skill khác gì doc thường, và khi nào thì đáng để tự xây. Đọc để biết bạn có cần nó không.
 
 - Angular có skills chính thức (`angular-developer`, `angular-new-app`); React không có bộ chính thức nên tự xây skill riêng cho repo (bám chuẩn repo này: function component + TS strict, Zustand + Query, Vitest hành vi, Tailwind v4).
 - Agent Skill = thư mục chứa `SKILL.md` + dữ liệu tham chiếu + script; agent nạp **đúng skill** theo mô tả task (tạo component → developer, nâng version → upgrade, review → review).
 - Khác doc thường: skill là quy trình có bước + gate kiểm tra (`tsc && eslint && vitest` xanh mới xong), không phải văn mô tả.
 - Áp dụng cho nhóm muốn AI sinh code đồng nhất, review được, tái dùng giữa repo. Không cần khi chỉ dùng AI hỏi lẻ không lặp lại.
 
+Giống như nhà hàng: doc thường là **thực đơn**, còn skill là **công thức kèm bước kiểm tra chất lượng** — đầu bếp mới đọc công thức thì món ra đúng vị, dù chủ cửa hàng không đứng cạnh.
+
+> **Tóm gọn 1 câu:** Skill là quy trình có bước + gate kiểm tra — nên tự xây khi nhóm cần AI làm việc đồng nhất, không cần khi chỉ hỏi lẻ.
+
 ## Khái niệm cốt lõi
+
+Mục này bóc 5 khái niệm: cấu trúc thư mục skill, cơ chế trigger, khác biệt với prompt, quan hệ với MCP, và tiêu chí một skill tốt. Đọc để hiểu "máy móc chạy thế nào" trước khi viết skill của mình.
 
 ### 1. Cấu trúc skill — `SKILL.md` + frontmatter + references/scripts
 
@@ -36,7 +50,7 @@ Frontmatter `name` + `description` (description là bộ lọc trigger — mơ h
   scripts/          # lệnh an toàn agent được chạy (check.sh, test.sh)
 ```
 
-Frontmatter quyết định trigger — viết theo use-case ("Dùng khi: tạo component/hook mới, review PR React..."), không chung chung ("hỗ trợ React").
+Frontmatter quyết định trigger — viết theo use-case ("Dùng khi: tạo component/hook mới, review PR React..."), không chung chung ("hỗ trợ React"). Hãy hình dung description như **tấm biển cửa hàng**: biển ghi "sửa xe máy" thì khách đổ xe máy, biển ghi "dịch vụ chung" thì ai đi ngang cũng chạy vào.
 
 ```md
 ---
@@ -50,15 +64,15 @@ description: Viết và review code React 19 + TS theo chuẩn repo này.
 
 ### 2. Cơ chế load — host quét, task khớp mô tả thì nạp
 
-Host quét `skills/` lúc khởi động (manifest hoặc AGENTS.md liệt kê). Mỗi turn, host so mô tả task với `description` các skill → nạp SKILL.md khớp vào context (kèm references khi cần). Skill không khớp không vào context — giữ context nhỏ, model chính xác.
+Host quét `skills/` lúc khởi động (manifest hoặc AGENTS.md liệt kê). Mỗi turn, host so mô tả task với `description` các skill → nạp SKILL.md khớp vào context (kèm references khi cần). Skill không khớp không vào context — giữ context nhỏ, model chính xác. Ví von: host như **thủ thư** — bạn nói cần sách về "sửa ống nước" là thủ thư chỉ đưa đúng ngăn đó, chứ không bê cả thư viện đặt lên bàn.
 
 ### 3. Skill ≠ prompt thường — module cắm được, update tách hội thoại
 
-Prompt một lần (xong là mất). Skill là module: update file là mọi lần sau đổi theo, không cần nhắc lại. Version hóa skill theo release để biết bản đang áp (skill cũ + rule mới = agent làm sai mà tưởng đúng).
+Prompt một lần (xong là mất). Skill là module: update file là mọi lần sau đổi theo, không cần nhắc lại. Version hóa skill theo release để biết bản đang áp (skill cũ + rule mới = agent làm sai mà tưởng đúng). Nếu prompt là **tin nhắn nhắc việc một lần**, thì skill là **quy chế dán lên tường phòng** — ai vào phòng cũng đọc được, sửa quy chế là mọi người cùng áp bản mới.
 
 ### 4. Skills + MCP — hướng dẫn + tay chân
 
-Skill = guidelines (làm gì, theo thứ tự nào, gate nào). MCP Server = tool (tra docs, chạy test, thao tác repo). Host có cả hai → agent vừa biết chuẩn vừa làm được thật (đọc SKILL.md rồi gọi MCP chạy `vitest` kiểm chứng).
+Skill = guidelines (làm gì, theo thứ tự nào, gate nào). MCP Server = tool (tra docs, chạy test, thao tác repo). Host có cả hai → agent vừa biết chuẩn vừa làm được thật (đọc SKILL.md rồi gọi MCP chạy `vitest` kiểm chứng). Ví von: skill là **cuốn cẩm nang nấu ăn**, MCP là **bộ bếp** — đọc cẩm nang mà không có bếp thì chỉ nấu trên giấy.
 
 ### 5. Skill tốt — mục tiêu rõ, checklist máy kiểm được, < 50 dòng
 
@@ -73,9 +87,17 @@ Skill = guidelines (làm gì, theo thứ tự nào, gate nào). MCP Server = too
 | Agent Skill | Module `SKILL.md`, nạp theo mô tả task | Quy trình lặp (tạo component, review, upgrade) |
 | MCP Server | Tool/action cho agent gọi | Tra docs, chạy test, thao tác repo |
 
+| MCP Server | Tool/action cho agent gọi | Tra docs, chạy test, thao tác repo |
+
+> **Cách đọc bảng này:** mỗi dòng là một cơ chế hỗ trợ AI agent, xếp từ nhẹ nhất (prompt) đến mạnh nhất (MCP). Đọc cột "Khi dùng" trước để chọn đúng — sau đó xem "Bản chất" để hiểu vì sao chọn vậy.
+
 Prompt cho việc lẻ; AGENTS.md cho quy ước luôn đúng; Skill cho quy trình lặp cần bước; MCP cho hành động cần tool. Nhầm (nhét quy trình dài vào AGENTS.md) là context phình mọi turn; nhét quy ước chung vào skill là skill nào cũng lặp lại.
 
+> **Tóm gọn 1 câu:** Bốn cơ chế bốn vai trò — prompt cho việc một lần, AGENTS.md cho quy ước, Skill cho quy trình lặp, MCP cho hành động thật.
+
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là lộ trình 5 bước để có skill chạy được, từ tạo thư mục đến test định kỳ. Làm tuần tự theo thứ tự, mỗi bước một việc.
 
 ### Bước 1. Tạo `.agents/skills/react-developer/SKILL.md`
 
@@ -97,7 +119,11 @@ Liệt kê skill + khi nào dùng + đường dẫn. Host đọc AGENTS.md đầ
 
 Yêu cầu "tạo component X theo chuẩn repo", kiểm tra output có theo bước + gate xanh không. Quy ước đổi mà SKILL.md cũ → cập nhật cùng PR đổi rule (skill là code, không phải doc bỏ quên).
 
+> **Tóm gọn 1 câu:** 5 bước: tạo thư mục → viết frontmatter trigger → thân theo bước + gate → khai trong AGENTS.md → thử thật và cập nhật cùng PR đổi rule.
+
 ## Ví dụ chi tiết
+
+Mục này là bộ mirror đầy đủ bạn có thể chép về: 2 SKILL.md + AGENTS.md, khớp `example.tsx` cùng thư mục. Đọc để thấy lý thuyết ở trên "trông thật" ra sao.
 
 Mirror đầy đủ (2 SKILL.md + AGENTS.md + checklist), khớp `example.tsx` cùng thư mục:
 
@@ -148,20 +174,13 @@ description: Nâng cấp an toàn React 18 → 19, Rspack/Vite, thư viện chí
   Xem .agents/skills/ để biết chi tiết.
 ```
 
-```ts
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-// Checklist mà skill "react-developer" bắt agent kiểm tra trên mỗi component:
-// Vì sao checklist ở code: agent đọc được + CI kiểm được — không nằm mỗi trong doc
-export const reactDeveloperChecklist = [
-  'Function component + props typed (không class, không defaultProps)',
-  'Không mutate props/state (Compiler-safe)',
-  'Fetch qua TanStack Query, client state qua Zustand',
-  'Kèm test Vitest theo hành vi user',
-  'Chạy tsc --noEmit + eslint trước khi xong',
-] as const;
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.ts`](examples/01-vi-du-chi-tiet.ts)
+
+> **Tóm gọn 1 câu:** Hai skill tách bạch (code mới vs nâng version) + AGENTS.md làm mục lục — chép về là chạy được ngay.
 
 ## Giải thích từng phần
+
+Mục này trả lời "vì sao thiết kế vậy" cho từng quyết định trong ví dụ trên. Đọc khi muốn điều chỉnh skill theo repo của mình mà không phá vỡ nguyên tắc.
 
 ### `frontmatter.description` — bộ lọc trigger
 
@@ -177,9 +196,13 @@ AGENTS.md là entry host đọc đầu; liệt kê skill ở đó là quảng c�
 
 ### 2 skill tách bạch — context nhỏ, chính xác
 
-Một skill khổng lồ (code + upgrade + review) là context phình + trigger lẫn. Tách theo quy trình (mỗi skill một mục đích, > 3 nhóm việc là tách) — agent nạp đúng module nhỏ.
+Một skill khổng lồ (code + upgrade + review) là context phình + trigger lẫn. Tách theo quy trình (mỗi skill một mục đích, > 3 nhóm việc là tách) — agent nạp đúng module nhỏ. Giống tủ hồ sơ: ngăn "hợp đồng", ngăn "hóa đơn", ngăn "nhân sự" — mở đúng ngăn cần chứ không kéo cả cái tủ ra bàn.
+
+> **Tóm gọn 1 câu:** Thiết kế chuẩn: description sắc như bộ lọc, gate máy kiểm được, AGENTS.md làm cửa vào, và mỗi skill một mục đích.
 
 ## Lỗi thường gặp / Chống chỉ định
+
+Mục này liệt kê 5 cách "làm hỏng skill" thường gặp nhất. Đọc trước khi viết skill để tránh đi lại đường mòn của người đi trước.
 
 ### 1. SKILL.md quá dài → agent rối, bỏ phần quan trọng
 
@@ -201,11 +224,17 @@ Giới hạn lệnh an toàn (`tsc`/`eslint`/`vitest`, script trong `scripts/`).
 
 Quy ước đổi mà SKILL.md cũ là agent làm sai có hệ thống. Test trên task mẫu trong CI (tạo PR demo) + version hóa skill theo release.
 
+> **Tóm gọn 1 câu:** Năm cái bẫy: skill dài, description mơ hồ, mâu thuẫn AGENTS.md, lệnh shell tự do, và skill cũ quên cập nhật — mỗi cái đều làm agent "sai có hệ thống" chứ không phải sai một lần.
+
 ## Best practices / Mẹo
+
+Mục này gom các kinh nghiệm vận hành skill về một chỗ. Đọc sau khi đã có skill đầu tiên chạy ổn, để nâng chất lượng dần.
 
 ### Machine-checkable + references tách + version + CI demo + MCP + tên động từ + ví dụ + một mục đích + ghi khi không dùng
 
 "Code sạch" → "`eslint --max-warnings=0` xanh". Docs dài ra references. Version theo release. CI tạo PR demo để biết skill còn đúng. MCP để skill gọi build/test thật. Tên `react-review`/`react-upgrade` để chọn nhanh. Ví dụ input→output ngắn. > 3 nhóm việc là tách. Ghi "KHÔNG dùng khi..." để không áp nhầm.
+
+> **Tóm gọn 1 câu:** Skill tốt giống checklist lái máy bay: ngắn, mỗi mục đều kiểm chứng bằng máy được, mỗi việc một mục đích — không phải bài luận dài về "cách bay đẹp".
 
 ## Bài tập nhỏ
 

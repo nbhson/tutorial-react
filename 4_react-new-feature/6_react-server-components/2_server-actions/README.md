@@ -4,7 +4,11 @@
 
 **Server Actions** (Server Functions) là tính năng **stable trong React 19 (12/2024)**, cho phép **gọi hàm server trực tiếp** từ form hoặc Client Component như gọi hàm thường — không cần tự viết REST endpoint. Hàm được đánh dấu `"use server"`, React sẽ serialize lời gọi, chạy trên server, rồi trả kết quả về để cập nhật UI.
 
+Giống như gọi điện đặt món ăn trực tiếp đến nhà bếp thay vì phải viết thư xin lỗi đầu bếp qua lễ tân: bạn gọi hàm — server chạy — kết quả quay về. Còn "thủ tục hải quan" (serialize lời gọi) thì React tự lo.
+
 Server Actions tích hợp sẵn với form (`<form action={...}>`), các hook `useActionState`, `useFormStatus`, `useOptimistic`, cùng `revalidatePath` / `revalidateTag` và `redirect` của framework.
+
+> **Tóm gọn 1 câu:** Server Action = gọi hàm server từ client như gọi hàm thường — bỏ REST endpoint thủ công, React lo serialize + cập nhật UI.
 
 ## Mục tiêu
 
@@ -13,6 +17,8 @@ Server Actions tích hợp sẵn với form (`<form action={...}>`), các hook `
 - Nắm nguyên tắc **bảo mật**: auth + validate **trên server**, không tin client.
 
 ## Vấn đề giải quyết
+
+Mục này kể chuyện "mỗi lần làm feature mutation là một cuộc phiêu lưu" trước đây — đọc để thấy được mức độ boilerplate mà Server Actions cắt bỏ.
 
 Trước đây, mọi mutation (tạo todo, đặt hàng, gửi mail) đều cần:
 
@@ -24,67 +30,34 @@ Hệ quả: code phân tán, dễ bỏ sót auth, UI không tự refresh sau mut
 
 Server Actions colocate mutation **ngay cạnh component**: framework lo serialize args, chạy server, và refresh UI qua revalidation. Bạn tập trung vào logic nghiệp vụ.
 
+> **Tóm gọn 1 câu:** Trước đây mutation cần 3 lớp boilerplate (API route + fetch + quản lý state) — Server Actions gộp cả ba thành một hàm đặt cạnh component.
+
 ## Khái niệm cốt lõi
+
+Mục này giới thiệu "dàn diễn viên chính": directive `'use server'`, form action, và 3 hook đi kèm — hiểu từng vai trước khi xem code.
 
 - **`'use server'`**: đánh dấu một hàm (hoặc cả file) là Server Action. Hàm này chạy trên server, không bao giờ gửi code xuống client — chỉ tạo một tham chiếu RPC.
 - **Form action**: `<form action={serverAction}>` — khi submit, React gọi action với `FormData`, hỗ trợ **progressive enhancement** (hoạt động cả khi JS chưa tải xong).
 - **`useActionState`**: hook client giữ `state`, trả về `[state, formAction, isPending]` để hiển thị kết quả + trạng thái chờ.
 - **`useFormStatus`**: đọc trạng thái pending của form cha (dùng trong component con của form).
 - **`useOptimistic`**: cập nhật UI lạc quan trước khi server xác nhận.
-- **Bảo mật**: action là **endpoint công khai** — bất kỳ ai cũng có thể gọi. Vì thế phải **xác thực (auth) và kiểm tra dữ liệu (validate) trên server**, không bao giờ tin dữ liệu client gửi lên. Secret đọc từ biến môi trường server.
+- **Bảo mật**: action là **endpoint công khai** — bất kỳ ai cũng có thể gọi. Ví von: action giống như quầy giao dịch mở cửa cho mọi người — ai cũng chạm được, nên "nhân viên quầy" (server) phải tự kiểm tra giấy tờ (auth) và đối chiếu hồ sơ (validate), tuyệt đối không nghe lời khách nói "tôi đã được duyệt rồi". Vì thế phải **xác thực (auth) và kiểm tra dữ liệu (validate) trên server**, không bao giờ tin dữ liệu client gửi lên. Secret đọc từ biến môi trường server.
+
+> **Tóm gọn 1 câu:** `'use server'` biến hàm thành endpoint công khai — vì thế auth + validate phải nằm trong chính action, client chỉ là "khách mời".
 
 ## Cú pháp / API
 
-```tsx
-// features/todos/actions.ts  — file server
-'use server';
+Mục này cho thấy "mặt chữ" của Server Action: cách khai báo và chữ ký hàm khi dùng với `useActionState`.
 
-import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
-type State = { ok: boolean; message: string };
-
-export async function createTodo(
-  prevState: State,
-  formData: FormData,
-): Promise<State> {
-  const user = await auth(); // ✅ kiểm tra auth TRÊN SERVER
-  if (!user) return { ok: false, message: 'Chưa đăng nhập' };
-
-  const title = String(formData.get('title') ?? '').trim();
-  if (!title) return { ok: false, message: 'Thiếu tiêu đề' }; // ✅ validate server
-
-  await db.todo.create({ title, userId: user.id });
-  revalidatePath('/todos'); // refresh dữ liệu trang /todos
-  return { ok: true, message: `Đã tạo: ${title}` };
-  // redirect('/todos'); // (tùy chọn) điều hướng
-}
-```
-
-```tsx
-// Client Component
-'use client';
-import { useActionState } from 'react';
-import { createTodo } from './actions';
-
-export function TodoForm() {
-  const [state, formAction, isPending] = useActionState(createTodo, {
-    ok: false,
-    message: '',
-  });
-  return (
-    <form action={formAction}>
-      <input name="title" disabled={isPending} />
-      <button disabled={isPending}>{isPending ? 'Đang tạo...' : 'Tạo'}</button>
-      {state.message && <p>{state.message}</p>}
-    </form>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-api.tsx`](examples/02-cu-phap-api.tsx)
 
 Chữ ký mấu chốt: action dùng với `useActionState` nhận `(prevState, formData)` và trả về state mới.
 
 ## Luồng hoạt động (Flow)
+
+Mục này lần theo hành trình một lời gọi action từ lúc bấm submit đến khi UI tự refresh — 8 bước, đọc tuần tự sẽ hiểu rõ "ai làm gì, lúc nào".
 
 1. User submit form (hoặc client gọi `await createTodo(...)`).
 2. React **serialize** args (FormData/arguments) thành một lời gọi RPC.
@@ -95,59 +68,17 @@ Chữ ký mấu chốt: action dùng với `useActionState` nhận `(prevState, 
 7. `redirect` (nếu gọi) điều hướng sau khi hoàn tất.
 8. Nếu JS chưa tải, form vẫn submit được (progressive enhancement).
 
+Hãy ví von như gửi đơn hàng qua đường bưu điện tự động: khách viết đơn (submit), bưu cục niêm phong (serialize), cơ sở sản xuất xử lý (auth → validate → DB), dán nhãn "cần làm mới kệ hàng" (revalidate), và gửi biên nhận về (state → UI).
+
+> **Tóm gọn 1 câu:** Submit → serialize thành RPC → server chạy auth/validate/DB → revalidate → trả kết quả — và form vẫn chạy được kể cả khi JS chưa kịp tải.
+
 ## Ví dụ chi tiết
+
+Mục này đưa vào một form tạo todo hoàn chỉnh — mọi hook nêu ở trên cùng xuất hiện trong một khối code duy nhất.
 
 Xem [`example.tsx`](example.tsx). Diễn giải đầy đủ:
 
-```tsx
-// actions.ts (server):
-// 'use server';
-// import { revalidatePath } from 'next/cache';
-// export async function createTodo(prev: State, formData: FormData): Promise<State> {
-//   const title = String(formData.get('title') ?? '').trim();
-//   if (!title) return { ok: false, message: 'Thiếu tiêu đề' };
-//   await db.todo.create({ title });   // auth + validate ở đây (trên server)
-//   revalidatePath('/todos');
-//   return { ok: true, message: `Đã tạo: ${title}` };
-// }
-
-'use client';
-import { useActionState } from 'react';
-
-type State = { ok: boolean; message: string };
-
-// Mô phỏng Server Action chạy phía server (demo chạy được ở client).
-async function createTodo(prev: State, formData: FormData): Promise<State> {
-  const title = String(formData.get('title') ?? '').trim();
-  await new Promise((r) => setTimeout(r, 600)); // giả lập độ trễ server
-  if (!title) return { ok: false, message: 'Thiếu tiêu đề.' };
-  // Thực tế: ghi DB + revalidatePath('/todos') ở phía server.
-  return { ok: true, message: `Đã tạo todo: ${title}` };
-}
-
-export default function TodoActionForm() {
-  // useActionState: [state, formAction, isPending]
-  const [state, formAction, isPending] = useActionState(createTodo, {
-    ok: false,
-    message: '',
-  });
-
-  return (
-    <div>
-      <h2>Server Actions + useActionState (RSC)</h2>
-      {/* form.action nhận thẳng action — React lo submit + pending */}
-      <form action={formAction}>
-        <input name="title" placeholder="Việc cần làm..." disabled={isPending} />
-        <button disabled={isPending}>{isPending ? 'Đang tạo...' : 'Tạo'}</button>
-      </form>
-      {/* Hiển thị kết quả trả về từ action */}
-      {state.message && (
-        <p style={{ color: state.ok ? 'green' : 'red' }}>{state.message}</p>
-      )}
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -160,6 +91,8 @@ export default function TodoActionForm() {
 
 ## So sánh với cách làm cũ
 
+Mục này bày ra 5 "nỗi khổ" của thời REST thủ công và cách Server Actions hóa giải từng cái.
+
 | Cách cũ | Cách mới | Lợi ích |
 |---------|----------|---------|
 | Tạo `/api/...` route + `fetch` POST | Gọi Server Action trực tiếp | Bớt boilerplate, colocate với UI |
@@ -168,7 +101,11 @@ export default function TodoActionForm() {
 | Form cần JS mới hoạt động | Progressive enhancement | Hoạt động cả khi JS chưa tải |
 | Validate rải rác ở client | Validate tập trung trên server | Không tin client, chống bypass |
 
+> **Cách đọc bảng này:** đọc ngang từng hàng — cột "Cách cũ" là thứ bạn phải tự làm tay, cột "Cách mới" là thứ framework giờ lo giúp, cột "Lợi ích" là phần bạn được hưởng.
+
 ## Lỗi thường gặp
+
+Mục này là 5 "bẫy bảo mật và kỹ thuật" hay gặp nhất với Server Actions — đặc biệt đáng đọc vì lỗi ở đây liên quan đến tiền và dữ liệu thật.
 
 1. **Quên `'use server'`** ⇒ hàm chạy ở client, không có quyền truy cập DB/secret. *Fix:* thêm directive ở đầu file/hàm.
 2. **Tin dữ liệu client, validate chỉ ở client** ⇒ lỗ hổng. *Fix:* luôn validate + auth lại **trong** action.
@@ -177,6 +114,8 @@ export default function TodoActionForm() {
 5. **Args/return không serializable** (function, class instance), hoặc **import client-only code vào file `'use server'`** ⇒ lỗi. *Fix:* chỉ truyền dữ liệu JSON-like và tách action sang file server riêng, không import module dính browser API.
 
 ## Khi nào dùng / Khi nào không
+
+Mục này phân định "mutation dùng action, đọc dữ liệu không dùng" — quy tắc vàng để khỏi lạm dụng.
 
 **Dùng cho:**
 - **Mọi mutation thuộc server**: ghi DB, thanh toán, gửi mail, tạo/xóa record.
@@ -191,6 +130,8 @@ export default function TodoActionForm() {
 ## Bài tập nhỏ
 
 Viết Server Action `deleteTodo(id: string)` có `'use server'`, kiểm tra quyền sở hữu trên server, xóa record rồi `revalidatePath('/todos')`. Gọi action từ một Client Component bằng `useTransition` để hiển thị pending, và dùng `useOptimistic` để ẩn todo khỏi danh sách ngay khi bấm trước khi server phản hồi.
+
+> **Tóm gọn 1 câu:** Server Action là "đường dây nóng" tới server cho mutation — nhưng nhớ: quầy ai cũng gọi được, nên auth + validate phải làm ngay trong action.
 
 ## Reference
 

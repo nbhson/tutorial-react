@@ -15,12 +15,7 @@
 
 ### 1. `useRef` trả về gì, hành vi chính xác
 
-```tsx
-const inputRef = useRef<HTMLInputElement>(null); // tạo MỘT lần lúc mount
-// render 1: inputRef.current = null (sau khi mount = DOM node thật)
-// render 2: inputRef.current VẪN là object cũ — không tạo lại
-inputRef.current?.focus(); // imperative, không qua state
-```
+> 📄 **Code ví dụ:** [`examples/01-1-useref-tra-ve-gi-hanh-vi-chinh.tsx`](examples/01-1-useref-tra-ve-gi-hanh-vi-chinh.tsx)
 
 3 tính chất "ăn điểm" nếu nói đúng:
 
@@ -40,6 +35,8 @@ inputRef.current?.focus(); // imperative, không qua state
 | Initial value | Truyền trực tiếp (hỗ trợ lazy `useState(() => expensive())`) | Truyền trực tiếp (chạy **mỗi render** nếu là object — nên tránh truyền object tạo mới, xem §4 bẫy) |
 | Angular (đối chiếu) | `@State` (Signal) / `subject` + template | `#box` + `@ViewChild("box")` + `ElementRef` |
 
+> **Cách đọc bảng này:** mỗi dòng là một tiêu chí, đọc ngang để so `useState` (cột giữa) với `useRef` (cột phải) — dòng "Đổi giá trị có re-render?" là dòng phân biệt nhất, nhớ được dòng này là trả lời được nửa câu hỏi.
+
 ### 3. Vì sao React "không tự re-render khi ref đổi" (nói được "tại sao")
 
 Re-render chỉ chạy khi React **biết** có gì đổi — và React "biết" qua **hai kênh**:
@@ -49,49 +46,19 @@ Re-render chỉ chạy khi React **biết** có gì đổi — và React "biết
 
 `ref.current = x` **không nằm trong 2 kênh đó** — đó là **viết thẳng vào object của bạn**, React không can thiệp. Đây chính là điểm **mạnh** (không tốn render) và **nguy hiểm** (UI có thể "trễ" so với ref):
 
-```tsx
-// ❌ SAI — đổi ref nhưng UI đứng im (UI không "biết")
-const nameRef = useRef("Son");
-<button onClick={() => { nameRef.current = "Linh"; }}>Đổi</button>
-<p>{nameRef.current}</p> // vẫn "Son" (ref đổi KHÔNG re-render)
-```
+> 📄 **Code ví dụ:** [`examples/02-3-vi-sao-react-khong-tu-re-render.tsx`](examples/02-3-vi-sao-react-khong-tu-re-render.tsx)
 
 > **Quy tắc thực chiến**: **value cần "hiển thị" → state; cần "im lặng" (không trigger render) → ref**. Nếu bạn muốn "đổi cả ref lẫn UI" → **đồng thời** gọi `setState` + cập nhật `ref.current` (hoặc chỉ dùng state, ref là "shadow" của state).
 
 ### 4. 3 "trường hợp chuẩn" dùng `useRef` (điểm "ăn điểm" nhất)
 
-```tsx
-// (1) THAM CHIẾU DOM (focus, scroll, đo kích thước) — ĐỌC trong effect/event, KHÔNG đọc trong render
-const inputRef = useRef<HTMLInputElement>(null);
-useEffect(() => { inputRef.current?.focus(); }, []); // ✅ an toàn (sau mount)
-// ❌ const h = inputRef.current?.clientHeight; // trong render → null / giá trị cũ
-
-// (2) GIÁ TRỊ GIỮA CÁC LẦN RENDER (timer id, "lần chạy" để tránh trùng)
-const idRef = useRef<number | undefined>(undefined); // interval id
-// Dùng useState giữ id → mỗi lần set id (re-render) tạo timer MỚI → loop (đáng "ăn điểm")
-// Dùng useRef → "im lặng", không re-render, không loop
-
-// (3) CHUYỂN DỮ LIỆU SỰ KIỆN (giá trị "cũ" cần so với "mới")
-function usePrevious<T>(value: T) {
-  const ref = useRef<T>(); // giữ giá trị render TRƯỚC
-  useEffect(() => { ref.current = value; }, [value]); // cập nhật sau render (đúng "lúc này")
-  return ref.current; // trả giá trị "trước" (rất hay dùng cho animation "giá trị mới - giá trị cũ")
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-4-3-truong-hop-chuan-dung-useref-iem.tsx`](examples/03-4-3-truong-hop-chuan-dung-useref-iem.tsx)
 
 ### 5. Một bẫy khác hay gặp (nếu bị hỏi tiếp)
 
 **"Initial value của `useRef` có chạy mỗi render không?"**
 
-```tsx
-// useRef(x) — giá trị x (đối số) được đánh giá MỖI LẦN RENDER (cùng như mọi đối số hook),
-// nhưng React CHỈ GIỮ object ref TỪ LẦN ĐẦU — các lần sau đối số bị bỏ qua.
-const ref = useRef(createExpensive()); // ❌ tạo object LẶN mỗi render (lãng phí,
-                                        //    và StrictMode gọi 2 lần → 2 object, không "deterministic")
-// ✅ ĐÚNG — chỉ "tạo" LẦN ĐẦU:
-const ref = useRef<Expensive | null>(null);
-if (ref.current === null) ref.current = createExpensive(); // hoặc khởi tạo trong useEffect
-```
+> 📄 **Code ví dụ:** [`examples/04-5-mot-bay-khac-hay-gap-neu-bi.tsx`](examples/04-5-mot-bay-khac-hay-gap-neu-bi.tsx)
 
 So với `useState`: **`useState(() => x)` là lazy — chỉ chạy LẦN ĐẦU** (React nhớ "đã có state"). `useRef` **không lazy**: đối số "chạy" mỗi render nhưng "thừa" (bị bỏ qua). Kết quả: **khởi tạo ref "đắt" phải làm thủ công** (`if` guard hoặc `useEffect`), không "tin" là "chạy 1 lần".
 
@@ -104,6 +71,10 @@ So với `useState`: **`useState(() => x)` là lazy — chỉ chạy LẦN ĐẦ
 | Đọc DOM trong `ngAfterViewInit` (sau mount) | Đọc trong `useEffect`/`useLayoutEffect` | Cùng "sau commit" |
 | `@ViewChildren` (list) | callback ref giữ `Set`/`Map` | React "không có" query list "sẵn" — "tự gom" |
 | Signal (mutable + reactivity) | **Không có tương đương "tinh tế"** — `useRef` là "mutable, không reactive" (chưa có "Signal" trong React core) | "Điểm khác cơ bản" (Signal là "mutable + notify", ref là "mutable + im lặng") |
+
+> **Cách đọc bảng này:** cột Angular là thứ bạn đã quen, cột React là thứ cần chuyển sang — đọc ngang từng dòng để tìm "tương đương"; dòng cuối (Signal) là dòng khác căn bản nhất, nên dành thời gian nhất cho nó.
+
+> **Tóm gọn 1 câu:** `useRef` là chiếc hộp im lặng đi theo component qua mọi lần vẽ, `useState` là thứ lên hình — cần hiện lên màn hình thì để state, cần im lặng thì nhét vào hộp.
 
 ## Bẫy khi phỏng vấn
 

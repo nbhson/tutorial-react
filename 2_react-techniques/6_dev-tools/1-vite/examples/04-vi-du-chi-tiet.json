@@ -1,0 +1,9 @@
+// package.json — scripts quen thuộc (mirror từ README gốc)
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  }
+}
+// Vì sao tsc trước build: bắt lỗi type trước khi bundling — bundle lỗi type là nợ chạy được mà sai

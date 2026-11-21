@@ -18,6 +18,10 @@
   - `?:` → đủ 2 nhánh đều có nội dung.
   - early `return` → chặn cả component (ví dụ chưa login).
   - `.map()` → mảng dữ liệu thành mảng JSX; `.filter()` trước `.map()` khi cần lọc.
+- Ví von: JSX là một "món đồ" bình thường trong JS — rẽ nhánh bằng đúng cú pháp JS, không cần học
+  "ngôn ngữ chỉ dẫn" riêng như template của Angular.
+
+> **Tóm gọn 1 câu:** React không có directive vì JSX chính là JS — `&&` cho có/không, ternary cho 2 nhánh, early return cho chặn cả component, `.map()` cho danh sách.
 
 ---
 
@@ -32,11 +36,12 @@
   (khác `null`/`false`/`undefined` bị bỏ qua) nên React in ra "0" lạc lõng.
 - Fix: ép về boolean trước khi `&&` — `{count > 0 && <X/>}`. Cùng lỗi với chuỗi rỗng `{name && <X/>}`.
 
-```tsx
-{unread > 0 && <span>Bạn có {unread} tin nhắn</span>} // ✅ boolean
-// {count && <X/>}  // ❌ count = 0 → in "0"
-{count > 0 && <X/>} // ✅
-```
+> 📄 **Code ví dụ:** [`examples/01-2-hoat-ong-the-nao-vi-sao-count.tsx`](examples/01-2-hoat-ong-the-nao-vi-sao-count.tsx)
+
+- Ví von: `&&` như cánh cửa có khóa — vế trái phải là "đúng/sai" mới mở đúng; để con số làm khóa là
+  React in luôn con số lên cánh cửa.
+
+> **Tóm gọn 1 câu:** `{count && <X/>}` in "0" vì `0` là giá trị render được — ép vế trái về boolean (`count > 0`) là hết.
 
 ---
 
@@ -77,9 +82,7 @@
 - Không có `key` → React cảnh báo *"Each child in a list should have a unique key prop"* và phải dùng
   vị trí ngầm → list xóa/sắp xếp dễ tái sử dụng sai chỗ.
 
-```tsx
-pending.map((t) => <li key={t.id}>{t.text}</li>)
-```
+> 📄 **Code ví dụ:** [`examples/02-5-map-key-la-gi-vi-sao-quen.tsx`](examples/02-5-map-key-la-gi-vi-sao-quen.tsx)
 
 ---
 
@@ -94,6 +97,10 @@ pending.map((t) => <li key={t.id}>{t.text}</li>)
   Key trùng nhau trong cùng list cũng sai diff + warning.
 - Mẹo thêm: `key` còn dùng để **reset component có state** khi đối tượng đổi:
   `<Profile key={userId} userId={userId} />` — đổi user là remount sạch, không kẹt state cũ.
+- Ví von: key là thẻ căn cước của item — React đối chiếu thẻ chứ không đối chiếu "ngồi ghế số mấy";
+  index là số ghế, người đổi chỗ mà vẫn đúng thẻ thì vẫn là người cũ.
+
+> **Tóm gọn 1 câu:** `key={index}` chỉ an toàn cho list tĩnh — list có thêm/xóa/đảo là state nhảy dòng, hãy dùng id ổn định từ dữ liệu.
 
 ---
 
@@ -144,6 +151,8 @@ pending.map((t) => <li key={t.id}>{t.text}</li>)
 | `@empty` | ternary nhánh `length === 0` | Không cú pháp riêng |
 | `@switch` | `switch` trước return / object map | Object map gọn hơn |
 | `ngFor` lồng `ngIf` | `filter(...).map(...)` | Xử lý data trước khi render |
+
+> **Cách đọc bảng này:** mỗi dòng là một directive Angular đổi thành cấu trúc JS thuần trong JSX; cột Ghi chú nêu khác biệt tinh tế — dùng như từ điển tra ngược khi quen viết template.
 
 ---
 

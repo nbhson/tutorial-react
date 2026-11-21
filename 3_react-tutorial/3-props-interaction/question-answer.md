@@ -16,13 +16,9 @@
   **cha đổi state rồi truyền giá trị mới xuống**. Nhờ vậy chỉ có một nguồn sự thật (single source of truth).
 - Props còn là **snapshot mỗi render**: mỗi lần cha re-render là một bộ props mới (bất biến), không phải nơi lưu state.
 
-```tsx
-// ❌ SAI: gán lại props trong con
-function Greeting({ name }: { name: string }) {
-  name = "Khác"; // vi phạm một chiều
-  return <p>{name}</p>;
-}
-```
+> **Tóm gọn 1 câu:** Props là "hàng gửi kèm" một chiều từ cha: con chỉ nhận và đọc, muốn đổi thì gửi yêu cầu ngược qua callback.
+
+> 📄 **Code ví dụ:** [`examples/01-1-props-la-gi-vi-sao-goi-la.tsx`](examples/01-1-props-la-gi-vi-sao-goi-la.tsx)
 
 ---
 
@@ -38,6 +34,8 @@ function Greeting({ name }: { name: string }) {
 - Type `?` (optional) đi kèm default: `greeting?: string` + `= "Xin chào"`. Prop **bắt buộc** (như `name: string`)
   thì TS báo đỏ ngay lúc compile nếu cha quên truyền — tương đương `@Input({ required: true })`.
 
+> **Tóm gọn 1 câu:** Truyền giá trị động thì bọc `{}`, tĩnh thì ghi thẳng, mặc định thì để ngay lúc destructure — `defaultProps` đã bị cho về vườn.
+
 ---
 
 ## 3. Props boolean điều khiển được gì? Có bẫy falsy nào không?
@@ -52,6 +50,8 @@ function Greeting({ name }: { name: string }) {
 - Không dính bẫy falsy như `&&` ở DAY 2, vì ở đây boolean là **giá trị điều khiển rõ ràng**, không phải
   "in hay không in" một expression.
 
+> **Tóm gọn 1 câu:** Boolean prop là công tắc sạch: gắn `{}` khi truyền biến, ghi thẳng khi literal — không dính bẫy `&&`.
+
 ---
 
 ## 4. Props event (callback) là gì? Khác `@Output` + `EventEmitter` ở đâu?
@@ -64,6 +64,8 @@ function Greeting({ name }: { name: string }) {
 - Tương đương Angular: `@Output() add = new EventEmitter()` + `(add)="fn($event)"` gộp thành một prop duy nhất.
 - Quy ước đặt tên: prop callback bắt đầu bằng **`on*`** (`onAdd`, `onToggle`, `onValueChange`) để nhìn là biết
   "sự kiện từ con", giống tên `@Output` rõ ràng.
+
+> **Tóm gọn 1 câu:** Callback chỉ là một prop có kiểu hàm: con gọi, cha xử lý — không cần thằng `EventEmitter` nào đứng giữa.
 
 ---
 
@@ -78,6 +80,8 @@ function Greeting({ name }: { name: string }) {
   `(e: React.MouseEvent) => void` (cha phải moi `e` ra, dính chặt vào DOM).
 - Ngoại lệ: khi cha thật sự cần event (ví dụ `preventDefault` ở form) thì mới truyền event.
 
+> **Tóm gọn 1 câu:** Con nên gửi "bản dịch" (dữ liệu), không gửi "bản ghi âm cuộc gọi" (event thô) — cha chỉ cần biết ý, không cần nghe lại từng tiếng ồn.
+
 ---
 
 ## 6. Vì sao `onClick={() => onAdd(1)}` mà không phải `onClick={onAdd(1)}`?
@@ -90,6 +94,8 @@ function Greeting({ name }: { name: string }) {
 - Cần tham số thì **bọc arrow**: `() => onAdd(1)`. Không cần tham số thì truyền thẳng: `onClick={onAdd}`,
   `onToggle={setIsOn}` (như `Switch` nhận `(next: boolean) => void` khớp luôn setter của `useState`).
 - Với React Compiler 1.0, arrow trong JSX được memo tự động — không cần `useCallback` "để phòng".
+
+> **Tóm gọn 1 câu:** `onClick` cần một tờ "đơn đặt hẹn" (tham chiếu hàm) — `onAdd(1)` là giải quyết xong đơn ngay tại quầy, React tới nơi thì chẳng còn gì để làm.
 
 ---
 
@@ -105,6 +111,8 @@ function Greeting({ name }: { name: string }) {
 - Đưa lên quá cao (root cho mọi thứ) thì re-render thừa cả cây; đưa quá thấp thì anh em không chia sẻ được.
   Quy tắc: **cha chung gần nhất**, đo lại khi cây lớn (lúc đó cân nhắc Context DAY 7 / store DAY 8).
 
+> **Tóm gọn 1 câu:** State cần bởi nhiều con thì đưa lên cha chung gần nhất — như ăn tiền chung để ở két nhà, không ai xách cả két theo người.
+
 ---
 
 ## 8. Functional update `setCount(c => c + step)` để làm gì?
@@ -117,6 +125,8 @@ function Greeting({ name }: { name: string }) {
 - `setCount(c => c + step)` là **functional update**: React đảm bảo `c` luôn là giá trị **mới nhất** tại lúc
   áp update, an toàn khi dồn/batch. Quy tắc: update nào **dựa trên giá trị trước** (đếm, nối chuỗi, toggle)
   thì luôn dùng dạng hàm.
+
+> **Tóm gọn 1 câu:** Update dựa trên giá trị cũ thì luôn viết dạng hàm `c => c + step` — nhờ React "chấm điểm trên bài mới nhất" thay vì bài nộp cũ.
 
 ---
 
@@ -146,6 +156,8 @@ function Greeting({ name }: { name: string }) {
 | `@Input({ required: true })` | `name: string` (không `?`) | TS bắt lúc compile |
 | `[(value)]` two-way | `value={x} onValueChange={setX}` | Tự đặt quy ước tên, tách 2 chiều rõ ràng |
 | `ngOnChanges` | `useEffect(..., [prop])` hoặc `key` reset | Thường chỉ cần render lại với prop mới |
+
+> **Cách đọc bảng này:** mỗi dòng là một khái niệm Angular và "bản dịch" React của nó; đọc cột Ghi chú để thấy hầu hết dịch gần 1-1, chỉ khác React gói `@Input`/`@Output` vào đúng hai thứ: props và hàm.
 
 ---
 

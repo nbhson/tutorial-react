@@ -14,6 +14,10 @@
   React cho phép nó dùng hook vì nó tuân quy tắc hooks; bản thân nó chỉ là hàm chia sẻ logic.
 - Trong example: `useLocalStorage` = `useState` + `localStorage`; `useFetch` = `useState` + `useEffect` + `fetch`.
   Không có syntax đặc biệt nào ngoài cái tên `use` đầu.
+- Ví von: hook là "công thức nấu" — chia sẻ được công thức cho mọi nhà, nhưng nồi canh (state)
+  ở mỗi nhà mỗi kiểu.
+
+> **Tóm gọn 1 câu:** Custom hook không thần bí — chỉ là hàm tên `use*` gọi hook khác bên trong để gom logic tái sử dụng.
 
 ---
 
@@ -27,6 +31,10 @@
 - Lý do: React phân biệt state các lần gọi hook bằng **thứ tự gọi**, không bằng tên biến.
   Gọi có điều kiện → số lượng/thứ tự hook đổi giữa các render → state gán nhầm cho nhau.
 - Hook chạy lại **mỗi render** (nó là hàm) — state giữ được là nhờ thứ tự ổn định, không phải nhờ tên.
+- Ví von: rules of hooks như ghế ngồi có số — React nhớ "hook lần 1 ngồi ghế 1", không nhớ tên ai;
+  gọi có điều kiện là đổi số ghế giữa chừng, người ngồi nhầm ghế.
+
+> **Tóm gọn 1 câu:** React nhớ state theo thứ tự gọi hook, không theo tên biến — nên hook cấm trong `if`/loop, phải top-level.
 
 ---
 
@@ -40,6 +48,10 @@
   không tự đồng bộ (trừ storage event thủ công).
 - Muốn **chia sẻ state** thật → Context (DAY 7) hoặc store (DAY 8). Đây là trục khác biệt quan trọng nhất —
   nhầm là thiết kế sai kiến trúc (tưởng share mà hóa ra mỗi nơi một bản).
+- Ví von: Service là một két sắt chung cả công ty; hook là bản in hướng dẫn mở két — ai cũng có bản
+  hướng dẫn, nhưng két vẫn một cái.
+
+> **Tóm gọn 1 câu:** Hook chia sẻ logic, không chia sẻ state — muốn state chung thật thì hook mỏng đọc store/context.
 
 ---
 
@@ -53,6 +65,8 @@
 - Quy tắc: giá trị khởi tạo **đắt hoặc có side-effect** (đọc storage, parse JSON lớn, `new` object nặng)
   thì luôn dùng lazy initializer.
 
+> **Tóm gọn 1 câu:** Bọc `() => ...` để React chỉ đọc giá trị khởi tạo 1 lần lúc mount — tránh chạy việc đắt tiền mỗi render.
+
 ---
 
 ## 5. `useFetch` tự viết đủ cho prod chưa?
@@ -64,6 +78,10 @@
   Nó chỉ đúng vai trò **bài học** (hiểu `useEffect` + AbortController + generic `<T>`).
 - Prod cần các tính năng trên → TanStack Query (DAY 12). Nhớ pattern: hook tự viết để học/tách logic,
   managed lib để làm prod.
+- Ví von: tự viết `useFetch` như tự nướng bánh để học nghề — giỏi nghề rồi thì mở tiệm (prod) cứ mua
+  lò công nghiệp (TanStack Query) mà dùng, không ai nướng nghìn cái/ngày bằng tay.
+
+> **Tóm gọn 1 câu:** `useFetch` tự viết là bài học, chưa phải giải pháp prod — prod cần cache/retry/dedupe thì dùng TanStack Query.
 
 ---
 
@@ -76,6 +94,10 @@
   (`renderHook`) khỏi UI.
 - Không tách: logic chỉ dùng 1 lần và ngắn — tách sớm thành nhiều file nhỏ khó theo dõi hơn.
 - Ranh giới với store/Query: hook tách **logic**, store/Query tách **state dùng chung** — hook không thay store.
+- Ví von: tách hook như gói gia vị dùng lại — chỉ gói thứ nêm nhiều món; muối chỉ dùng cho một món
+  thì cứ để trong bếp, gói mười gói nhỏ còn rối hơn.
+
+> **Tóm gọn 1 câu:** Tách hook khi logic dùng từ 2 nơi trở lên, component quá dài, hoặc cần test logic độc lập — không tách cho có.
 
 ---
 
@@ -88,25 +110,9 @@
 - Vì sao cleanup là linh hồn: không có `return () => clearTimeout(id)` thì mỗi phím một timeout, gõ 10 ký tự bắn 10 request trễ khác nhau — kết quả về lộn xộn (race). Cleanup đảm bảo **tại một thời điểm chỉ có 1 hẹn sống**.
 - Sai thì sao: quên `[value, delay]` deps thì effect không chạy lại khi gõ, `debounced` đứng yên. Fix: deps đủ, component gọi API bằng `debounced` chứ không phải `value` thô.
 
-```tsx
-import { useEffect, useState } from "react";
+> **Tóm gọn 1 câu:** Cleanup `clearTimeout` hủy hẹn cũ mỗi lần `value` đổi — nhờ đó chỉ phím gõ cuối cùng mới chạm tới API.
 
-function useDebounce<T>(value: T, delay = 300) {
-  const [debounced, setDebounced] = useState(value); // giá trị đã chốt sau khi ngừng gõ
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay); // hẹn chốt sau delay
-    return () => clearTimeout(id); // cleanup: gõ tiếp thì hủy hẹn cũ, chỉ giữ hẹn mới nhất
-  }, [value, delay]); // chạy lại mỗi lần gõ hoặc đổi delay
-  return debounced;
-}
-
-function SearchBox() {
-  const [q, setQ] = useState(""); // chữ đang gõ (đổi mỗi phím)
-  const settled = useDebounce(q, 300); // chữ đã chốt (đổi khi ngừng gõ 300ms)
-  // useEffect(() => { fetch(`/api?q=${settled}`); }, [settled]); // gọi API bằng settled
-  return <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Gõ để search..." />;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-7-viet-usedebounce-cho-o-search-cleanup-cleartimeout.tsx`](examples/01-7-viet-usedebounce-cho-o-search-cleanup-cleartimeout.tsx)
 
 ---
 
@@ -118,23 +124,12 @@ function SearchBox() {
 - Mặc định **không** — mỗi tab một state hook riêng (bẫy singleton câu 3). Muốn đồng bộ phải nghe sự kiện `storage` của trình duyệt (fire ở các tab khác khi một tab `setItem`), rồi `setValue` lại. Đây là cầu giữa "state riêng mỗi hook" và "storage chung trình duyệt".
 - Cơ chế `useOnlineStatus`: nghe cặp sự kiện `online`/`offline` của `window`, state `online` đổi theo mạng thật. Dùng để disable nút Lưu, hiện banner "đang offline" — UX quan trọng hơn nhiều người nghĩ.
 - Cả hai hook đều phải **cleanup listener** khi unmount, nếu không chuyển trang nhiều lần là listener chồng đống (rò rỉ + setState sau unmount). Đây là lý do "mọi setup trong hook trả cleanup" (README pitfalls).
+- Ví von: listener không cleanup như rời phòng mà quên tắt chuông cửa — cứ mỗi lần qua phòng là thêm
+  một chuông kêu, cuối cùng cả hành lang ùm ùm.
 
-```tsx
-import { useEffect, useState } from "react";
+> **Tóm gọn 1 câu:** Tab không tự đồng bộ — phải nghe sự kiện `storage`/`online` và luôn trả cleanup listener khi unmount.
 
-function useSyncedLocalStorage(key: string, initial = "") {
-  // Lazy init: chỉ đọc storage lần đầu, tránh đọc mỗi render
-  const [value, setValue] = useState(() => localStorage.getItem(key) ?? initial);
-  const save = (v: string) => { setValue(v); localStorage.setItem(key, v); }; // ghi cả 2 nơi
-  useEffect(() => {
-    // Tab khác đổi storage -> tab này cập nhật theo (đồng bộ liên tab)
-    const onStorage = (e: StorageEvent) => { if (e.key === key) setValue(e.newValue ?? initial); };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage); // cleanup bắt buộc
-  }, [key, initial]);
-  return [value, save] as const;
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-8-ong-bo-giua-cac-tab-uselocalstorage-su.tsx`](examples/02-8-ong-bo-giua-cac-tab-uselocalstorage-su.tsx)
 
 ---
 
@@ -147,11 +142,15 @@ function useSyncedLocalStorage(key: string, initial = "") {
 - Cơ chế nâng `useFetch` thành `useFetchWithState`: thêm `loading` (đang chờ), `error` (lỗi mạng/parse), `refetch` (tải lại) — đúng 4 thứ component cần để vẽ skeleton/lỗi/nút thử lại. Tuple 4 phần tử là không đọc nổi, object là bắt buộc.
 - Sai thì sao: trả tuple 4 phần tử, nơi dùng `const [d, l, e, r] = useFetch(...)` — thêm field thứ 5 là sửa mọi nơi bung. Fix: object + type rõ, thêm field không vỡ.
 
+> **Tóm gọn 1 câu:** 2 giá trị quen thuộc trả tuple, từ 3 giá trị trở lên trả object — thêm field mới không vỡ nơi dùng cũ.
+
 | Hook trả | Dạng trả | Ví dụ |
 |---|---|---|
 | 2 giá trị, thứ tự quen (`value`, setter) | Tuple + `as const` | `useLocalStorage`, `useToggle` |
 | ≥3 giá trị hoặc có optional | Object tên rõ | `{ data, loading, error, refetch }` |
 | Thêm field sau này | Object không vỡ nơi dùng cũ | Tuple vỡ thứ tự bung |
+
+> **Cách đọc bảng này:** mỗi dòng là một tình huống trả về của hook — cột 2 gợi ý dùng tuple hay object, cột 3 cho ví dụ thật. Quy tắc ngắn: 2 giá trị quen thì tuple, từ 3 trở lên thì object.
 
 ---
 
@@ -164,20 +163,9 @@ function useSyncedLocalStorage(key: string, initial = "") {
 - Cơ chế với timer: `useDebounce` dùng `setTimeout` thật thì test chờ 300ms thật — chậm + flaky. Dùng `vi.useFakeTimers()`, `act(() => vi.advanceTimersByTime(300))` tua nhanh, assert `result.current` đã chốt. Nhớ `vi.useRealTimers()` sau để không ảnh hưởng test khác.
 - Sai thì sao: assert `result.current` ngay sau render mà không tua timer thì vẫn giá trị cũ — tưởng hook sai. Fix: tua timer trong `act`, rồi mới assert.
 
-```tsx
-// Minh họa ý tưởng test (Vitest + RTL, xem chi tiết DAY 21)
-// import { renderHook, act } from "@testing-library/react";
-// import { vi, expect, test } from "vitest";
+> **Tóm gọn 1 câu:** `renderHook` test hook không cần UI; có timer thật thì dùng fake timers + `act` tua nhanh rồi mới assert.
 
-// test("useDebounce chốt sau delay", () => {
-//   vi.useFakeTimers(); // dùng timer giả để tua nhanh, không chờ thật
-//   const { result } = renderHook(() => useDebounce("a", 300)); // mount hook độc lập
-//   expect(result.current).toBe("a"); // ban đầu là giá trị đầu
-//   act(() => { vi.advanceTimersByTime(300); }); // tua 300ms trong act
-//   expect(result.current).toBe("a"); // đã chốt sau delay
-//   vi.useRealTimers(); // trả timer thật cho test khác
-// });
-```
+> 📄 **Code ví dụ:** [`examples/03-10-test-hook-oc-lap-bang-renderhook-nha.tsx`](examples/03-10-test-hook-oc-lap-bang-renderhook-nha.tsx)
 
 ---
 
@@ -189,22 +177,12 @@ function useSyncedLocalStorage(key: string, initial = "") {
 - **Cả hai đều sai.** Gọi hook từ hàm thường (không phải component/hook) thì React không gắn state vào đúng fiber — báo "Invalid hook call" lúc runtime. Linter (`eslint-plugin-react-hooks`) cũng không nhận diện được vì tên không bắt đầu `use`, nên không cảnh báo sớm về thứ tự/deps — mất cả lưới an toàn tĩnh lẫn đúng runtime.
 - Cơ chế linter: plugin quét các hàm tên `use*` và thân component để check "top-level + deps". Đặt tên `myFetch` chứa hook mà không `use` đầu là "tàng hình" trước linter — sai thứ tự trong đó không ai báo, bug chỉ lộ khi user đi đúng nhánh render.
 - Fix: mọi hàm chứa hook phải tên `use*` (`useFetch`, `useOnlineStatus`) và chỉ gọi trong component/hook khác. Hàm thuần không chứa hook thì để ở `utils/` (không `use` đầu để khỏi nhầm).
+- Ví von: tên `use` đầu như đồng phục nhân viên — quản lý (React + linter) chỉ soát người có đồng phục;
+  mặc thường phục (hàm thường) mà làm việc của nhân viên là cả hệ thống không ai kiểm soát nổi.
 
-```tsx
-// SAI: hàm thường chứa hook + tên không use -> runtime lỗi + linter không bắt
-// function myFetch(url: string) { const [d, setD] = useState(null); return d; }
+> **Tóm gọn 1 câu:** Hàm chứa hook phải tên `use*` và chỉ gọi trong component/hook khác — gọi từ hàm thường là lỗi runtime + linter mù.
 
-// ĐÚNG: tên use* + chỉ gọi trong component/hook khác
-import { useState } from "react";
-
-function useToggle(initial = false) {
-  const [value, setValue] = useState(initial); // hook ở top-level của custom hook
-  const toggle = () => setValue((v) => !v); // đảo giá trị
-  const setTrue = () => setValue(true); // mở
-  const setFalse = () => setValue(false); // đóng
-  return [value, toggle, setTrue, setFalse] as const; // tuple 4 phần tử quen thuộc
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-11-loi-thuc-chien-goi-hook-tu-ham.tsx`](examples/04-11-loi-thuc-chien-goi-hook-tu-ham.tsx)
 
 ---
 

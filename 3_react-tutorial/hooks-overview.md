@@ -6,6 +6,8 @@
 > **Quy tắc nhận diện:** tên bắt đầu bằng `use` + gọi ít nhất một hook khác
 > bên trong → là hook, chịu Rules of Hooks (chỉ gọi ở top-level component/hook).
 
+> **Cách đọc bảng này (áp dụng cho cả file):** mỗi nhóm là một "tủ đồ nghề", mỗi bảng là một tủ — đọc cột "Khi nào dùng" trước để tìm nhanh món cần, rồi mới xem cột "Việc gì" để hiểu nó làm gì. Cuối mỗi nhóm có đoạn **Phân biệt** để tránh nhầm hàng giả.
+
 ## Nhóm 1 — State cục bộ (nhớ giá trị qua các render)
 
 | Hook | Nguồn | Việc gì | Khi nào dùng |
@@ -18,6 +20,8 @@
 rời rạc cập nhật cùng lúc hoặc logic chuyển trạng thái cần test độc lập.
 `useOptimistic` không thay `useState` — nó là lớp phủ tạm thời trên dữ liệu server.
 
+> **Tóm gọn 1 câu:** Nhóm này là "sổ tay ghi chú cá nhân" của component: `useState` cho ghi chú đơn, `useReducer` cho sổ nhiều trang ràng buộc nhau, `useOptimistic` cho ghi chú phỏng đoán chờ xác nhận.
+
 ## Nhóm 2 — Ref & "lối thoát" khỏi render
 
 | Hook | Nguồn | Việc gì | Khi nào dùng |
@@ -28,6 +32,8 @@ rời rạc cập nhật cùng lúc hoặc logic chuyển trạng thái cần te
 
 **Phân biệt:** cần **hiện lên màn hình** → state (Nhóm 1); chỉ cần **giữ để dùng**
 → ref. `useId` sinh id cho a11y, còn key của list phải từ dữ liệu (id backend).
+
+> **Tóm gọn 1 câu:** Nhóm này là "tủ đồ cá nhân để sau cánh gà": ref giữ đồ không ai nhìn thấy, `useImperativeHandle` quyết định cho mượn món nào, `useId` phát thẻ tên không trùng.
 
 ## Nhóm 3 — Effect (đồng bộ với "thế giới ngoài React")
 
@@ -40,6 +46,8 @@ rời rạc cập nhật cùng lúc hoặc logic chuyển trạng thái cần te
 
 **Phân biệt:** mặc định `useEffect`. Chỉ lên `useLayoutEffect` khi thấy nháy.
 `useInsertionEffect` không phải bản "mạnh hơn" của layout effect — sai chỗ là lỗi.
+
+> **Tóm gọn 1 câu:** Nhóm này là "đội giao hàng với thế giới ngoài": `useEffect` giao sau khi nhà vẽ xong, `useLayoutEffect` giao trước khi khách nhìn thấy — sai thời điểm là lộ khuyết điểm.
 
 ## Nhóm 4 — Hiệu năng (cache / hoãn render)
 
@@ -54,6 +62,8 @@ rời rạc cập nhật cùng lúc hoặc logic chuyển trạng thái cần te
 `useTransition` = **đỡ block UI** (concurrent). Deferred cho *giá trị*,
 Transition cho *hành động update*. React Compiler 1.0 (2026) tự memo phần lớn —
 không bọc tay mọi thứ (DAY 10, Q&A 10 mục 8).
+
+> **Tóm gọn 1 câu:** Nhóm này là "cửa hàng tiết kiệm": `useMemo`/`useCallback` trữ đồ dùng sẵn (đỡ tính lại), `useDeferredValue`/`useTransition` xếp hàng đợi khách vãng lai (đỡ chặn khách quan trọng).
 
 ## Nhóm 5 — Đọc dữ liệu React đang giữ (Context / Router / i18n)
 
@@ -74,6 +84,8 @@ không bọc tay mọi thứ (DAY 10, Q&A 10 mục 8).
 phần sau **?** (`?q=abc`). `useLoaderData` = data có **trước** render (ít chờ);
 `useQuery` (Nhóm 6) = fetch **trong** component (nhiều kiểm soát cache hơn).
 
+> **Tóm gọn 1 câu:** Nhóm này là "hộp thư và bản đồ": Context/i18n là thông báo nội bộ, Router hooks là bản đồ + trạm dừng — đọc đúng chỗ (path hay `?`) mới lấy đúng thứ.
+
 ## Nhóm 6 — Server state: fetch & mutation
 
 | Hook | Nguồn | Việc gì | Khi nào dùng |
@@ -89,6 +101,8 @@ phần sau **?** (`?q=abc`). `useLoaderData` = data có **trước** render (ít
 `useQueryClient`. `useActionState`/`useFormStatus` chỉ cho Server Actions/Next.js —
 SPA thuần (Vite) dùng Query + RHF.
 
+> **Tóm gọn 1 câu:** Server state có "quản gia riêng": `useQuery` đi mua (GET có cache), `useMutation` đi trả/gửi, `useActionState`/`useFormStatus` chỉ phục vụ bàn bếp Next.js.
+
 ## Nhóm 7 — Form client (react-hook-form)
 
 | Hook | Nguồn | Việc gì | Khi nào dùng |
@@ -102,6 +116,8 @@ SPA thuần (Vite) dùng Query + RHF.
 đọc state form từ xa. Validate schema (Zod) đi kèm qua `zodResolver`, không viết
 validate tay trong RHF.
 
+> **Tóm gọn 1 câu:** RHF là "hộp giấy tờ form": `useForm` giữ hồ sơ chính, `useFieldArray` quản dòng động, `useFormState` là bản photo cho component ở xa — validate cứ giao cho Zod.
+
 ## Nhóm 8 — External store (state ngoài React)
 
 | Hook | Nguồn | Việc gì | Khi nào dùng |
@@ -114,6 +130,8 @@ validate tay trong RHF.
 `useSyncExternalStore` trực tiếp trừ khi viết lib. Selector phải trả tham chiếu
 ổn định — `.filter`/object literal trong selector là re-render vô hạn (Q&A 8).
 
+> **Tóm gọn 1 câu:** Nhóm này là "két sảnh chung": `useSyncExternalStore` là bản vẽ kỹ thuật của két, Zustand/Redux là két bán sẵn — muốn két riêng mới tháo bản vẽ ra tự hàn.
+
 ## Nhóm 9 — Thư viện UI/hành vi (nhận diện theo package)
 
 | Hook | Nguồn | Việc gì |
@@ -123,6 +141,8 @@ validate tay trong RHF.
 | `useReducedMotion` | framer-motion | Đọc `prefers-reduced-motion` — tắt animation cho ai cần (DAY 19) |
 | `useMediaQuery` | custom (DAY 16) | `matchMedia` + state — responsive theo breakpoint thật |
 | `useProfiler` | React (dev) | Đo thời gian render thực tế của cây con |
+
+> **Cách đọc bảng này:** nhóm này tra cứu theo **package** (cột Nguồn) chứ không theo tên hook — gặp hook lạ trong code, nhìn cột Nguồn để biết nó đến từ thư viện nào rồi mới đọc docs của thư viện đó.
 
 ## Nhóm 10 — Custom hook tự viết trong repo (mẫu để học theo)
 
@@ -137,6 +157,8 @@ validate tay trong RHF.
 | `usePosts` / `usePost` / `useCreatePost` / `useUpdatePost` / `useDeletePost` | project 5 | `useQuery`/`useMutation` + `useQueryClient` — CRUD hoàn chỉnh |
 | `useCounterViewModel` / `useLoginViewModel` | techniques MVVM | Gom state + logic màn hình — ViewModel bằng hook |
 | `useWorker` | techniques perf | Web Worker + `useEffect` lifecycle — tính nặng ngoài main thread |
+
+> **Cách đọc bảng này:** đây là "các bài văn mẫu" trong repo — khi cần viết custom hook, đọc bản cùng tính chất ở bảng này trước (persist → `useLocalStorage`, debounce → `useDebounce`, guard scope → `useTheme`) thay vì viết lại từ đầu.
 
 ## Cặp dễ nhầm nhất — tra cứu nhanh
 
@@ -155,8 +177,11 @@ validate tay trong RHF.
 | `useActionState` vs `useMutation` | Server Action (Next.js) vs mutation SPA thuần |
 | `useSyncExternalStore` vs Zustand | Viết store tay vs dùng lib (lib đã bọc sẵn nó) |
 
+> **Cách đọc bảng này:** đây là bảng "tra cứu nhanh khi nghi ngờ" — khi phân vân giữa 2 hook, tìm cặp trong bảng và đọc câu ở cột phải; mỗi câu là một phép thử phân biệt trong ~10 từ.
+
 ## Cây quyết định — "cần gì → chạm gì"
 
+Mục này là "thang máy nhanh" của cả file: trả lời đúng câu "mình cần gì" là biết phải chạm vào hook nào — đọc từ trên xuống theo đúng thứ tự câu hỏi mình tự hỏi khi code.
 1. **Nhớ giá trị để hiển thị** → `useState` (phức tạp → `useReducer`).
 2. **Giữ giá trị/DOM mà không render** → `useRef`.
 3. **Đồng bộ với ngoài React** (API, timer, socket, DOM) → `useEffect` (+ cleanup).
@@ -166,6 +191,8 @@ validate tay trong RHF.
 7. **Form nghiêm túc** → `useForm` + Zod; **2 ô đơn giản** → `useState`.
 8. **Logic dùng ở ≥2 chỗ** → tách custom hook `use*` (DAY 16), test bằng `renderHook`.
 9. **Hook của lib lạ** → đọc theo package (dnd-kit, TanStack, i18next), đừng đoán theo tên.
+
+> **Tóm gọn 1 câu:** Bản đồ hook cả repo: ~25 hook thật chia thành 10 tủ đồ — cần gì, mở đúng tủ; phân vân thì tra bảng "cặp dễ nhầm" và cây quyết định ở cuối.
 
 ## Reference
 

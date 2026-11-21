@@ -11,11 +11,17 @@
 - Biết khi nào optimistic UI hợp lý và khi nào nên từ bỏ vì rủi ro.
 
 ## Vấn đề giải quyết
-- Chat/like/todo: chờ server 500ms mới hiện thì UX chậm, cảm giác "trễ".
+
+Mục này chỉ ra vì sao optimistic UI "nói dễ làm khó": hiện sớm thì vui, nhưng rollback và merge dữ liệu thật mới là chỗ chết người. Đọc để hiểu hook này lấy gánh nặng đó khỏi vai bạn.
+
+- Chat/like/todo: chờ server 500ms mới hiện thì UX chậm, cảm giác "trễ". Ví von: giống quầy cà phê ghi ngay tên bạn lên ly trước khi pha xong — khách thấy tiến độ, còn quán đảm bảo cuối cùng ly đúng tên vẫn ra.
 - Tự làm optimistic bằng `useState` thủ công rất dễ sai: phải nhớ **rollback** khi lỗi, phải merge dữ liệu thật vào list đang có optimistic, dễ trùng id, dễ quên xóa item tạm.
 - `useOptimistic` tách rạch ròi: bạn cung cấp một **updater thuần** mô tả "state tạm trông ra sao", React lo phần duy trì + bỏ optimistic khi action kết thúc.
 
 ## Khái niệm cốt lõi
+
+Mục này giải thích kiến trúc hai lớp: actual state là "sổ sách chính thức", optimistic state là "giấy nháp dán tạm" — React tự xé giấy nháp khi sổ sách cập nhật.
+
 - `useOptimistic(actualState, updateFn)` trả về `[optimisticState, addOptimistic]`:
   - `optimisticState` — giá trị **hiển thị**: bằng `actualState` bình thường, nhưng khi có optimistic update đang treo thì là kết quả áp `updateFn`.
   - `addOptimistic(optimisticValue, ...rest)` — đẩy một `optimisticValue` vào; `updateFn(currentState, optimisticValue, ...rest) => nextOptimisticState`.
@@ -24,30 +30,17 @@
 - **Tính chất "pending"**: kết quả của updater tồn tại tới khi *uỷ nhiệm* tương ứng settle; tin nhắn tạm đánh dấu `pending: true` để render mờ.
 - Lưu ý: `useOptimistic` trả về state lạc quan **chỉ nên đọc**, không set trực tiếp; muốn cập nhật thật thì dùng state gốc (cùng nguồn với `actualState` đã truyền).
 
+> **Tóm gọn 1 câu:** Optimistic state là "giấy nháp hiển thị", actual state là "sổ chính thức" — action xong thì giấy nháp tự xé, action lỗi thì tự rollback, bạn chỉ viết hàm mô tả giấy nháp trông ra sao.
+
 ## Cú pháp / API
 
-```tsx
-const [optimisticState, addOptimistic] = useOptimistic(
-  actualState,                                  // state thật (ví dụ từ useState)
-  (currentState, optimisticValue, ...args) => { // updater thuần — trả state tạm
-    return nextOptimisticState;
-  },
-);
-
-async function action(formData: FormData) {
-  addOptimistic(value);        // 1. hiện ngay item tạm
-  try {
-    const saved = await api.send(value);
-    setActual(prev => [...prev, saved]); // 2. actual cập nhật → optimistic biến mất
-  } catch {
-    // 3. throw/lỗi → optimistic tự rollback
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 Không được gọi `addOptimistic` trong render; gọi trong action/event, thường bọc bởi `startTransition` khi framework yêu cầu (Server Actions tự bọc).
 
 ## Luồng hoạt động (Flow)
+
+Mục này bám một tin nhắn từ lúc user bấm gửi tới khi server trả lời (thành công lẫn thất bại) — nơi message tạm sống và chết.
 
 1. User gửi → `addOptimistic(text)` → React tính `optimisticState` qua `updateFn` (thêm message tạm `pending: true`).
 2. UI vẽ ngay message tạm (mờ, nhãn "đang gửi...").
@@ -55,66 +48,11 @@ Không được gọi `addOptimistic` trong render; gọi trong action/event, th
 4. Thành công: `setActual([...actual, saved])` → React thay message tạm bằng message thật (bỏ pending).
 5. Thất bại (throw): React hủy optimistic → list quay về actual (message tạm biến mất) + bạn render lỗi riêng.
 
+> **Tóm gọn 1 câu:** Hiện tạm → chờ thật → thay thật, và nếu lỗi thì như chưa từng có gì — tất cả trừ bước "mô tả tạm trông thế nào" đều do React lo.
+
 ## Ví dụ chi tiết
 
-```tsx
-// example.tsx — useOptimistic (React 19)
-import { useOptimistic, useState } from 'react';
-
-type Msg = { id: string; text: string; pending?: boolean };
-
-async function fakeSend(text: string): Promise<Msg> {
-  await new Promise((r) => setTimeout(r, 800));
-  if (Math.random() < 0.2) throw new Error('Mạng lỗi, thử lại!'); // 20% lỗi
-  return { id: crypto.randomUUID(), text };
-}
-
-export default function OptimisticChat() {
-  const [messages, setMessages] = useState<Msg[]>([]); // ACTUAL state
-  const [error, setError] = useState('');
-
-  // OPTIMISTIC view: bình thường = messages; khi addOptimistic → cập nhật qua updater
-  const [optimistic, addOptimistic] = useOptimistic(
-    messages,
-    (current: Msg[], text: string): Msg[] => [
-      ...current,
-      { id: `temp-${Date.now()}`, text, pending: true }, // tin nhắn tạm
-    ],
-  );
-
-  async function send(formData: FormData) {
-    const text = String(formData.get('text') ?? '').trim();
-    if (!text) return;
-    setError('');
-    addOptimistic(text); // 1. hiện ngay, user thấy tức thì
-    try {
-      const saved = await fakeSend(text);
-      setMessages((m) => [...m, saved]); // 2. actual thay optimistic
-    } catch {
-      // 3. optimistic tự biến mất; chỉ cần hiện lỗi
-      setError('Gửi thất bại — tin nhắn lạc quan đã tự rollback.');
-    }
-  }
-
-  return (
-    <div>
-      <h2>useOptimistic (React 19)</h2>
-      <ul>
-        {optimistic.map((m) => (
-          <li key={m.id} style={{ opacity: m.pending ? 0.5 : 1 }}>
-            {m.text} {m.pending && <em>(đang gửi...)</em>}
-          </li>
-        ))}
-      </ul>
-      <form action={send}>
-        <input name="text" placeholder="Nhắn gì đó..." />
-        <button type="submit">Gửi</button>
-      </form>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - `useOptimistic(messages, updater)` — `messages` là actual; updater nhận `current` (đã gồm các optimistic đang treo) và `text` → trả list mới. Đây là hàm **thuần**: không side-effect.
@@ -124,6 +62,8 @@ export default function OptimisticChat() {
 
 ## So sánh với cách làm cũ
 
+Bảng dưới đối chiếu optimistic UI "thủ công" với hook chính thức. Đọc theo hàng: mỗi dòng là một việc từng phải làm tay và giờ được gói lại.
+
 | Cách cũ | Cách mới (`useOptimistic`) | Lợi ích |
 |---|---|---|
 | `useState(optimisticList)` + merge/rollback tay | Khai báo updater thuần, React tự forward/revert | Ít code, ít bug rollback |
@@ -131,19 +71,30 @@ export default function OptimisticChat() {
 | Quên xóa item tạm khi lỗi → list "ma" | Action throw → tự xóa optimistic | Luôn đồng bộ với actual |
 | Phải merge thủ công vào đúng vị trí | updater mô tả "kết quả trông ra sao" | Dễ hiểu, dễ test |
 
+> **Cách đọc bảng này:** hàng thứ ba là "bệnh" kinh điển của optimistic tự viết — list "ma" (item tạm treo vĩnh viễn); đọc cột Lợi ích để thấy hook xử lý mặc định từng ca.
+
 ## Lỗi thường gặp
+
+Mục này là 5 lỗi khiến optimistic UI "lệch tệp" — phần lớn xuất phát từ hiểu nhầm ai sở hữu dữ liệu: actual hay optimistic.
 1. **Không gọi `addOptimistic` trong action mà gọi ngoài (render)** → vì sao: vi phạm quy tắc, optimistic không reconcile → fix: gọi trong action/handler, bọc transition nếu cần.
 2. **Tự `setMessages` với chính message tạm** rồi sau lại set thật → vì sao: trùng/chồng optimistic, actual nhiễm item tạm → fix: actual chỉ chứa dữ liệu thật từ server.
 3. **Updater mutate `current`** (`current.push(...)`) → vì sao: không thuần, React không so sánh được → fix: trả array/object mới.
 4. **Kỳ vọng "tự sửa" khi action trả kết quả** — quên cập nhật actual sau khi action xong → vì sao: optimistic bị bỏ đi nhưng actual vẫn thiếu dữ liệu → fix: luôn `setActual` với kết quả thật trong `try`.
 5. **Không disable submit khi pending** → vì sao: gửi 2 lần, optimistic chồng → fix: tổ hợp `useActionState`/`useFormStatus` hoặc cờ riêng.
 
+> **Tóm gọn 1 câu:** Actual là "sổ cái", optimistic chỉ là "post-it" — đừng ghi sổ cái bằng post-it, đừng mutate post-it, và luôn khóa cửa khi đang chờ.
+
 ## Khi nào dùng / Khi nào không
 - **Dùng**: chat/comment, like/toggle, todo/tạo item, cập nhật nhanh ít rủi ro — xu hướng thành công >90%; UI cần phản hồi tức thì.
 - **Không dùng**: thanh toán/xác nhận đặt hàng (hiển thị sai còn tệ hơn chậm), action dễ fail 50/50, hoặc khi rollback khó đảo ngược mặt hiển thị (ví dụ state lớn phức tạp).
 
 ## Bài tập nhỏ
+
+Bài tập kiểm chứng rollback tự động — điểm bán hàng lớn nhất của hook này — qua tình huống like/unlike nhanh liên tiếp.
+
 - Mở rộng chat: nút "❤️ Like" mỗi tin — dùng `useOptimistic` để đổi số like + trạng thái tim **ngay**, action throw 20% để kiểm chứng rollback tự động về số cũ. Kiểm tra: bấm like rồi unlike nhanh — số cuối cùng phải khớp actual sau khi cả 2 action settle.
+
+> **Tóm gọn 1 câu:** Nếu số like cuối cùng luôn khớp server dù bạn bấm loạn xạ, rollback của bạn đã đúng.
 
 ## Reference
 - [useOptimistic](https://react.dev/reference/react/useOptimistic)

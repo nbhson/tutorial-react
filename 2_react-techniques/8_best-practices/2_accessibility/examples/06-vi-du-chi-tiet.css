@@ -1,0 +1,7 @@
+/* Tôn trọng người dùng muốn giảm chuyển động (mirror từ README gốc) */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -9,6 +9,9 @@
 - Hiểu Context giống "service dùng chung" của AngularJS nhưng theo hướng component tree.
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này giải thích bài toán "truyền dữ liệu xuyên nhiều tầng" và cách Context legacy giải nó. Đọc để hiểu nguyên lý — kể cả khi API này đã deprecated, tư duy của nó còn mãi.
+
 - AngularJS: đăng ký `service` (VD `$http`) một lần, inject vào bất kỳ controller nào cần — không cần truyền qua từng tầng.
 - React legacy context (≤ 16.2): component cha **phát** giá trị bằng `getChildContext()` + khai báo kiểu bằng `childContextTypes`; component con bất kỳ trong cây **nhận** qua `contextTypes` → đọc `this.context`. Không cần truyền props lằng nhằng qua các tầng trung gian.
 - **Context** giúp tránh **prop drilling** (truyền props qua nhiều tầng): dữ liệu "ngang qua" các component trung gian mà chúng không cần. Giống service được inject thẳng, không đi qua từng controller.
@@ -16,10 +19,17 @@
 - Đây là API đã **deprecated**; cần thêm CDN `prop-types` (xem `index.html`) vì `childContextTypes`/`contextTypes` khai báo kiểu bằng `PropTypes`.
 - **Ai dùng legacy context?** Thư viện cũ (react-router v4/v5 gốc, theme provider đời đầu) từng dùng; nay tất cả chuyển sang `createContext`.
 
+Ví von: prop drilling giống gửi tài liệu phải xin chữ ký qua từng tầng quản lý dù các cấp trung gian không cần đọc; Context giống hệ thống thông báo nội bộ — đứng ở tầng nào cũng nhận được trực tiếp, không cần ai chuyển tay.
+
+> **Tóm gọn 1 câu:** Context là "đài phát thanh của component cha": phát một lần, cây con đâu cũng nghe được — mà không phải truyền props qua từng tầng.
+
 ### Keyword chính
 `getChildContext` · `childContextTypes` · `contextTypes` · `this.context` · `prop drilling` · `PropTypes`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này chạy ví dụ đổi theme: cha phát giá trị qua `getChildContext`, con khai báo `contextTypes` để "bắt sóng", bấm nút là cả cây đổi màu mà không một prop nào được truyền tay.
+
 1. `index.html` nạp thêm CDN `prop-types@15` (vì context legacy khai báo kiểu bằng PropTypes).
 2. `ContextDemo` mount → `constructor` đặt `theme: "dark"` → `getChildContext()` trả `{ theme: this.state.theme }`.
 3. React "cấp" context cho toàn bộ cây con. `ThemeButton` khai báo `contextTypes` → React tự gán `this.context = { theme: "dark" }`.
@@ -30,49 +40,7 @@
 **Chạy:** mở `index.html` bằng trình duyệt.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY context API (childContextTypes/contextTypes) — đối chiếu AngularJS service.
-// Hiện nay: dùng React.createContext + useContext.
-class ThemeButton extends React.Component {
-  render() {
-    const theme = this.context.theme; // ↔ service được inject: đọc trực tiếp, không qua props
-    const style = theme === "dark"
-      ? { background: "#333", color: "#fff", padding: "8px 16px" }
-      : { background: "#eee", color: "#000", padding: "8px 16px" };
-    return <button style={style}>Nút theme: {theme}</button>;
-  }
-}
-// Component con khai báo KIỂU context nó muốn nhận — bắt buộc với legacy API
-ThemeButton.contextTypes = { theme: PropTypes.string };
-
-class ContextDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { theme: "dark" };
-    this.toggle = this.toggle.bind(this);
-  }
-  getChildContext() {
-    return { theme: this.state.theme }; // phát giá trị cho cả cây con
-  }
-  toggle() {
-    this.setState(function (prev) {
-      return { theme: prev.theme === "dark" ? "light" : "dark" };
-    });
-  }
-  render() {
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Legacy Context (≈ service)</h2>
-        <p><button onClick={this.toggle}>Đổi theme</button></p>
-        {/* Không truyền props mà ThemeButton vẫn đọc được theme */}
-        <ThemeButton />
-      </div>
-    );
-  }
-}
-// Component "phát" phải khai báo childContextTypes — nếu thiếu sẽ cảnh báo
-ContextDemo.childContextTypes = { theme: PropTypes.string };
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`getChildContext()`**: component cha trả về object context sẽ được chia sẻ xuống toàn cây con. Ở đây lấy từ `this.state.theme` để đổi được khi bấm nút.
@@ -82,6 +50,9 @@ ContextDemo.childContextTypes = { theme: PropTypes.string };
 - **Cập nhật**: `setState({theme})` tự làm mới `getChildContext()` → component đăng ký nhận context được re-render. (Trong legacy API, việc cập nhật context có hạn chế — một trong các lý do nó bị thay bằng `createContext`.)
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này đặt service AngularJS cạnh context React để thấy cả điểm giống (dữ liệu dùng chung) lẫn điểm khác (phạm vi toàn cục vs theo cây).
+
 | AngularJS | React legacy | Ghi chú |
 |---|---|---|
 | `app.service(...)` đăng ký toàn cục | Component cha `getChildContext()` phát xuống cây | Cùng "dữ liệu dùng chung" |
@@ -90,7 +61,14 @@ ContextDemo.childContextTypes = { theme: PropTypes.string };
 | Singleton service | Context per-tree (mỗi provider một vùng) | Context không toàn cục như service |
 | — | `PropTypes` bắt buộc cho kiểu context | Thêm phụ thuộc prop-types |
 
+> **Cách đọc bảng này:** mỗi dòng ghép một vai trò của service với cách context làm điều tương tự; dòng 4 là khác biệt lớn nhất — context gắn với một Provider trong cây chứ không toàn cục như service.
+
+> **Tóm gọn 1 câu:** Context ≈ service AngularJS nhưng "phạm vi theo cây": phát ở Provider, nhận ở Consumer, và chỉ đọc được chứ không sửa ở con.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Legacy context dễ lỗi nhất ở khâu "khai báo hai phía" — cha phải khai phát, con phải khai nhận, thiếu bên nào là im lặng không chạy.
+
 - **Quên `childContextTypes` ở cha** → React cảnh báo và context không hoạt động đúng. → Luôn khai báo cả hai phía (phát + nhận).
 - **Quên `contextTypes` ở con** → `this.context` rỗng, đọc `undefined`. → Con phải "xin" đúng key mới nhận.
 - **Khai báo kiểu không khớp** (`theme: PropTypes.object` nhưng phát string) → cảnh báo kiểu. → Dùng đúng `PropTypes.string`.
@@ -98,6 +76,8 @@ ContextDemo.childContextTypes = { theme: PropTypes.string };
 - **Dùng context cho MỌI thứ** (thay cả props/state) → khó debug, khó test. → Context chỉ cho dữ liệu ít đổi (theme, locale, user), còn lại dùng props.
 - **Đọc `this.context` mà không khai báo `contextTypes`** → luôn rỗng dù cha có phát. → Khai báo contextTypes ở mọi component muốn nhận.
 - **Nhầm context với global mutable state** → context là read-only ở con, muốn đổi phải đổi ở cha. → Đổi state ở nơi phát.
+
+> **Tóm gọn 1 câu:** Context legacy cần khai báo hai đầu (phát + nhận) và chỉ đọc được ở con — thiếu khai báo hoặc cố ghi từ dưới lên đều im lặng thất bại.
 
 ## Best practices / Mẹo
 - Đây là API đã deprecated: khi gặp trong code cũ, hiểu nguyên lý rồi dịch sang `React.createContext` (hoặc `useContext`).
@@ -110,6 +90,9 @@ ContextDemo.childContextTypes = { theme: PropTypes.string };
 - Nhớ rằng context là *read-only* ở con: muốn đổi, đổi state ở component phát rồi context lan xuống.
 
 ## Bài tập nhỏ
+
+Bài số 4 ở đây đặc biệt đáng làm: tự tái hiện bug nổi tiếng của legacy context để hiểu tại sao nó bị thay thế.
+
 1. Thêm component `Footer` ở sâu hơn (lồng thêm 1 tầng) cũng đọc `this.context.theme` — chứng minh không cần prop drilling.
 2. Diễn giải cách chuyển đổi sang `React.createContext`: tạo `const ThemeContext = React.createContext("dark")`, bọc `<ThemeContext.Provider value={...}>`, đọc bằng `ThemeContext.Consumer`.
 3. Thêm giá trị thứ hai `lang` vào context (vi/en) và hiển thị nhãn nút theo ngôn ngữ — luyện phát nhiều giá trị.

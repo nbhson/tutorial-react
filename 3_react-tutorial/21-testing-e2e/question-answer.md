@@ -15,6 +15,10 @@
   - **RTL (React Testing Library)** — render component + query theo accessibility trong jsdom.
   - **Playwright** — E2E browser thật (Chromium/Firefox/WebKit) cho luồng xuyên trang.
 - Phân tầng: unit (hàm thuần, hook via `renderHook`) → integration (component + `user-event`) → E2E (luồng + browser thật).
+  Hãy hình dung như khám sức khỏe: xét nghiệm máu cho từng chỉ số (unit), khám tổng quát toàn thân (integration),
+  còn chạy thử cả đường đua trong trang phục thật (E2E) — mỗi tầng trả lời một câu hỏi khác nhau.
+
+> **Tóm gọn 1 câu:** Ba công cụ này là ba tầng kiểm tra không thay nhau — Vitest soi logic, RTL soi component, Playwright soi cả hành trình user đi thật.
 
 ---
 
@@ -27,6 +31,8 @@
   Query qua `getByRole`, `getByLabelText`, `getByText` (thứ user thấy/sờ) thay vì chọc state/props/hàm nội bộ.
 - Lợi ích: refactor nội bộ (đổi tên state, tách component) **không vỡ test** — chỉ vỡ khi hành vi user đổi,
   đúng thứ cần báo động. Assert state nội bộ thì refactor nào cũng đỏ, test thành gánh nặng.
+
+> **Tóm gọn 1 câu:** Test theo hành vi như một bảo vệ trung thành: mình chỉ đổi áo (refactor) thì nó cứ đứng im, ai đổi hộp quên bên trong (hành vi) nó mới la.
 
 ---
 
@@ -41,11 +47,9 @@
   Nhớ `await` vì user-event là async.
 - `toBeInTheDocument()` — matcher của `@testing-library/jest-dom` assert node tồn tại (thân thiện hơn `toBeTruthy`).
 
-```tsx
-render(<App />);
-await userEvent.click(screen.getByRole("button", { name: "+1" }));
-expect(screen.getByText("Count: 1")).toBeInTheDocument();
-```
+> 📄 **Code ví dụ:** [`examples/01-3-render-screen-userevent-tobeinthedocument-la-bo-gi.tsx`](examples/01-3-render-screen-userevent-tobeinthedocument-la-bo-gi.tsx)
+
+> **Tóm gọn 1 câu:** `render` dựng sân khấu, `screen` là đôi mắt tìm kiếm, `userEvent` là bàn tay giả người thật, còn jest-dom là hội đồng phán xét.
 
 ---
 
@@ -59,6 +63,8 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 - Viết test trước mà query không ra là tín hiệu UI thiếu a11y — sửa component, không sửa test để query dễ
   (tránh `container.querySelector` chọc implementation).
 
+> **Tóm gọn 1 câu:** Test theo role vừa là test vừa là "thanh tra a11y": test tìm được nút thì screen reader cũng đọc được nút đó.
+
 ---
 
 ## 5. Playwright auto-wait là gì? Hơn sleep tay ở đâu?
@@ -70,6 +76,8 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
   Playwright locator (`page.getByRole(...)`) **tự chờ** tới khi element sẵn sàng (actionable/assertable) rồi mới
   thao tác — nhanh khi được, kiên nhẫn khi cần, retry có trace.
 - Kèm failure trace + HTML report: test đỏ mở trace xem lại từng bước như video — debug E2E nhẹ hơn hẳn log chay.
+
+> **Tóm gọn 1 câu:** Auto-wait là tài xế khôn ngoan: đường thông thì chạy tới, xe chưa tấp vào bến thì đợi — thay vì hẹn giờ cứng rồi va vào nhau.
 
 ---
 
@@ -85,6 +93,8 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 - Coverage khi cần: `vitest --coverage` (+ `@vitest/coverage-v8`) — dùng để **tìm vùng chưa test**,
   không phải mục tiêu % tuyệt đối.
 
+> **Tóm gọn 1 câu:** Ba thứ bắt buộc khi lôi Vitest vào project Vite: khai môi trường jsdom, nạp matcher jest-dom, cài đủ deps — coverage chỉ là phụ kiện thêm sau.
+
 ---
 
 ## 7. `findBy*` + `waitFor`: element xuất hiện bất đồng bộ thì chờ kiểu gì?
@@ -96,13 +106,9 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 - Vì sao không `sleep(500)` rồi `getBy`: mạng nhanh thì chờ thừa, CI chậm thì vẫn flake — `findBy` nhanh khi được (về sớm resolve sớm), kiên nhẫn khi cần, đúng triết lý auto-wait như Playwright (câu 5) nhưng ở tầng jsdom.
 - Sai thì sao: dùng `getBy` cho UI async là flake theo timing; dùng `findBy` cho UI đồng bộ (Counter) là thừa await. Fix: đồng bộ → `getBy`, async (fetch/timer/debounce) → `findBy`/`waitFor`. Nhớ `await` cả `userEvent` lẫn `findBy`.
 
-```tsx
-// Minh họa ý tưởng: chờ tên user sau fetch (không sleep cứng)
-// import { render, screen } from "@testing-library/react";
-// render(<UserCard />); // mount xong, fetch đang bay, tên chưa có
-// expect(await screen.findByText("Son Nguyen")).toBeInTheDocument(); // poll tới khi hiện
-// Cơ chế: findBy = getBy + retry async, về sớm thì pass sớm, không chờ thừa
-```
+> 📄 **Code ví dụ:** [`examples/02-7-findby-waitfor-element-xuat-hien-bat-ong.tsx`](examples/02-7-findby-waitfor-element-xuat-hien-bat-ong.tsx)
+
+> **Tóm gọn 1 câu:** Đồng bộ thì `getBy` bắt ngay, bất đồng bộ thì `findBy`/`waitFor` kiên nhẫn chờ — đừng bắt người không cần chờ đứng đợi, và ngược lại.
 
 ---
 
@@ -115,14 +121,9 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 - Cơ chế `act`: mọi `setState` trong hook (bấm toggle, tua debounce) phải bọc `act(() => ...)` để React flush update trước khi assert — `userEvent` đã tự bọc nên quên ít lộ, `renderHook` gọi tay nên quên là warning `act(...)` + assert giá trị cũ.
 - Sai thì sao: dựng component giả chỉ để test hook (thừa UI, test lẫn UI vào logic). Hoặc assert `result.current` ngay sau kích hoạt async mà không `waitFor`/tua timer (câu 7/10) — tưởng hook sai. Fix: hook → `renderHook` + `act`, async → thêm chờ.
 
-```tsx
-// Minh họa ý tưởng test useToggle độc lập (không cần UI)
-// import { renderHook, act } from "@testing-library/react";
-// const { result } = renderHook(() => useToggle()); // mount hook, lấy API trả về
-// expect(result.current[0]).toBe(false); // ban đầu tắt
-// act(() => { result.current[1](); }); // gọi toggle trong act để flush update
-// expect(result.current[0]).toBe(true); // đã bật sau toggle
-```
+> 📄 **Code ví dụ:** [`examples/03-8-test-hook-oc-lap-renderhook-cho-usedebounce.tsx`](examples/03-8-test-hook-oc-lap-renderhook-cho-usedebounce.tsx)
+
+> **Tóm gọn 1 câu:** `renderHook` là buồng test riêng cho hook: không cần dựng UI trang trí, chỉ việc kiểm tra logic chạy đúng.
 
 ---
 
@@ -141,6 +142,8 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 | MSW | Network (request) | Mọi lib đều qua, assert URL/method, tái dùng dev/E2E |
 | Không mock, gọi API thật | Server thật | Flake + chậm + bẩn dữ liệu — chỉ E2E staging mới làm |
 
+> **Cách đọc bảng này:** mỗi dòng là một cách giả lập API, xếp từ nông đến sâu theo cột "Chặn ở tầng"; đọc từ trên xuống sẽ thấy — chặn càng sát tầng network thì càng giống server thật, nhưng cần công cụ đúng (MSW) thay vì mock hàm tay.
+
 ---
 
 ## 10. Timer giả `vi.useFakeTimers()`: test debounce/countdown không chờ thật?
@@ -152,14 +155,11 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 - Nối câu 7: `findBy` poll bằng timer thật — đang fake timer mà gọi `findBy` không tua là treo tới timeout. Quy tắc: fake timer thì **chủ động tua** cho mọi chờ, hoặc chỉ fake trong test hook thuần (câu 8) và giữ timer thật cho test component async.
 - Sai thì sao: quên `act` khi tua thì update chưa flush — assert giá trị cũ. Quên trả timer thật thì test sau flake lạ. Fix: `act(tua) → assert → useRealTimers` thành bộ ba khép kín mỗi test timer.
 
-```tsx
-// Minh họa bộ ba khép kín cho test timer (không chờ thật)
-// import { vi } from "vitest";
-// vi.useFakeTimers(); // thay đồng hồ thật bằng giả
-// act(() => { vi.advanceTimersByTime(300); }); // tua 300ms trong act để flush update
-// expect(...).toBe(...); // assert sau khi timer đã chạy xong
-// vi.useRealTimers(); // trả đồng hồ thật, không đầu độc test sau
-```
+> **Tóm gọn 1 câu:** MSW như lễ tân đứng trước sảnh: khách nào (fetch, axios, XHR) vào cũng phải qua quầy — không ai chui lọt để test mù đường.
+
+> 📄 **Code ví dụ:** [`examples/04-10-timer-gia-vi-usefaketimers-test-debounce-countdown.tsx`](examples/04-10-timer-gia-vi-usefaketimers-test-debounce-countdown.tsx)
+
+> **Tóm gọn 1 câu:** Fake timers là chiếc đồng hồ có nút tua: bấm tua 300ms tức thì thay vì đứng đợi thật — xong nhớ trả về đồng hồ thật kẻo test sau bị treo giờ giả.
 
 ---
 
@@ -172,26 +172,11 @@ expect(screen.getByText("Count: 1")).toBeInTheDocument();
 - **E2E Playwright**: mỗi spec login lại từ UI (fill + click + chờ) cho 20 spec là 20 lần chờ + dễ flake khi trang login chậm. Fix: `storageState` — login **một lần** ở setup, lưu cookie/storage vào file, các spec khác nạp file đó là đã login, đi thẳng vào luồng cần test (checkout, admin). Kèm trace/video ở CI để test đỏ mở ra xem như video.
 - Sai thì sao: dùng chung một QueryClient cho cả file test thì test A nạp cache làm test B pass oan (phụ thuộc thứ tự). E2E không storageState thì suite chậm gấp bội + flake login lan sang mọi spec.
 
-```tsx
-// Minh họa bọc Query đúng cho mỗi test (không dùng chung client giữa các test)
-// import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// const makeClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
-// render(
-//   <QueryClientProvider client={makeClient()}> {/* client mới mỗi test, fail nhanh không retry */}
-//     <UserList />
-//   </QueryClientProvider>
-// );
-```
+> 📄 **Code ví dụ:** [`examples/05-11-query-trong-test-e2e-gon-queryclientprovider-moi.tsx`](examples/05-11-query-trong-test-e2e-gon-queryclientprovider-moi.tsx)
 
-```ts
-// Minh họa E2E login một lần, tái dùng cho nhiều spec (Playwright storageState)
-// // setup/login.setup.ts: login thật 1 lần, lưu vào file
-// await page.getByPlaceholder("Email").fill("a@b.com");
-// await page.getByRole("button", { name: "Login" }).click();
-// await page.context().storageState({ path: "e2e/.auth.json" });
-// // spec khác: nạp file là đã login, không fill lại
-// // test.use({ storageState: "e2e/.auth.json" });
-```
+> 📄 **Code ví dụ:** [`examples/06-11-query-trong-test-e2e-gon-queryclientprovider-moi.ts`](examples/06-11-query-trong-test-e2e-gon-queryclientprovider-moi.ts)
+
+> **Tóm gọn 1 câu:** Test lẫn E2E đều cần khởi động thông minh: QueryClient mới mỗi test cho cache sạch, `storageState` cho E2E để login một lần mà đi suốt cả suite.
 
 ---
 

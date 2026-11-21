@@ -16,6 +16,8 @@
 - Khác Context: có **selector** — component chỉ re-render khi slice nó đọc đổi, không phải cả cụm.
 - Quy tắc chọn: `useState` cho cục bộ · Context cho config ít đổi · **store cho state hay đổi + nhiều subscriber**.
 
+> **Tóm gọn 1 câu:** External store là "két sắt ở sảnh chung": ai cũng đến lấy/đặt được, mỗi người chỉ mở ngăn (slice) của mình — khỏi kéo cả két về phòng.
+
 ---
 
 ## 2. `useSyncExternalStore(subscribe, getSnapshot)` là gì?
@@ -30,11 +32,9 @@
   `cartStore.add()` tạo mảng mới rồi `listeners.forEach(l => l())` báo subscriber.
 - `useCartStore(selector)` bọc hook nền tảng thêm lớp lọc — đúng mô hình "custom hook là Service" (DAY 16).
 
-```ts
-function useCartStore<T>(selector: (items: CartItem[]) => T): T {
-  return useSyncExternalStore(cartStore.subscribe, () => selector(cartStore.getSnapshot()));
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-2-usesyncexternalstore-subscribe-getsnapshot-la-gi.ts`](examples/01-2-usesyncexternalstore-subscribe-getsnapshot-la-gi.ts)
+
+> **Tóm gọn 1 câu:** `useSyncExternalStore` là hợp đồng 2 chữ ký: "có gì mới thì báo tôi" (subscribe) và "cho tôi xem hiện trạng" (getSnapshot) — mọi store lib đều đứng trên đó.
 
 ---
 
@@ -49,6 +49,8 @@ function useCartStore<T>(selector: (items: CartItem[]) => T): T {
 - Thêm: đọc ngoài React (`useCart.getState().add(...)`), middleware (persist, devtools), batch nhiều `set`
   trong cùng event thành một vòng re-render.
 
+> **Tóm gọn 1 câu:** Zustand là bản "hoàn thiện thị trường" của store tự viết: cùng nguyên lý, thêm selector, middleware và khỏi boilerplate.
+
 ---
 
 ## 4. Redux Toolkit khi nào thắng Zustand?
@@ -62,6 +64,8 @@ function useCartStore<T>(selector: (items: CartItem[]) => T): T {
 - Cả hai cùng nguyên lý: `dispatch/set` → reducer tính state mới bất biến → thông báo → selector so slice →
   component liên quan re-render.
 
+> **Tóm gọn 1 câu:** App vừa → Zustand cho gọn; app lớn cần "máy quay hành trình" (time-travel, audit) → Redux Toolkit.
+
 ---
 
 ## 5. Custom hook và store khác nhau thế nào? (Bẫy singleton)
@@ -73,6 +77,8 @@ function useCartStore<T>(selector: (items: CartItem[]) => T): T {
   50 component gọi = 50 state riêng, không tự đồng bộ (trừ khi đồng bộ thủ công qua storage event).
 - Muốn **chia sẻ state** thật → Context (DAY 7) hoặc store (bài này). Đây là trục khác biệt quan trọng nhất
   giữa Service Angular và hook React — nhầm là thiết kế sai kiến trúc.
+
+> **Tóm gọn 1 câu:** Custom hook mỗi lần gọi là một "căn hộ riêng" — muốn căn hộ chung cư (state chia sẻ) thì phải Context hoặc store.
 
 ---
 
@@ -88,6 +94,8 @@ function useCartStore<T>(selector: (items: CartItem[]) => T): T {
 | `async` pipe | hook đọc store (`useCartStore`) | Component không tự subscribe tay |
 | NgRx | Redux Toolkit | RTK gọn hơn, có Immer + time-travel |
 | Service đơn giản | Zustand | Mặc định cho app vừa |
+
+> **Cách đọc bảng này:** mỗi dòng là một cặp "Angular ↔ React" cho state global; dòng 1 là bản chất chung (subscribe/snapshot), 3 dòng sau là lựa chọn tool theo quy mô — đọc từ trên xuống là từ nguyên lý đến thực dụng.
 
 ## 7. `subscribe(fn)` — `fn` thực sự là gì? Khi nào `subscribe` được gọi?
 
@@ -113,6 +121,8 @@ CartCount render → useCartStore(selector) → useSyncExternalStore(subscribe, 
 - Phân biệt **notify vs re-render**: `add()`/`clear()` gọi `forEach` là báo **tất cả** subscriber,
   nhưng mỗi component chỉ render lại khi lát nó đọc đổi (`Object.is`). Notify là "loa phường",
   re-render là quyết định riêng của từng component.
+
+> **Tóm gọn 1 câu:** `fn` trong `subscribe` là "còi báo động React cài vào store": còi kêu (notify) tất cả, nhưng ai soi gương (so snapshot) thấy khác mới chỉnh trang.
 
 ---
 

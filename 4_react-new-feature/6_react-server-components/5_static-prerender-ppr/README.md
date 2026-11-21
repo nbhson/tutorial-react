@@ -4,7 +4,11 @@
 
 React 19 cung cấp **`react-dom/static`** — bộ API prerender **tĩnh**: render component thành HTML **không phát đi ngay** (`prerender`) hoặc render phần tĩnh trước (shell) rồi xử lý phần động sau (`resumeAndPrerender`). Đây là nền móng cho **Partial Prerendering (PPR)** — được React 19.2 phát triển tiếp và Next.js 16 triển khai chính thức: **một trang = shell tĩnh (prerender lúc build, phục vụ tức thì từ CDN) + hole động stream lúc request**.
 
+Hãy hình dung một trang PPR như gian hàng hội chợ được dựng sẵn từ đêm hôm trước (shell tĩnh từ CDN) — khách đến là thấy ngay khung kệ hàng; riêng quầy "đo kích cỡ giày theo chân từng khách" (hole động) thì phục vụ ngay tại chỗ khi có người hỏi.
+
 Trước PPR phải chọn một trong hai: trang tĩnh (SSG — nhanh nhưng stale) hoặc trang động (SSR/streaming — tươi nhưng chậm hơn). PPR cho **cả hai cùng lúc** trên cùng một route.
+
+> **Tóm gọn 1 câu:** PPR chấm dứt cuộc tranh cãi "SSG hay SSR" — shell tĩnh build trước phục vụ từ CDN, hole động stream lúc request, cả hai sống chung một route.
 
 ## Mục tiêu
 
@@ -15,75 +19,52 @@ Trước PPR phải chọn một trong hai: trang tĩnh (SSG — nhanh nhưng st
 
 ## Vấn đề giải quyết
 
+Mục này phân tích cái thỏa hiệp "SSG hay SSR, chọn một" — và pain thực tế của trang bán hàng 95% tĩnh 5% động. Đọc để hiểu PPR giải bài toán nào.
+
 SSG vs SSR là **thỏa hiệp toàn trang**:
 
 - **SSR/SSR streaming**: mọi request render server → TTFB phụ thuộc server + data, shell không cache CDN được.
 - **SSG/ISR**: cực nhanh (HTML tĩnh từ CDN) nhưng dữ liệu **cứng** đến lần build sau; muốn "shell tĩnh + user box động" phải client-fetch (nháy) hoặc chia micro-route.
 
-Pain cụ thể: trang bán hàng — 95% nội dung (tên sản phẩm, mô tả, ảnh) hiếm đổi, nhưng 5% (giỏ hàng, giá theo user, tồn kho) phải tươi. SSG thì giá sai; SSR thì lãng phí vì render lại phần tĩnh mỗi request. **PPR**: shell (95% nội dung) prerender lúc build phục vụ tức thì từ cache; hole 5% stream ngay khi request vào.
+Pain cụ thể: trang bán hàng — 95% nội dung (tên sản phẩm, mô tả, ảnh) hiếm đổi, nhưng 5% (giỏ hàng, giá theo user, tồn kho) phải tươi. SSG thì giá sai; SSR thì lãng phí vì render lại phần tĩnh mỗi request. Ví von: như in cả cuốn sách mới mỗi lần chỉ để thay một dòng ở trang bìa. **PPR**: shell (95% nội dung) prerender lúc build phục vụ tức thì từ cache; hole 5% stream ngay khi request vào.
+
+> **Tóm gọn 1 câu:** SSG nhanh nhưng cứng, SSR tươi nhưng chậm — PPR tách trang: phần ít đổi build trước, phần phải tươi stream runtime.
 
 ## Khái niệm cốt lõi
 
+Mục này định nghĩa các mảnh ghép của PPR: `react-dom/static`, static shell, dynamic hole, và Suspense làm ranh giới tĩnh/động.
+
 - **`react-dom/static`** — bộ API prerender: `prerender()` (chờ toàn bộ tree settle, lấy HTML đầy đủ + streams) và `resume()` / `resumeAndPrerender()` (React 19.2 — tiếp tục render từ stream đã prerender để hoàn tất phần động). Khác `renderToPipeableStream` ở chỗ **không phát shell sớm** — nó đợi các shell hoàn chỉnh rồi mới đưa, dành cho build-time/static generation, không phải per-request.
 - **PPR (Partial Prerendering)** — 1 route = 1 **static shell** (render lúc build) + các **dynamic hole** (chỗ dùng `await` data động / cookies / headers). Shell deploy lên CDN như file tĩnh; hole stream runtime như streaming bài 4.
-- **Static shell vs dynamic hole** — ranh giới do **Suspense boundary** quyết định: nội dung ngoài Suspense trong shell (prerender lúc build); bên trong Suspense nếu phụ thuộc data động (cookies, headers, fetch no-store) thì thành hole runtime.
+- **Static shell vs dynamic hole** — ranh giới do **Suspense boundary** quyết định: nội dung ngoài Suspense trong shell (prerender lúc build); bên trong Suspense nếu phụ thuộc data động (cookies, headers, fetch no-store) thì thành hole runtime. Ví von: Suspense như "laser ranh giới" — vượt qua là bước vào vùng động phải làm việc lúc request.
 - **Dynamic APIs** — `cookies()`, `headers()`, `searchParams` (Next) là tín hiệu "phần này động"; PPR dùng Suspense để tách phần động khỏi shell thay vì cho cả trang thành động.
 - **Quan hệ với streaming** — PPR = prerender shell lúc build + streaming runtime cho hole. Bài 4 là streaming *toàn bộ render runtime*; PPR nâng lên: shell thậm chí **không render lúc request** nữa.
 
+> **Tóm gọn 1 câu:** Suspense là "ranh giới hai vùng" của PPR — ngoài ranh prerender lúc build, trong ranh stream lúc request.
+
 ## Cú pháp / API
 
-```tsx
-// react-dom/static — prerender lúc build (SSG, CI, email HTML...)
-import { prerender } from "react-dom/static";
+Mục này là bảng tra API prerender theo môi trường và mục đích — đọc để chọn đúng API cho đúng thời điểm (build hay runtime).
 
-async function buildStaticPage() {
-  const { prelude } = await prerender(<App url="/" />);
-  // `prelude`: ReadableStream chứa shell hoàn chỉnh + các hole đã settle
-  for await (const chunk of prelude) process.stdout.write(String(chunk));
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
-```tsx
-// Next.js 16 — bật PPR theo từng route
-// next.config.ts
-const nextConfig: NextConfig = {
-  experimental: {
-    ppr: "incremental", // opt-in từng route, không bật toàn app một lúc
-  },
-};
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-api.tsx`](examples/02-cu-phap-api.tsx)
 
-```tsx
-// app/product/[slug]/page.tsx
-import { Suspense } from "react";
-import { cookies } from "next/headers";
-
-// PHẦN TĨNH — không đụng API động: prerender lúc build, CDN phục vụ tức thì
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const product = await getProduct(slug); // fetch có cache (revalidate) — vào shell
-  return (
-    <article>
-      <h1>{product.name}</h1>
-      <p>{product.description}</p>
-      <Suspense fallback={<CartSkeleton />}>
-        <CartInfo /> {/* dùng cookies() => DYNAMIC: hole stream lúc request */}
-      </Suspense>
-    </article>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-cu-phap-api.tsx`](examples/03-cu-phap-api.tsx)
 
 Quy tắc nhanh:
 
 | API | Môi trường | Kết quả | Dùng cho |
 |---|---|---|---|
 | `prerender()` (`react-dom/static`) | Node / build-time | Chờ shell settle, trả stream đầy đủ | SSG, email, export tĩnh |
-| `prerender()` (`react-dom/static`) | Node / build-time | Chờ shell settle, trả stream đầy đủ | SSG, email, export tĩnh |
 | `resume()` / `resumeAndPrerender()` (`react-dom/static`) | Node | Tiếp stream bị treo rồi prerender xong | Advanced build pipeline (nền PPR) |
 | PPR (Next 16) | Build + runtime | Shell tĩnh từ CDN + hole stream | Trang "phần lớn tĩnh, ít chỗ động" |
 
+> **Cách đọc bảng này:** cột "Môi trường" cho biết API chạy lúc nào (build-time hay runtime), cột "Dùng cho" là tình huống điển hình — chọn hàng theo việc bạn đang cần prerender hay stream.
+
 ## Luồng hoạt động (Flow)
+
+Mục này đi qua 5 bước vòng đời một request vào trang PPR — từ build time đến lúc hole được thay vào shell.
 
 1. **Build time**: Next render route thành shell tĩnh (mọi phần ngoài Suspense), lưu CDN. Dynamic hole được đánh dấu, giữ placeholder.
 2. **Request đến**: CDN trả **shell tĩnh ngay** — không chờ server render (vì đã prerender). User thấy nội dung chính gần như tức thì.
@@ -91,56 +72,17 @@ Quy tắc nhanh:
 4. Hole xong → stream xuống, React thay fallback đúng chỗ — y cơ chế bài 4, chỉ khác phần shell không render lại.
 5. Kết quả: TTFB ≈ static (CDN), phần động vẫn cá nhân hóa/tươi — không cần chọn SSG *hoặc* SSR nữa.
 
+> **Tóm gọn 1 câu:** Build xong shell lên CDN, request đến thì trả ngay + stream hole động — TTFB của static, sự tươi của dynamic.
+
 ## Ví dụ chi tiết
+
+Mục này dựng một trang PPR thật với shell chứa data "gần tĩnh" và hole cá nhân hóa đọc cookies.
 
 Xem [`example.tsx`](example.tsx). Diễn giải đầy đủ:
 
-```tsx
-// app/product/[slug]/page.tsx — SERVER COMPONENT (Next 16, PPR bật)
-import { Suspense } from "react";
-import { cookies } from "next/headers";
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
-async function getProduct(slug: string) {
-  // fetch có cache/revalidate — chạy lúc BUILD, nằm trong static shell
-  const res = await fetch(`${process.env.API}/products/${slug}`, {
-    next: { revalidate: 3600 },
-  });
-  return res.json();
-}
-
-// Phần TĨNH trong shell: mọi ai xem cũng giống nhau
-export default async function ProductPage({ params }: { params: Promise<{ slug }> }) {
-  const { slug } = await params;
-  const product = await getProduct(slug);
-  return (
-    <article>
-      <h1>{product.name}</h1>
-      <p>{product.description}</p>
-      {/* hole ĐỘNG: đọc cookies → không thể prerender → stream runtime */}
-      <Suspense fallback={<Skeleton line />}>
-        <PersonalizedSection />
-      </Suspense>
-    </article>
-  );
-}
-
-// Phần ĐỘNG: phụ thuộc user — hole của PPR
-async function PersonalizedSection() {
-  const cart = (await cookies()).get("cart"); // API động => bóc phần này ra khỏi shell
-  return <CartPreview count={cart ? 3 : 0} />;
-}
-```
-
-```tsx
-// react-dom/static (build script thuần — ngoài Next)
-import { prerender } from "react-dom/static";
-import { ProductPage } from "./app/product/page";
-
-const { prelude } = await prerender(<ProductPage slug="ao-thun" />, {
-  bootstrapScripts: ["/main.js"],
-});
-for await (const chunk of prelude) fs.writeSync(1, chunk); // HTML hoàn chỉnh cho SSG
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -152,6 +94,8 @@ for await (const chunk of prelude) fs.writeSync(1, chunk); // HTML hoàn chỉnh
 
 ## So sánh với cách làm cũ
 
+Mục này cho thấy PPR "hấp thụ" được những hạn chế nào của SSG/ISR/SSR — từng hàng là một mô hình cũ được thay thế.
+
 | Cách cũ | Cách mới (PPR) | Lợi ích |
 |---------|----------------|---------|
 | Chọn 1 trong: SSG hoặc SSR cho cả route | Shell tĩnh + hole động trên **cùng một route** | Nhanh như SSG, cá nhân hóa như SSR |
@@ -159,7 +103,11 @@ for await (const chunk of prelude) fs.writeSync(1, chunk); // HTML hoàn chỉnh
 | ISR toàn trang | Shell prerender + hole runtime | Đổi phần động không vô hiệu cả trang |
 | `getServerSideProps` (mọi request render đủ) | Dynamic hole nhỏ | Server chỉ render phần thật sự động |
 
+> **Cách đọc bảng này:** mỗi hàng là một mô hình render trước đây — cột giữa cho thấy PPR thay thế nó ra sao, cột phải là lợi ích cụ thể nhận được.
+
 ## Lỗi thường gặp
+
+Mục này là 6 bẫy khi cấu hình PPR — hầu hết xoay quanh "đọc API động ngoài Suspense" khiến shell biến mất.
 
 1. **Đọc `cookies()`/`headers()` ngoài Suspense** ⇒ cả page thành dynamic, mất shell. *Fix:* đẩy API động xuống component con bọc `<Suspense>`.
 2. **Bật PPR toàn app (`ppr: true`)** ⇒ một page đọc cookie làm hành vi khó đoán toàn site. *Fix:* `ppr: "incremental"` + `export const experimental_ppr = true` từng route.
@@ -182,9 +130,13 @@ for await (const chunk of prelude) fs.writeSync(1, chunk); // HTML hoàn chỉnh
 - Route **tĩnh hoàn toàn** — dùng SSG thường, không cần PPR.
 - App **không dùng App Router / framework hỗ trợ** — `react-dom/static` dùng được cho prerender build riêng, nhưng PPR dạng shell+hole là cơ chế framework (Next 16+).
 
+> **Tóm gọn 1 câu:** PPR tỏa sáng ở trang "nhiều tĩnh ít động" — trang động hoàn toàn hay tĩnh hoàn toàn thì cứ dùng công cụ phù hợp hơn, khỏi bắt PPR làm.
+
 ## Bài tập nhỏ
 
 Dựng `app/pricing/page.tsx` với Next 16: toàn bộ bảng giá prerender vào shell (fetch `revalidate: 3600`); phần "plan hiện tại của bạn" đọc `cookies()` bọc `<Suspense>` thành hole. Bật `ppr: "incremental"` + `experimental_ppr = true`. Kiểm chứng: curl trang thấy shell chứa bảng giá + placeholder của hole, phần plan đến sau trong cùng response.
+
+> **Tóm gọn 1 câu:** PPR = gian hàng dựng sẵn từ đêm (shell CDN) + quầy phục vụ đo riêng từng khách (hole stream) — nhanh và cá nhân hóa cùng lúc.
 
 ## Reference
 

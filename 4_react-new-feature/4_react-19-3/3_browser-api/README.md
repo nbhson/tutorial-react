@@ -13,7 +13,10 @@
 - Dùng `browser()` **có điều kiện** (trong `if`/sau early return) và truyền `reason` để báo cáo qua `onBrowserBailout`.
 
 ## Vấn đề giải quyết
-- Component đọc `localStorage`, timezone của máy, hay `window.matchMedia` **ngay trong render**: server không có `window` → hydration mismatch, hoặc phải render 2 lần gây nháy nội dung.
+
+Mục này kể chuyện "nhập tịch" của API browser: component cần `window` nhưng server không có. Đọc để hiểu vì sao các mẹo cũ chỉ che được một nửa vấn đề.
+
+- Component đọc `localStorage`, timezone của máy, hay `window.matchMedia` **ngay trong render**: server không có `window` → hydration mismatch, hoặc phải render 2 lần gây nháy nội dung. Ví von: như diễn viên sân khấu được yêu cầu diễn cảnh "lấy điện thoại từ túi" trong khi đội phục trang chưa kịp đưa đồ — `browser()` chính là ghi chú "cảnh này chỉ diễn khi có phục trang".
 - `typeof window` chỉ che được một phần: vẫn phải chờ effect để có UI đúng → nhấp nháy (flicker).
 - Không có cách chuẩn để nói với framework "component này đừng render trên server". `browser()` chuẩn hoá việc này và **tích hợp với Suspense** thay vì hack.
 
@@ -26,17 +29,11 @@
 - **`reason` (tùy chọn)**: string hoặc hàm, mô tả *vì sao* cần render ở browser. String/giá trị hàm trả về trở thành `cause` của `Error` báo cho `onBrowserBailout`. Nếu tạo `reason` đắt, truyền hàm `() => new Error(...)` để trì hoãn.
 - **Có điều kiện**: như các lời gọi `use` khác, `use(browser())` được gọi trong `if`/sau early return — hữu ích để opt-out SSR có điều kiện (ví dụ Hook data-fetching chỉ opt-out khi thiếu `initialData`).
 
+> **Tóm gọn 1 câu:** `use(browser())` là "cờ opt-out SSR chính chủ": server thấy thì suspend, client thấy thì coi như không có gì — nhớ kèm `<Suspense>` và `'use client'`.
+
 ## Cú pháp / API
 
-```tsx
-import { use } from 'react';
-import { browser } from 'react-dom'; // chú ý: react-dom, KHÔNG phải react
-
-function BrowserOnly() {
-  use(browser('Component này cần API của browser.'));
-  return <BrowserContent />;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 Chữ ký:
 
@@ -51,69 +48,26 @@ use(browser(reason?)) : undefined   // trên client
 
 Báo cáo trên server (tùy chọn):
 
-```tsx
-import { renderToPipeableStream } from 'react-dom/server';
-
-renderToPipeableStream(<App />, {
-  onShellReady() {
-    pipe(response);
-  },
-  onBrowserBailout(error, errorInfo) {
-    // error.cause = reason bạn truyền cho browser(...)
-    logBrowserBailout(error, errorInfo);
-  },
-});
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-api.tsx`](examples/02-cu-phap-api.tsx)
 
 ## Luồng hoạt động (Flow)
+
+Mục này đi qua 4 bước một lần opt-out SSR: từ server suspend, fallback trong HTML, tới client hydrate và báo cáo bailout.
+
 1. Server render component → gặp `use(browser())` → **suspend**.
 2. React đặt **fallback của `<Suspense>` gần nhất** vào HTML ban đầu (shell gửi đi ngay).
 3. Client hydrate: `use(browser())` **không** suspend, trả `undefined` → component render tiếp, đọc `localStorage`/timezone/`matchMedia`.
 4. Nếu có `reason` + `onBrowserBailout`, server báo lại việc bailout để bạn log (không tính là `onError`).
 
+> **Tóm gọn 1 câu:** Server gặp cờ thì "để ghế trống" (fallback), client vào thì "ngồi xuống" render tiếp — kèm hóa đơn `reason` nếu bạn muốn biết ghế nào trống và vì sao.
+
 ## Ví dụ chi tiết
 
-```tsx
-// example.tsx — timezone chỉ đọc được ở browser, SSR dùng fallback
-'use client';
-import { Suspense, use } from 'react';
-import { browser } from 'react-dom';
-
-function TimeZone() {
-  // SSR: suspend → fallback. Client: trả undefined rồi đọc API browser thật.
-  use(browser('No default time zone was provided.'));
-  const timeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return <p>Múi giờ: {timeZone}</p>;
-}
-
-export default function BrowserApiDemo() {
-  return (
-    <div>
-      <h2>browser() API (React 19.3)</h2>
-      <Suspense fallback={<p>Đang xác định múi giờ...</p>}>
-        <TimeZone />
-      </Suspense>
-      <p>
-        <small>
-          Trước 19.3 phải useEffect + useState 2-pass gây nháy; browser() cho
-          component chỉ chạy ở browser, SSR tự dùng fallback.
-        </small>
-      </p>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 Ví dụ **có điều kiện** (opt-out chỉ khi thiếu `initialData`):
 
-```tsx
-function useBrowserQuery(query, options) {
-  if (options.initialData === undefined) {
-    use(browser('useBrowserQuery: No initial data was provided.'));
-  }
-  return useQuery(query, options);
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - `'use client'` — **bắt buộc**: `use(browser())` không dùng được trong Server Component.
@@ -125,6 +79,8 @@ function useBrowserQuery(query, options) {
 
 ## So sánh với cách làm cũ
 
+Bảng dưới xếp 4 mẹo "tự chế opt-out SSR" cạnh API chuẩn. Đọc theo hàng: mỗi dòng là một mẹo bạn có thể đang dùng trong codebase.
+
 | Cách cũ | Cách mới (19.3) | Lợi ích |
 |---|---|---|
 | `typeof window !== 'undefined'` | `use(browser())` | First-class, tích hợp Suspense |
@@ -132,7 +88,11 @@ function useBrowserQuery(query, options) {
 | Framework option tắt SSR cho cả trang | `use(browser())` cho **từng component** | Opt-out cục bộ, giữ SSR phần còn lại |
 | Không có cách báo cáo | `onBrowserBailout` + `reason` | Quan sát được component nào bị bailout |
 
+> **Cách đọc bảng này:** hàng 1–2 là mẹo trong từng component, hàng 3–4 là ở tầng trang/observability — dùng cột "Lợi ích" để thuyết phục team chuyển dần.
+
 ## Lỗi thường gặp
+
+Mục này là 6 lỗi của `browser()` — nhiều nhất trong nhóm 19.3, vì API dễ bị hiểu nhầm là "đọc thông tin trình duyệt" trong khi nó chỉ là "cờ".
 1. **Thiếu `<Suspense>` bao quanh** → server render fail. Vì sao: `use(browser())` cần boundary để đặt fallback. Fix: bọc trong `<Suspense fallback={...}>`.
 2. **Gọi `browser()` mà không đưa vào `use`** → không có tác dụng. Vì sao: `browser()` chỉ trả opaque value. Fix: `use(browser())`.
 3. **Dùng trong Server Component** → lỗi. Vì sao: API chỉ dành cho client. Fix: thêm `'use client'` hoặc chuyển sang Client Component con.
@@ -140,12 +100,19 @@ function useBrowserQuery(query, options) {
 5. **Tưởng `browser()` trả object thông tin thiết bị** → không phải. Vì sao: giá trị trên client là `undefined`; nó chỉ là "cờ" opt-out SSR. Fix: đọc `window.matchMedia`/`Intl`/`localStorage` sau khi `use(browser())`.
 6. **Dùng `browser()` cho analytics/security cần UA chính xác** → không phù hợp. Fix: đọc header ở server.
 
+> **Tóm gọn 1 câu:** `browser()` không "đọc browser" — nó chỉ "đánh dấu browser-only": thiếu Suspense là fail, thiếu `use` là vô tác dụng.
+
 ## Khi nào dùng / Khi nào không
 - **Dùng**: component đọc `localStorage`/`sessionStorage`, timezone/hiển thị theo locale thiết bị, `matchMedia`, API chỉ có ở browser; Hook data-fetching cần opt-out SSR khi thiếu `initialData`.
 - **Không dùng**: khi component render được trên server (hãy để SSR); thay thế feature-detection đầy đủ; khi cần UA chính xác cho analytics/bảo mật (đọc header phía server).
 
 ## Bài tập nhỏ
+
+Bài tập làm thử "draft từ localStorage" — tình huống điển hình nhất của opt-out SSR, kèm phép thử bỏ Suspense để thấy server fail như thế nào.
+
 - Viết `SavedDraft()` dùng `use(browser())` rồi khởi tạo state bằng `localStorage.getItem('draft')`, cho phép sửa và ghi lại `localStorage`. Bọc trong `<Suspense fallback={<p>Loading draft...</p>}>`. Kiểm tra: khi SSR, HTML ban đầu chứa fallback; sau hydrate hiện nội dung đã lưu. Sau đó thử **bỏ `<Suspense>`** để thấy server render fail.
+
+> **Tóm gọn 1 câu:** HTML đầu là "Loading draft..." rồi draft thật xuất hiện sau hydrate — đó là toàn bộ vòng đời của một component browser-only.
 
 ## Reference
 - [React 19.3 Release — browser](https://react.dev/blog/2026/09/09/react-19-3)

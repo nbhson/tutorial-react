@@ -27,17 +27,11 @@ React có **2 pha rõ**: **render (pure, tính JSX)** và **commit (chạm DOM) 
 | "Nối socket/timer/subscription/fetch mount" | **`useEffect` + cleanup** | Hệ thống ngoài, có vòng đời (setup/cleanup) |
 | "Đọc external store (Zustand/RTK)" | **`useSyncExternalStore`** | Chống tearing + batch + strict double-subscribe đúng |
 
+> **Cách đọc bảng này:** mỗi dòng là một việc hay bị nhét nhầm vào effect — cột "Dùng gì" là chỗ đúng của nó trong nhà React (render, `useMemo`, `useLayoutEffect`, effect, store hook); dòng "Tính data mới từ data cũ" là dòng bị phạm nhiều nhất.
+
 ### 2. "Tính data trong effect" — 3 hậu quả (nói cụ thể = ăn điểm)
 
-```tsx
-// ❌ SAI: sort rồi set state (effect tính data)
-useEffect(() => { setItems(items.sort()); }, [items]); // render 1: items chưa sort (flash), rồi sort + setItems → render 2
-// → 2 lần render, UI nhảy, + StrictMode double = 4 lần; items đổi là chạy lại (loop tiềm ẩn)
-
-// ✅ ĐÚNG: tính trong render (derived) — không state, không effect
-const sorted = [...items].sort(); // (bản copy để không mutate props)
-// render luôn có data "sẵn" (pure) — không flash, không loop
-```
+> 📄 **Code ví dụ:** [`examples/01-2-tinh-data-trong-effect-3-hau-qua.tsx`](examples/01-2-tinh-data-trong-effect-3-hau-qua.tsx)
 
 Ba lỗi cùng lúc: (a) **flash** (render đầu thiếu data "đã tính"), (b) **thừa render** (effect set state → render thêm), (c) **loop** (deps đổi liên tục nếu data không "đến nơi ổn định"). Angular (class, tính trong getter/render) không dính dạng "effect-trễ" này — React **phân biệt rõ render (pure) vs effect (thời gian)**.
 
@@ -49,11 +43,7 @@ Ba lỗi cùng lúc: (a) **flash** (render đầu thiếu data "đã tính"), (b
 | Dùng | fetch, timer, subscription, log (không cần "vẽ trước") | **đo DOM rồi đặt** (tooltip/popover, không nháy) |
 | Giá | rẻ (vẽ xong mới chạy) | **nặng là treo vẽ** (trả giá "không nháy") |
 
-```tsx
-// Đo chiều cao tooltip ĐÚNG (không nháy): useLayoutEffect
-useLayoutEffect(() => { setTop(ref.current!.getBoundingClientRect().height); }, []);
-// Vẽ lần đầu đã đúng vị trí — useEffect thì thấy "nhảy 1 frame" (vẽ trước, đo sau)
-```
+> 📄 **Code ví dụ:** [`examples/02-3-useeffect-vs-uselayouteffect-chon-ung-an-iem.tsx`](examples/02-3-useeffect-vs-uselayouteffect-chon-ung-an-iem.tsx)
 > SSR: `useLayoutEffect` không chạy server (warning) — đo DOM chỉ client. Ưu tiên `useSyncExternalStore` khi có thể (SSR-safe).
 
 ### 4. External store: `useSyncExternalStore` (KHÔNG tự viết effect)
@@ -71,19 +61,7 @@ Tự viết `useEffect + useState` để subscribe store:
 
 Vấn đề kinh điển: handler trong effect cần **giá trị mới nhất** (message đang gõ, callback prop) nhưng **không muốn** effect chạy lại mỗi lần giá trị đổi (thừa cleanup/setup).
 
-```tsx
-// Trước (2 cách sai/khổ):
-useEffect(() => { socket.on("msg", () => send(text)); }, [text, send]); // chạy lại mỗi phím (thừa)
-// hoặc: useEffect(() => { socket.on("msg", () => send(text)); }, []); // eslint-disable (giấu stale)
-
-// Sau (19.2): tách "logic không reactive" — handler LUÔN đọc mới nhất, deps SẠCH
-import { useEffectEvent } from "react";
-const onMsg = useEffectEvent(() => send(text)); // đọc text/send "hiện tại" (không nằm deps)
-useEffect(() => {
-  socket.on("msg", onMsg);
-  return () => socket.off("msg", onMsg);
-}, []); // deps [] sạch — không chạy lại, không stale
-```
+> 📄 **Code ví dụ:** [`examples/03-5-useeffectevent-19-2-oc-moi-nhat-ma.tsx`](examples/03-5-useeffectevent-19-2-oc-moi-nhat-ma.tsx)
 
 **Nguyên tắc**: effect = **reactive theo deps** (setup/cleanup theo "cái gì đổi"); `useEffectEvent` = **logic luôn-cập-nhất** (đọc giá trị mới nhất, không phản hồi). Tách 2 loại này = bỏ được `eslint-disable` (giấu stale) lẫn thêm deps (chạy lại thừa).
 
@@ -97,6 +75,10 @@ useEffect(() => {
 | Đọc external store | **`useSyncExternalStore`** (via selector hook) | chống tearing + batch |
 | Handler cần giá trị mới nhất (không chạy lại effect) | **`useEffectEvent`** (19.2) | thay `eslint-disable` |
 | Cache "kết quả tính" (không chặn render) | **`useMemo`** | khác `useCallback` (cache function) |
+
+> **Cách đọc bảng này:** đây là trang "đọc prescriptions" tổng hợp cả bài — tìm nhu cầu ở cột trái, lấy hook ở cột giữa; cần chi tiết thì cuộn lên section tương ứng.
+
+> **Tóm gọn 1 câu:** Effect là cánh cửa ra thế giới bên ngoài (timer, socket, DOM) — đừng dùng nó làm bàn bếp nấu lại data của chính nhà (derived trong render là đủ, vừa chớp vừa dễ cháy).
 
 ## Bẫy khi phỏng vấn
 

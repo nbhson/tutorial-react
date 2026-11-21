@@ -2,9 +2,15 @@
 
 **React Server Components (Server Components, Server Functions/Actions)** đạt **stable trong React 19 (12/2024)**. RSC cho phép render component **trên server**, gửi cây UI đã serialize về client, và **không ship JavaScript** của Server Component xuống browser — nhờ đó giảm mạnh bundle và cho phép truy cập dữ liệu/secret trực tiếp.
 
+Hãy hình dung RSC như một cửa hàng bánh chuyên nghiệp: lò nướng (server) làm mọi việc nặng — nhào bột, nướng bánh; quầy bán (client) chỉ trưng bày thành phẩm cho khách chọn. Khách không bao giờ phải vác lò nướng về nhà (không ship JS).
+
 Framework triển khai: **Next.js App Router**, React Router, Waku...
 
+> **Tóm gọn 1 câu:** RSC render trên server và không ship JS — bundle nhẹ hơn, dữ liệu gần hơn, secret an toàn hơn.
+
 ## Tổng quan theo nhóm
+
+Mục này là bản đồ 5 bài của chương: từ phân biệt Server/Client Component đến PPR. Đọc theo thứ tự số để đi từ nền móng lên nâng cao.
 
 | # | Feature | Mô tả |
 |---|---------|-------|
@@ -14,7 +20,11 @@ Framework triển khai: **Next.js App Router**, React Router, Waku...
 | 4 | [Streaming + loading.js + Suspense](4_streaming-loading/README.md) | Shell stream trước, hole stream sau; `loading.js` theo segment, `<Suspense>` thủ công theo vùng |
 | 5 | [Prerender + PPR](5_static-prerender-ppr/README.md) | `react-dom/static` (`prerender`), Partial Prerendering: shell tĩnh prerender lúc build + hole động stream runtime |
 
+> **Cách đọc bảng này:** mỗi dòng là một bài con, xếp từ nền tảng (bài 1) đến nâng cao (bài 5); click vào cột Feature để vào bài chi tiết, cột Mô tả để xem trước nội dung.
+
 ## ĐÁNH GIÁ TỔNG QUAN
+
+Mục này đánh giá RSC như một "món hàng" trước khi bạn đầu tư chuyển project: mạnh ở đâu, cẩn trọng ở đâu, dùng thế nào cho đúng.
 
 ### Điểm mạnh
 
@@ -36,41 +46,25 @@ Framework triển khai: **Next.js App Router**, React Router, Waku...
 - Mutation form → Server Actions + `revalidatePath`/`revalidateTag`, auth check trong action.
 - Dedupe request cùng render → bọc fetch helper bằng `cache()`.
 
+Ví von tư duy tổng thể: RSC là "nhà bếp làm hết việc nặng, quầy chỉ bày món" — mọi quy tắc (boundary, serialization, cache, streaming) đều xoay quanh nguyên lý đó.
+
+> **Tóm gọn 1 câu:** Mặc định server, tương tác thì island client đặt thấp nhất có thể, mutation qua Server Action có auth, fetch bọc `cache()`.
+
 ## Cú pháp nhanh
 
-```tsx
-// Server Component (mặc định) — async, truy cập DB/secret
-export default async function Page() {
-  const items = await db.query();
-  return <ClientWidget items={items} />; // props phải serializable
-}
-```
+Mục này gom những đoạn code "xương sống" của RSC — mở ra là thấy đủ pattern dùng hằng ngày.
 
-```tsx
-// Client island
-'use client';
-export function ClientWidget({ items }: { items: Item[] }) {
-  // state / effect / event
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-nhanh.tsx`](examples/01-cu-phap-nhanh.tsx)
 
-```tsx
-// Server Action
-'use server';
-export async function createItem(formData: FormData) {
-  await db.item.create({ /* ... */ });
-  revalidatePath('/items');
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-nhanh.tsx`](examples/02-cu-phap-nhanh.tsx)
 
-```tsx
-// Data layer
-import { cache, cacheSignal } from 'react';        // cache trong request (RSC-only cho cacheSignal)
-await fetch(url, { next: { revalidate: 60, tags: ['items'] } }); // cache xuyên request
-revalidateTag('items');                             // xóa cache sau mutation
-```
+> 📄 **Code ví dụ:** [`examples/03-cu-phap-nhanh.tsx`](examples/03-cu-phap-nhanh.tsx)
+
+> 📄 **Code ví dụ:** [`examples/04-cu-phap-nhanh.tsx`](examples/04-cu-phap-nhanh.tsx)
 
 ## Tính năng quan trọng khác
+
+Mục này liệt kê các API "vệ tinh" quanh RSC — từ streaming, cache cho tới bảo mật secret.
 
 | Feature | Mô tả | Ghi chú |
 |---------|-------|---------|
@@ -81,7 +75,11 @@ revalidateTag('items');                             // xóa cache sau mutation
 | `unstable_cache` | Cache kết quả hàm non-fetch với key + tags | Next.js |
 | `taintObjectReference` | Chặn leak secret qua Server → Client props | Security API |
 
+> **Cách đọc bảng này:** mỗi dòng một API, cột "Mô tả" nói nó làm gì, cột "Ghi chú" cho biết nguồn gốc và điều kiện dùng (React hay Next, version nào) — chi tiết từng API nằm ở các bài 3–5.
+
 ## Yêu cầu
+
+Mục này là "điều kiện dự thi" để chạy được RSC trong project.
 
 - React 19+ (RSC stable từ 12/2024).
 - Next.js 14+ (khuyến nghị 15+; Next 16 hỗ trợ tốt hơn).
@@ -89,10 +87,9 @@ revalidateTag('items');                             // xóa cache sau mutation
 
 ## Chạy thử
 
-```bash
-npx create-next-app@latest demo --typescript --app
-cd demo && npm run dev
-```
+Mục này là lệnh khởi động project mẫu để xem RSC hoạt động tận mắt.
+
+> 📄 **Code ví dụ:** [`examples/05-chay-thu.sh`](examples/05-chay-thu.sh)
 
 ## Tài liệu tham khảo
 

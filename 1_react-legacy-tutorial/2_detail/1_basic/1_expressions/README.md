@@ -9,6 +9,9 @@
 - Phân biệt `{{ }}` của AngularJS (template HTML riêng) với `{}` của React (JS thật ngay trong JSX).
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này nói về quy tắc trung tâm của JSX: biểu thức JS phải nằm trong cặp `{}`. Đọc để biết được cái gì được phép đặt vào, cái gì bị chặn và vì sao.
+
 - AngularJS: dữ liệu đặt lên `$scope` bằng `ng-init`, template HTML dùng `{{ name }}` để in ra. Khung `{{ }}` là cú pháp riêng của AngularJS (về bản chất là expression parser của Angular).
 - React: JSX không phải HTML mà là JS. Bất kỳ biểu thức JS nào muốn xuất ra UI đều đặt trong `{}`: `{this.state.name}`, `{this.state.sort.one}`, hay thậm chí một phép tính `{40 + 2}`. Không có `ng-init` — dữ liệu khởi tạo trong `this.state` (constructor).
 - `{}` chấp nhận *mọi biểu thức trả về giá trị* (biến, phép toán, gọi hàm, ternary...), nhưng *không* chấp nhận câu lệnh (`if`, `for`) hay object literal trần (object phải bọc trong dấu ngoặc: `{{a: 1}}`).
@@ -16,10 +19,17 @@
 - Một component có thể in ra **nhiều** `{}` liền nhau, ghép cả chữ tĩnh lẫn biến: `<p>Chào {name}, bạn {count} tuổi</p>` — giống trộn `{{ name }}` với text trong template AngularJS.
 - React tự **escape** giá trị trong `{}`: nếu expression là chuỗi `<script>` hay HTML, React in ra dạng text an toàn (không chèn thẻ) — không cần tự lo XSS như khi `ng-bind-html`/nối chuỗi thủ công.
 
+Hãy hình dung `{}` như một "cửa sổ" trên tường JSX: mọi thứ muốn đi từ code JS ra màn hình đều phải chui qua cửa sổ này — và cửa sổ chỉ cho những *giá trị* qua, không cho *câu lệnh* (`if`, `for`) qua.
+
+> **Tóm gọn 1 câu:** `{}` là cánh cửa duy nhất đưa biểu thức JS vào JSX — biểu thức thì được, câu lệnh thì không, và mọi thứ qua cửa đều được escape an toàn.
+
 ### Keyword chính
 `JSX` · `expression` · `this.state` · `constructor` · `ReactDOM.render` · `Babel`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này lần theo hành trình của một biểu thức: từ lúc file được tải, Babel dịch JSX, đến khi giá trị trong `{}` được tính và in ra DOM thật.
+
 1. Mở `index.html` → nạp CDN `react@16`, `react-dom@16`, `babel-standalone@6` (cần internet).
 2. Babel biên dịch `example.jsx` (chứa class `ExpressionsDemo`) và dòng `ReactDOM.render(<ExpressionsDemo />, ...)`.
 3. `constructor` của `ExpressionsDemo` chạy → khởi tạo `this.state = { name, sort }`.
@@ -32,43 +42,7 @@
 - Mở DevTools Console để xem cảnh báo (nếu có) và tab Elements để thấy Virtual DOM đã render thành DOM thật.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY class — đối chiếu AngularJS ng-init/{{ }}.
-class ExpressionsDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    // this.state ↔ ng-init="name='Geeks for Geeks'"
-    // Dữ liệu được khai báo MỘT LẦN ở đây, sau đó render ra UI
-    this.state = {
-      name: "Geeks for Geeks", // ↔ ng-init="name='Geeks for Geeks'"
-      sort: { one: "quick sort", two: "merge sort", three: "bubble sort" }
-    };
-  }
-  render() {
-    // Mỗi cặp { } là một expression được JS tính rồi chèn vào JSX
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>React Expressions (JSX)</h2>
-        <div>
-          {/* {name} ↔ {{ name }} của AngularJS */}
-          <p>{this.state.name} is a portal for geeks.</p>
-        </div>
-        <div>
-          <p>Sorting Algorithms:</p>
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {/* Truy cập thuộc tính lồng nhau như JS bình thường */}
-            <li>{this.state.sort.one}</li>
-            <li>{this.state.sort.two}</li>
-            <li>{this.state.sort.three}</li>
-          </ul>
-        </div>
-        {/* Biểu thức JS tùy ý trong {}: */}
-        <p>{"Tổng: " + (40 + 2)}</p>
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`constructor(props)` + `super(props)`**: chạy đầu tiên khi component được khởi tạo; `super(props)` truyền props lên lớp cha để `this` dùng được.
@@ -83,6 +57,9 @@ class ExpressionsDemo extends React.Component {
 - **Boolean/null/undefined**: `{true}`, `{null}`, `{undefined}` đều không in gì — hữu ích khi muốn "ẩn" một giá trị theo điều kiện (`{flag && x}`).
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này ghép từng cú pháp AngularJS với bản dịch React của nó — đọc ngang từng dòng là có ngay công thức chuyển đổi.
+
 | AngularJS | React legacy | Ghi chú |
 |---|---|---|
 | `{{ name }}` | `{this.state.name}` | Cùng in dữ liệu ra UI |
@@ -91,7 +68,14 @@ class ExpressionsDemo extends React.Component {
 | Template HTML riêng (`*.html`) | JSX trong file `.jsx` | React gộp view vào code |
 | Expression parser của Angular | JS thuần (Babel biên dịch) | Không có cú pháp mới nào ngoài `{}` |
 
+> **Cách đọc bảng này:** mỗi dòng là một phép "dịch thuật"; cột *Ghi chú* nói lên bản dịch "giống ở hình mà khác ở chất" — React dùng JS thật chứ không phải cú pháp template riêng.
+
+> **Tóm gọn 1 câu:** Chuyển từ AngularJS sang React là đổi `{{ }}` thành `{}` — nhưng quan trọng hơn là đổi từ "cú pháp template" sang "JS thật sự".
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Mục này gom những lỗi "gõ xong chạy không như ý" phổ biến nhất với `{}` — đọc để nhận ra ngay khi gặp.
+
 - **Đặt text/expression ngoài `{}`**: `{this.state.name}` viết thành `{name}` không có `{}` → in literal "name" hoặc báo lỗi. → Luôn bọc expression trong `{}`.
 - **Viết câu lệnh trong `{}`**: `{if (x) {...}}` → Babel báo cú pháp sai. → Dùng ternary `{x ? ... : ...}` hoặc tách ra biến trước.
 - **Object literal trần trong `{}`**: `<p style={{color:'red'}}>` bị viết nhầm thành `<p style={color:'red'}>` → lỗi. → Object phải nằm trong cặp ngoặc: `{{...}}`.
@@ -99,6 +83,8 @@ class ExpressionsDemo extends React.Component {
 - **Gán giá trị cho `this.state` sau khi render xong** (ngoài constructor) → React không re-render. → Chỉ khởi tạo state trong constructor, muốn đổi dùng `setState`.
 - **`{this.state.sort}` in ra `[object Object]`** — cố in nguyên object thay vì thuộc tính con. → In đúng field: `{this.state.sort.one}`.
 - **Dùng backtick template ngay trong `{}` mà không bọc** — `{`a ${b}`}` hợp lệ, nhưng thiếu ngoặc sẽ lỗi. → Đảm bảo chuỗi template nằm trọn trong `{}`.
+
+> **Tóm gọn 1 câu:** Đa số lỗi với `{}` đều cùng một gốc: quên rằng đây là JS thật — bọc biểu thức trong `{}`, tránh câu lệnh, object phải có ngoặc kép lớp.
 
 ## Best practices / Mẹo
 - Chỉ đặt trong `{}` những gì *cần* tính toán; text tĩnh cứ viết thẳng.
@@ -111,6 +97,9 @@ class ExpressionsDemo extends React.Component {
 - Ghi nhớ quy tắc: `{}` = "hộp đựng biểu thức JS", không phải cú pháp của Angular; đọc JSX như đọc JS.
 
 ## Bài tập nhỏ
+
+Ba bài này luyện phản xạ "biểu thức trong `{}`" — làm tay để nhớ lâu hơn đọc.
+
 1. Thêm một expression hiển thị tổng số phần tử: `{this.state.sort.one.length}` — giải thích kết quả.
 2. Đổi đoạn "Tổng: " thành dùng template string ES6: `{`Tổng: ${40 + 2}`}` và so sánh với cách nối chuỗi cũ.
 3. In 3 thuật toán bằng `map` thay vì 3 dòng `<li>` — nối tiếp kiến thức sang bài Lists.

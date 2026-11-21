@@ -15,6 +15,10 @@
   một bundle phục vụ nhiều ngôn ngữ.
 - Đơn vị dịch là **"key", không phải câu**: `t("save")` tra bảng `{ save: "Lưu" }` — tách nội dung khỏi code
   để dịch giả làm việc với JSON, dev không sửa code khi đổi câu chữ.
+- Ví von: Angular như nhà hàng in sẵn 3 cuốn thực đơn — đổi ngôn ngữ là đổi cả cuốn; React là thực đơn
+  điện tử — bấm là đổi trang, món đang gọi vẫn giữ nguyên.
+
+> **Tóm gọn 1 câu:** Angular dịch lúc build (đổi là reload), React dịch lúc runtime (`changeLanguage` đổi ngay, không mất state).
 
 ---
 
@@ -28,6 +32,10 @@
   (example mô phỏng bằng hàm `hello: (name) => ...` — cùng ý tưởng).
 - **Plural** — số ít/nhiều theo luật từng locale (`_one`/`_other`; tiếng Việt không chia nhưng Anh/Nga có) —
   i18next tự chọn form theo count, khỏi `if` tay.
+- Ví von: plural tự động như giáo viên chấm bài theo luật từng nước — bạn nộp số đếm,
+  mỗi nước có quy cách chấm số ít/nhiều riêng, khỏi tự đoán.
+
+> **Tóm gọn 1 câu:** `t()` tra key, `{{name}}` chèn biến, plural tự chọn form theo locale — ba mảnh ghép của một câu dịch hoàn chỉnh.
 
 ---
 
@@ -40,6 +48,10 @@
 2. Mọi component dùng `useTranslation()` (đã subscribe) **re-render** → `t(...)` tra bảng mới → chữ đổi.
 3. **Không reload trang**, state (form đang gõ, scroll) giữ nguyên — điều build-time Angular không làm được.
 - Trong example mô phỏng: `setLang("en")` → `useMemo(() => dict[lang])` chọn bảng mới → re-render.
+- Ví von: đổi ngôn ngữ như đổi kênh truyền hình bằng remote — hình đang phát không giật lại từ đầu,
+  chỉ phụ đề đổi thôi.
+
+> **Tóm gọn 1 câu:** `changeLanguage` phát sự kiện `languageChanged` — mọi component nghe thấy, tra bảng mới, đổi chữ ngay không reload.
 
 ---
 
@@ -87,22 +99,7 @@
 - Plural: i18next chọn form theo `count` và **luật từng locale** — tiếng Anh chia `one/other` ("1 item" vs "5 items"), tiếng Việt không chia (mọi số một form) nhưng vẫn nên khai đủ để đổi locale không vỡ. Key dạng `item_one`/`item_other`, gọi `t("item", { count: 5 })`.
 - Sai thì sao: nối chuỗi `"Xin chào " + name` thì sang ngôn ngữ đảo thứ tự (Nhật: tên trước) là sai ngữ pháp — cả câu phải nằm trong key để dịch giả sắp xếp. Quên `count` thì plural luôn rơi form mặc định.
 
-```tsx
-// Resource minh họa (bản thật nằm trong i18n.init({ resources }))
-const resources = {
-  en: { translation: {
-    hello: "Hello {{name}}", // template 2 ngoặc, khớp t("hello", { name })
-    item_one: "{{count}} item", // số ít Anh
-    item_other: "{{count}} items", // số nhiều Anh
-  } },
-  vi: { translation: {
-    hello: "Xin chào {{name}}", // cùng key, câu Việt
-    item_other: "{{count}} mục", // Việt không chia, dùng other cho mọi số
-  } },
-};
-// Gọi: t("hello", { name: "Son" }) -> "Xin chào Son" (vi) / "Hello Son" (en)
-// Gọi: t("item", { count: 1 }) -> "1 item" (en) / "1 mục" (vi)
-```
+> 📄 **Code ví dụ:** [`examples/01-7-interpolation-name-plural-one-other-viet-ung.tsx`](examples/01-7-interpolation-name-plural-one-other-viet-ung.tsx)
 
 ---
 
@@ -121,6 +118,8 @@ const resources = {
 | Key mới chỉ có `vi` | Câu `vi` tạm (không vỡ) | Key thô `checkout.title` |
 | Key thiếu cả 2 | Key thô (tín hiệu fix) | Key thô |
 
+> **Cách đọc bảng này:** mỗi dòng là một tình huống "key còn thiếu bao nhiêu", so sánh hai cột để thấy giá trị của `fallbackLng` — đọc dọc cột phải là thấy hậu quả nếu quên cấu hình.
+
 ---
 
 ## 9. Detector chọn locale đầu + `escapeValue: false` vì sao?
@@ -132,21 +131,7 @@ const resources = {
 - `interpolation.escapeValue: false` vì React đã **tự escape khi render** (chống XSS ở tầng JSX). Để i18next escape nữa là escape kép — user tên `A&B` hiện `A&amp;B`. Tắt ở i18next, để React lo — đúng một người gác một cửa.
 - Sai thì sao: quên lưu lựa chọn vào storage thì mỗi lần reload detector đọc navigator lại — user đã chọn EN, reload về VI, tưởng app quên. Fix: `changeLanguage` xong `localStorage.setItem("lng", lng)` (hoặc để detector cache tự làm).
 
-```tsx
-// Khởi tạo detector + tắt escape kép (trích README, giải thích lại từng dòng)
-import i18n from "i18next";
-import LanguageDetector from "i18next-browser-languagedetector"; // tự chọn locale đầu thông minh
-import { initReactI18next } from "react-i18next";
-
-i18n
-  .use(LanguageDetector) // đọc localStorage -> cookie -> navigator, khỏi chọn tay lần đầu
-  .use(initReactI18next) // cắm vào React để useTranslation subscribe được
-  .init({
-    resources: { vi: { translation: { save: "Lưu" } }, en: { translation: { save: "Save" } } },
-    fallbackLng: "vi", // thiếu key en thì rơi về vi, không hiện key thô
-    interpolation: { escapeValue: false }, // React đã escape XSS, tránh escape 2 lần
-  });
-```
+> 📄 **Code ví dụ:** [`examples/02-9-detector-chon-locale-au-escapevalue-false-vi.tsx`](examples/02-9-detector-chon-locale-au-escapevalue-false-vi.tsx)
 
 ---
 
@@ -159,20 +144,7 @@ i18n
 - Type-safe (nâng cao): suy type từ resource để `t("...")` autocomplete và **báo key sai lúc compile** — gõ `t("chekout.title")` (sai chính tả) là đỏ ngay, không đợi runtime hiện key thô. Chưa làm type-safe thì ít nhất giữ key có ngữ cảnh, không đổi key đã dịch.
 - Sai thì sao: một file khổng lồ thì 2 dev sửa 2 màn cùng conflict, user mở trang chủ cũng tải cả chữ màn admin. Fix: `common` giữ nhỏ (khung + nút chung), mỗi feature một namespace, lazy theo route.
 
-```tsx
-import { useTranslation } from "react-i18next";
-
-function CheckoutTitle() {
-  // Gắn namespace checkout: t("title") tra checkout.title, không lẫn common.title
-  const { t } = useTranslation("checkout");
-  return <h1>{t("title")}</h1>; // type-safe (nâng cao) thì gõ sai key đỏ lúc compile
-}
-
-function SaveButton() {
-  const { t } = useTranslation("common"); // nút chung dùng namespace common nhỏ gọn
-  return <button>{t("save")}</button>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-10-namespace-lazy-load-type-safe-key-app.tsx`](examples/03-10-namespace-lazy-load-type-safe-key-app.tsx)
 
 ---
 
@@ -186,21 +158,7 @@ function SaveButton() {
 - **`Intl` hardcode `"vi-VN"`**: đổi sang EN mà tiền/ngày vẫn format Việt — song ngữ nửa vời. Fix: luôn `new Intl.NumberFormat(i18n.language, ...)` lấy từ `useTranslation`, đổi ngôn ngữ là số/ngày đổi theo.
 - **Quên `<html lang>`**: screen reader đọc tiếng Việt bằng giọng Anh, SEO nhận sai ngôn ngữ. Fix: effect nhỏ `document.documentElement.lang = i18n.language` mỗi lần đổi (hoặc plugin i18next tự làm).
 
-```tsx
-import { useEffect } from "react";
-import { useTranslation } from "react-i18next";
-
-function LocaleSync() {
-  const { i18n } = useTranslation(); // nguồn locale chuẩn của app
-  useEffect(() => {
-    // Đồng bộ thẻ html với ngôn ngữ đang chọn: tốt cho a11y (giọng đọc) + SEO
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language]); // chạy lại mỗi lần changeLanguage
-  // Format tiền theo locale hiện tại, không hardcode "vi-VN"
-  const money = new Intl.NumberFormat(i18n.language, { style: "currency", currency: "VND" }).format(100000);
-  return <p>{money}</p>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-11-loi-thuc-chien-quen-import-i18n-template.tsx`](examples/04-11-loi-thuc-chien-quen-import-i18n-template.tsx)
 
 ---
 

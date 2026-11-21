@@ -7,63 +7,54 @@
 
 ## Khái niệm cốt lõi (Core)
 
-### 1. Không animation engine built-in — animation là hệ quả state
-Angular `@angular/animations` (trigger/state/transition trong metadata). React không có — animation là **state đổi → style/class mới → trình duyệt nội suy transition**. Không JS frame tay cho micro-interaction.
+Mục này nói về tư duy animation trong React 2026: không có animation engine riêng — animation là hệ quả của state — cùng 3 lựa chọn công cụ và quy tắc a11y bắt buộc.
 
-```tsx
-// example.tsx: open false->true là style đổi, transition nội suy — không requestAnimationFrame tay
-const [open, setOpen] = useState(false);
-<div style={{
-  opacity: open ? 1 : 0, // 0->1 giữa 2 render
-  transform: open ? "translateY(0)" : "translateY(8px)",
-  transition: "opacity 200ms, transform 200ms", // khai cố định: nội suy gì, bao lâu
-  pointerEvents: open ? "auto" : "none",
-}}>Nội dung fade/slide</div>
-```
+### 1. Không animation engine built-in — animation là hệ quả state
+Angular `@angular/animations` (trigger/state/transition trong metadata). React không có — animation là **state đổi → style/class mới → trình duyệt nội suy transition**. Không JS frame tay cho micro-interaction. Ví von: React không thuê "vũ công riêng" cho UI — bạn chỉ đổi trạng thái sân khấu (state), còn trình duyệt là đạo diễn lo chuyển cảnh mượt.
+
+> 📄 **Code ví dụ:** [`examples/01-1-khong-animation-engine-built-in-animation-la.tsx`](examples/01-1-khong-animation-engine-built-in-animation-la.tsx)
 
 Vì sao state-driven tốt? Vì animation đồng bộ với data (đúng state là đúng UI, không "quên chạy animation"), test bằng set state (không mock timer frame), reduced-motion chỉ cần CSS (không sửa logic).
 
+> **Tóm gọn 1 câu:** Animation React không phải "chạy diễn" — chỉ là state đổi, style đổi, trình duyệt tự nội suy.
+
 ### 2. CSS transition đủ 80% (hover/fade/slide/scale)
-Chỉ cần class/style theo state + `transition` cố định. `transform` + `opacity` là 2 thuộc tính GPU rẻ (compositor, không reflow); `width`/`height`/`top`/`margin` reflow (đo lại layout, giật). Quy tắc: trượt/scale/fade thì `transform`/`opacity`, không `margin`/`top`.
+Chỉ cần class/style theo state + `transition` cố định. `transform` + `opacity` là 2 thuộc tính GPU rẻ (compositor, không reflow); `width`/`height`/`top`/`margin` reflow (đo lại layout, giật). Quy tắc: trượt/scale/fade thì `transform`/`opacity`, không `margin`/`top`. Ví von: animate `transform`/`opacity` như vẽ trên lớp kính mỏng đặt trên trang — rẻ và nhanh; animate `width`/`top` như xé dán lại cả trang giấy mỗi khung hình — tốn và giật.
+
+> **Tóm gọn 1 câu:** 80% hiệu ứng chỉ cần CSS transition trên `transform` + `opacity` — hai thuộc tính "lớp kính" rẻ nhất của trình duyệt.
 
 ### 3. Motion (`motion` package, ex-Framer Motion 2024)
+Mục này về "vũ công chuyên nghiệp" khi CSS hết bài: exit animation, layout reorder, gesture — đọc để biết lúc nào đáng cài lib.
+
 `motion.div` + `initial`/`animate`/`exit` + `<AnimatePresence>` (hoãn unmount tới khi exit xong) + `layout` (đo cũ/mới, animate khi reorder) + gesture (`whileHover`/`whileTap`) + `useAnimate` imperative + `onAnimationComplete`. Dùng khi CSS không làm được: exit cho conditional unmount, layout reorder, shared-element, gesture phức tạp.
 
-```tsx
-// Motion (npm i motion) — exit chạy trước khi gỡ DOM (CSS không làm được vì DOM gỡ ngay):
-import { motion, AnimatePresence } from "motion/react";
+> 📄 **Code ví dụ:** [`examples/02-3-motion-motion-package-ex-framer-motion-2024.tsx`](examples/02-3-motion-motion-package-ex-framer-motion-2024.tsx)
 
-<AnimatePresence>
-  {open && (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }} // mount từ đâu
-      animate={{ opacity: 1, y: 0 }} // tới đâu
-      exit={{ opacity: 0, y: 8 }} // rời đi đâu — AnimatePresence giữ tới khi xong mới gỡ
-      transition={{ duration: 0.2 }}
-    >Nội dung</motion.div>
-  )}
-</AnimatePresence>
-```
+Vì sao `AnimatePresence` quan trọng? Vì `{open && <div/>}` gỡ DOM ngay khi `open` false — CSS exit không kịp chạy (không còn node để nội suy). AnimatePresence giữ node "thây ma" chạy exit rồi mới gỡ thật. Ví von: như diễn viên đóng xong phân cảnh từ biệt vẫn đứng trên sân khấu thêm vài giây trước khi lui vào hậu trường — không có AnimatePresence là đạo diễn tắt đèn giữa phân cảnh.
 
-Vì sao `AnimatePresence` quan trọng? Vì `{open && <div/>}` gỡ DOM ngay khi `open` false — CSS exit không kịp chạy (không còn node để nội suy). AnimatePresence giữ node "thây ma" chạy exit rồi mới gỡ thật.
+> **Tóm gọn 1 câu:** Motion là vũ công chuyên nghiệp cho việc CSS không làm nổi — đặc biệt là "phân cảnh từ biệt" (exit) nhờ `AnimatePresence`.
 
 ### 4. `prefers-reduced-motion` — bắt buộc, không tùy
-User chóng mặt/buồn nôn vì chuyển động phải được tôn trọng: CSS toàn cục tắt + `useReducedMotion()` của Motion để bỏ logic. Nội dung vẫn đúng đầy đủ, chỉ không mượt.
+Mục này về quy tắc a11y không thương lượng: tôn trọng người dùng bật giảm chuyển động trong OS.
 
-```css
-/* Toàn cục: user reduce là mọi transition/animation gần như tức thì */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
-```
+User chóng mặt/buồn nôn vì chuyển động phải được tôn trọng: CSS toàn cục tắt + `useReducedMotion()` của Motion để bỏ logic. Nội dung vẫn đúng đầy đủ, chỉ không mượt. Ví von: nội dung là món ăn, animation là món tráng miệng — khách kiêng đường vẫn phải ăn no, chỉ là bỏ tráng miệng thôi.
+
+> 📄 **Code ví dụ:** [`examples/03-4-prefers-reduced-motion-bat-buoc-khong-tuy.css`](examples/03-4-prefers-reduced-motion-bat-buoc-khong-tuy.css)
+
+> **Tóm gọn 1 câu:** `prefers-reduced-motion` là yêu cầu y tế của user — tắt mượt nhưng không được tắt nội dung.
 
 ### 5. React Spring — vật lý lò xo (ít dùng 2026)
-`useSpring({ x })` nội suy theo lò xo (tension/friction) cho cảm giác tự nhiên (kéo thả, số nhảy). Ít phổ biến hơn Motion vì API nặng mà 80% chỉ cần transition.
+`useSpring({ x })` nội suy theo lò xo (tension/friction) cho cảm giác tự nhiên (kéo thả, số nhảy). Ít phổ biến hơn Motion vì API nặng mà 80% chỉ cần transition. Ví von: Motion đi đường thẳng có nhịp đều, Spring đi như người bước chân bỗng — chân thực hơn nhưng ít khi cần.
+
+> **Tóm gọn 1 câu:** Spring chỉ cần khi bạn thật sự muốn "vật lý lò xo" — đa số trường hợp Motion + CSS đã đủ.
 
 ### Keyword chính
 state-driven (state → style → CSS), transition (khai cố định) + transform/opacity (GPU rẻ), Tailwind (`transition duration-200`), `motion.div` + `initial`/`animate`/`exit`, `AnimatePresence` (hoãn gỡ), `layout` (reorder), `whileHover`/`whileTap`, `prefers-reduced-motion`/`useReducedMotion`.
 
+> **Tóm gọn 1 câu:** Nắm 8 từ này là đủ làm animation: state điều khiển, CSS lo phần rẻ, Motion lo phần khó, reduced-motion lo phần tử vi.
+
 ## Luồng hoạt động (Flow)
+Mục này đi qua từng khung hình của một toggle fade/slide — đọc để thấy "không có gì chạy cả, chỉ có state đổi và trình duyệt nội suy".
 1. `App` render `open = false`: div `opacity: 0`, `translateY(8px)`, `pointerEvents: none`. Cùng element DOM sẽ dùng cho cả ẩn/hiện (không unmount).
 2. Bấm Toggle → `setOpen(true)` → re-render → style mới `opacity: 1`, `translateY(0)`, `pointerEvents: auto`. Cùng node DOM, chỉ giá trị đổi.
 3. Trình duyệt thấy `transition: opacity 200ms, transform 200ms` (khai cố định từ đầu) → nội suy mượt cũ→mới trong 200ms. Không JS frame nào chạy — compositor GPU làm.
@@ -74,87 +65,24 @@ state-driven (state → style → CSS), transition (khai cố định) + transfo
 8. `layout` (list DAY 20 reorder): Motion đo vị trí cũ/mới mỗi item, animate `transform` trượt về chỗ mới — CSS không làm gọn (phải FLIP tay).
 9. `prefers-reduced-motion: reduce` → media query ép duration ~0 → nội dung hiện ngay đúng, không mượt. Test bằng DevTools Rendering → emulate.
 
+> **Tóm gọn 1 câu:** Toggle một lần là cả chuỗi: state đổi → style mới → trình duyệt nội suy 200ms — không một dòng JS frame nào chạy giữa chừng.
+
 ## Ví dụ chi tiết
+Mục này cho code hoàn chỉnh CSS + Tailwind + Motion — copy chạy thử rồi quay lại phần giải thích.
 Khớp 1-1 với `example.tsx` (CSS + Tailwind + scale bài tập):
 
-```tsx
-// example.tsx — DAY 19: CSS transition + Tailwind + reduced-motion + Motion ý tưởng
-// Mục đích: animation = state đổi -> style/class đổi -> CSS nội suy. Motion chỉ khi cần exit/layout.
-import { useState } from "react"; // (1) State open là nguồn duy nhất — đổi là transition chạy, không JS frame tay
-
-export default function App() {
-  const [open, setOpen] = useState(false); // (2) false = ẩn (opacity 0 + trượt 8px + chặn click)
-  const [scale, setScale] = useState(false); // (3) Demo scale + fade bài tập — transform + opacity đều GPU rẻ
-
-  return (
-    <>
-      <button onClick={() => setOpen((o) => !o)}>Toggle fade/slide</button>{" "}
-      <button onClick={() => setScale((s) => !s)}>Toggle scale/fade</button>
-      {/* (4) Khối fade/slide: GIÁ TRỊ đổi theo state, transition KHAI CỐ ĐỊNH (không trong nhánh). */}
-      {/* Vì sao transition cố định? Vì khai trong nhánh là lần có lần không — mất mượt. */}
-      <div
-        style={{
-          marginTop: 12,
-          padding: 12,
-          border: "1px solid #ccc",
-          // (5) opacity + transform là 2 thuộc tính GPU rẻ nhất (không reflow như width/margin/top).
-          opacity: open ? 1 : 0, // đổi giữa 2 render là trình duyệt nội suy 200ms
-          transform: open ? "translateY(0)" : "translateY(8px)", // trượt nhẹ, không dùng margin/top
-          transition: "opacity 200ms, transform 200ms", // khai "nội suy gì, bao lâu" — cố định ngoài điều kiện
-          // (6) Ẩn nhưng vẫn DOM (để transition 2 chiều) -> chặn click khi ẩn. Quên là khối vô hình chặn nút dưới.
-          pointerEvents: open ? "auto" : "none",
-        }}
-      >
-        Nội dung fade/slide
-      </div>
-      {/* (7) Tailwind tương đương: class đổi theo state, transition utility cố định */}
-      <div
-        className={open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"}
-        style={{ transition: "opacity 200ms, transform 200ms", marginTop: 12, padding: 12, border: "1px solid #ccc" }}
-      >
-        Bản Tailwind — cùng cơ chế, khác công cụ
-      </div>
-      {/* (8) Scale + fade bài tập: scale(0.95)<->1 kèm opacity — vẫn transform + opacity rẻ */}
-      <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", opacity: scale ? 1 : 0, transform: scale ? "scale(1)" : "scale(0.95)", transition: "opacity 200ms, transform 200ms", pointerEvents: scale ? "auto" : "none" }}>
-        Scale + fade
-      </div>
-      {/* (9) reduced-motion: CSS toàn cục (xem README) tắt transition khi user yêu cầu — nội dung vẫn đúng, chỉ không mượt. */}
-      {/* Motion khi cần exit/layout (không chạy ở đây, xem README): AnimatePresence + exit + layout. */}
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
 Motion exit + Tailwind + reduced-motion (copy khi cần):
 
-```tsx
-// Motion (npm i motion) — exit cho conditional unmount:
-import { motion, AnimatePresence } from "motion/react";
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
-<AnimatePresence>
-  {open && (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.2 }}>
-      Nội dung
-    </motion.div>
-  )}
-</AnimatePresence>
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.tsx`](examples/06-vi-du-chi-tiet.tsx)
 
-```tsx
-// Tailwind cùng hiệu ứng fade/slide:
-<div className={open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"} style={{ transition: "opacity 200ms, transform 200ms" }}>
-  Nội dung fade/slide
-</div>
-```
-
-```css
-/* Tắt chuyển động khi user yêu cầu — nội dung vẫn đúng */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
-```
+> 📄 **Code ví dụ:** [`examples/07-vi-du-chi-tiet.css`](examples/07-vi-du-chi-tiet.css)
 
 ## Giải thích từng phần
+Mục này soi từng dòng style trong example — đọc để hiểu vì sao transition phải cố định, vì sao không animate margin.
 - Dòng `useState(false)`: nguồn duy nhất — animation là hệ quả, không `animate()` tay. Vì sao functional `(o) => !o`? Để bấm nhanh 2 lần không đọc snapshot cũ (stale) — luôn đảo từ mới nhất.
 - Dòng `opacity: open ? 1 : 0`: giá trị đổi giữa render là điều kiện để nội suy. Mount lần đầu với giá trị cuối (open true sẵn) là không animate (không có cũ để đi từ) — cần `initial` (Motion) hoặc thêm class sau frame.
 - Dòng `transform: translateY(...)`: GPU compositor, không layout. Vì sao không `marginTop: open ? 0 : 8`? Vì margin đổi là reflow (đo lại vị trí mọi anh em) — 50 item là giật. `translateY` chỉ vẽ lại lớp đó.
@@ -166,6 +94,8 @@ import { motion, AnimatePresence } from "motion/react";
 - Quy tắc **`will-change`**: `will-change: transform` gợi GPU tạo lớp riêng cho animation phức tạp — nhưng lạm dụng (100 item đều will-change) là tốn VRAM. Chỉ khi đo thấy giật mà transform/opacity vẫn chưa đủ.
 
 ## Bảng so sánh Angular ↔ React
+Mục này đối chiếu hệ animation Angular với cách React làm — đọc như bảng chuyển đổi khái niệm vũ đạo từ metadata sang state-driven.
+
 | Angular | React | Ghi chú |
 |---|---|---|
 | `trigger/state/transition` metadata | Motion `initial`/`animate`/`exit` props | Khai báo trong component, không metadata |
@@ -178,43 +108,25 @@ import { motion, AnimatePresence } from "motion/react";
 | `(@done)` callback | Motion `onAnimationComplete` | Sau animation (chuỗi bước, log) |
 | `@.disabled` tắt animation | `useReducedMotion()` / media query | Tôn trọng user, không phải flag dev |
 
+> **Cách đọc bảng này:** mỗi dòng là một tính năng animation của Angular đối chiếu với cách React đạt cùng hiệu quả; cột Ghi chú nêu khác biệt cơ chế — hàng quan trọng nhất là dòng về `:enter`/`:leave`, vì đó là chỗ React cần lib thay vì built-in.
+
 ## Lỗi thường gặp (Common pitfalls)
+Mục này là "bản đồ bẫy" của animation — exit không kịp, reflow giật, nút vô hình chặn click; đa số lỗi chỉ lộ khi bấm thử, nên phải biết trước.
 
 ### 1. Conditional unmount + CSS transition → không exit
-```tsx
-// ❌ SAI: open false là gỡ ngay — exit không kịp chạy, biến mất đột ngột
-{open && <div style={{ transition: "opacity 200ms", opacity: 1 }}>Hi</div>}
-```
-```tsx
-// ✅ ĐÚNG: giữ DOM (opacity) cho CSS 2 chiều, hoặc AnimatePresence cho exit gỡ hẳn
-{<div style={{ opacity: open ? 1 : 0, transition: "opacity 200ms" }}>Hi</div>}
-// Hoặc Motion:
-<AnimatePresence>{open && <motion.div exit={{ opacity: 0 }}>Hi</motion.div>}</AnimatePresence>
-```
+> 📄 **Code ví dụ:** [`examples/08-1-conditional-unmount-css-transition-khong-exit.tsx`](examples/08-1-conditional-unmount-css-transition-khong-exit.tsx)
+> 📄 **Code ví dụ:** [`examples/09-1-conditional-unmount-css-transition-khong-exit.tsx`](examples/09-1-conditional-unmount-css-transition-khong-exit.tsx)
 
 ### 2. Animate `width`/`height`/`top`/`margin` → reflow giật
-```tsx
-// ❌ SAI: mỗi frame đo lại layout — 50 item là drop frame
-<div style={{ width: open ? 300 : 0, transition: "width 200ms" }} />
-```
-```tsx
-// ✅ ĐÚNG: transform/opacity (compositor, không layout)
-<div style={{ transform: open ? "scaleX(1)" : "scaleX(0)", opacity: open ? 1 : 0, transition: "transform 200ms, opacity 200ms" }} />
-```
+> 📄 **Code ví dụ:** [`examples/10-2-animate-width-height-top-margin-reflow-giat.tsx`](examples/10-2-animate-width-height-top-margin-reflow-giat.tsx)
+> 📄 **Code ví dụ:** [`examples/11-2-animate-width-height-top-margin-reflow-giat.tsx`](examples/11-2-animate-width-height-top-margin-reflow-giat.tsx)
 
 ### 3. Quên `pointerEvents` → khối ẩn chặn click
 Mô tả: `opacity: 0` nhưng vẫn bắt pointer — nút dưới không bấm được, không thấy gì. Fix: `pointerEvents: open ? "auto" : "none"` như example (hoặc `visibility` sau transition, hoặc gỡ hẳn bằng Motion).
 
 ### 4. Quên `prefers-reduced-motion` → khó chịu user nhạy cảm
-```tsx
-// ❌ SAI: transition mọi lúc, không lối thoát
-<div style={{ transition: "transform 500ms" }} />
-```
-```tsx
-// ✅ ĐÚNG: media query toàn cục + useReducedMotion() cho logic (xem mẫu trên)
-// CSS: @media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01ms !important; } }
-// Motion: const reduce = useReducedMotion(); <motion.div animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }} />
-```
+> 📄 **Code ví dụ:** [`examples/12-4-quen-prefers-reduced-motion-kho-chiu-user.tsx`](examples/12-4-quen-prefers-reduced-motion-kho-chiu-user.tsx)
+> 📄 **Code ví dụ:** [`examples/13-4-quen-prefers-reduced-motion-kho-chiu-user.tsx`](examples/13-4-quen-prefers-reduced-motion-kho-chiu-user.tsx)
 
 ### 5. `key` đổi mỗi render trong AnimatePresence → exit/enter loạn
 Mô tả: `key={Math.random()}` mỗi render là mỗi lần là "mới" → exit cũ + enter mới liên tục. Fix: key ổn định (id, DAY 2) — chỉ đổi khi đối tượng đổi.
@@ -226,6 +138,7 @@ Mô tả: element vốn visible mà có transition từ giá trị khác (ví d�
 Mô tả: mount rồi effect set `open(true)` để "chạy animation vào" — thêm render + lần đầu sai. Fix: animation là hệ quả state có sẵn (prop/user action), không effect ép. Cần enter thì Motion `initial`/`animate` (không cần effect).
 
 ## Best practices / Mẹo
+Mục này là "thứ tự ưu tiên" khi làm animation — đọc để biết bắt đầu từ đâu và khi nào mới mời "vũ công chuyên nghiệp" vào.
 - **Thứ tự:** CSS/Tailwind 80% (micro) → Motion (layout/exit/gesture) → Spring (vật lý đặc biệt). Vì sao? Vì CSS rẻ nhất (GPU, không JS), Motion khi CSS không làm được (gỡ/exit/reorder), Spring khi muốn lò xo.
 - `transition` cố định, chỉ giá trị theo state. Vì sao? Để 2 chiều mượt, không nhánh có nhánh không.
 - `transform` + `opacity` cho mọi micro (fade/slide/scale). Vì sao 2 này? Vì compositor-only, 60fps dễ nhất; `width`/`top` reflow khó 60fps.
@@ -234,11 +147,15 @@ Mô tả: mount rồi effect set `open(true)` để "chạy animation vào" — 
 - DevTools Performance đo khi animate list dài; giữ 60fps bằng transform/opacity. Vì sao đo? Vì mắt thấy "hơi giật" không biết do layout hay JS — profile chỉ đúng chỗ.
 
 ## Bài tập nhỏ
+Làm tay để nhớ — mỗi bài là một thí nghiệm đo bằng mắt hoặc bằng DevTools Performance.
+
 1. Nút "Scale + Fade" (`scale(0.95)`↔`1` + opacity, như example) — chuyển sang Tailwind (`transition duration-200 ease-out`, `scale-95`/`scale-100`). So gọn inline vs class?
 2. `motion` + conditional `exit` trong `AnimatePresence` — DevTools Elements xem node "thây ma" tồn tại 0.2s sau khi `open` false rồi mới gỡ. Không có thì gỡ ngay thế nào?
 3. Media query reduced-motion toàn cục + DevTools Rendering emulate — bật/tắt quan sát transition còn không, nội dung đủ không?
 4. Motion `layout` cho list sortable (DAY 20) — kéo đổi chỗ, item trượt (không nhảy). Không `layout` thì nhảy thế nào?
 5. Accordion `grid-template-rows: 0fr→1fr` + opacity (không `height`) — đóng/mở mượt mà không reflow `height`. Vì sao `height: auto` không transition được?
+
+> **Tóm gọn 1 câu:** Ghi nhớ cả bài trong 1 nhịp: state-driven, chỉ animate `transform`/`opacity`, exit cần AnimatePresence, reduced-motion là bắt buộc.
 
 ## Reference
 - https://motion.dev/

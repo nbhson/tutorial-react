@@ -2,7 +2,7 @@
 
 > Nguồn: https://vite.dev/ — https://react.dev/learn/react-developer-tools
 
-Nhóm công cụ giúp **viết nhanh, bắt lỗi sớm và đo hiệu năng thật**: Vite lo build/dev, ESLint lo chất lượng code, Vitest lo kiểm thử, React DevTools/Chrome lo hiệu năng, Tailwind v4 lo styling. Đây là "bộ đồ nghề" mặc định của một dự án React 19 hiện đại.
+Nhóm công cụ giúp **viết nhanh, bắt lỗi sớm và đo hiệu năng thật**: Vite lo build/dev, ESLint lo chất lượng code, Vitest lo kiểm thử, React DevTools/Chrome lo hiệu năng, Tailwind v4 lo styling. Đây là "bộ đồ nghề" mặc định của một dự án React 19 hiện đại. Ví von: như bộ đồ nghề thợ mộc — bào (Vite), thước (ESLint), bản vẽ kiểm tra (Vitest), máy đo độ vênh (DevTools), và lớp hoàn thiện bề mặt (Tailwind).
 
 ## Nhóm này giải quyết gì
 
@@ -31,6 +31,8 @@ Một dự án chuyên nghiệp cần **vòng lặp phát triển nhanh và các
 | 4 | [4-devtools-perf/](4-devtools-perf/README.md) | **React DevTools** (Components + Profiler) + Chrome Performance tracks, User Timing. Quy trình "nghi ngờ → Profiler xác nhận → sửa → đo lại". | Hiệu năng |
 | 5 | [5-tailwind-v4/](5-tailwind-v4/README.md) | **Tailwind CSS v4** integration: CSS-first config, `@theme`, `@custom-variant`, `cn()`. Không còn `tailwind.config.js`. | Styling |
 
+> **Cách đọc bảng này:** mỗi dòng là một công cụ kèm "vai trò" trong dự án (cột cuối) — dựng nền trước (Vite), dựng cổng chất lượng (ESLint/Vitest), rồi mới tới đo đạc (DevTools) và hoàn thiện bề mặt (Tailwind).
+
 ## Mô tả chi tiết từng bài
 
 ### 1. Vite cho React
@@ -58,6 +60,8 @@ Tailwind v4 chuyển sang **CSS-first configuration**: cài qua `@tailwindcss/vi
 - **2 → 3**: dựng "cổng chất lượng" (lint + test) ở CI.
 - **5**: styling sau khi hạ tầng build/test ổn.
 - **4**: đọc khi bắt đầu tối ưu hiệu năng (không cần đọc ngay từ đầu).
+
+> **Tóm gọn 1 câu:** Năm công cụ năm vai trò: Vite là nền, ESLint + Vitest là cổng chất lượng, DevTools là máy đo, Tailwind là lớp hoàn thiện — dựng theo thứ tự thì không phải đập đi làm lại.
 
 ## Cách phối hợp / Liên quan tới bài nào khác
 

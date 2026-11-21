@@ -1,0 +1,2 @@
+// .lintstagedrc.json — chỉ file staged, nhanh, không đụng file khác
+{ "*.{ts,tsx,js,mjs}": ["eslint --fix", "prettier --write"] }

@@ -9,6 +9,9 @@
 - Gọi helper trong JSX để định dạng dữ liệu khi render.
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này nói về cách thay filter định dạng (`currency`, `date`, `number`, `uppercase`) bằng hàm helper + `Intl` — chuẩn JS dùng được ở mọi framework. Đọc để có "bộ chuyển đổi" từ filter AngularJS sang hàm JS.
+
 - AngularJS: filter trong template: `{{ price | currency:"₫" }}`, `{{ d | date:"dd/MM/yyyy" }}`, `{{ n | number:2 }}`, `{{ s | uppercase }}`. Angular tự áp dụng mỗi digest.
 - React: **không có filter template**. Định dạng = **hàm helper thuần JS** rồi gọi trong JSX: `{formatVND(price)}`.
 - Công cụ định dạng chuẩn: **`Intl`** (Intl = Internationalization, built-in của JS):
@@ -20,10 +23,17 @@
 - **Helper là "filter thay thế"**: bất kỳ filter nào của AngularJS (`currency`, `date`, `number`, `uppercase`, `limitTo`, `json`...) đều dịch được sang hàm JS hoặc `Intl`. Điểm khác: Angular gọi filter trong template bằng `|`; React gọi hàm ngay trong `{}`.
 - **Format lúc render**: dữ liệu gốc (số, Date) vẫn nằm nguyên trong state/ props; format chỉ biến đổi *khi hiển thị* — không lưu chuỗi đã format vào state (tránh mất khả năng tính toán lại).
 
+Ví von: dữ liệu gốc giống nguyên liệu trong kho — `Intl` là dao thái món ăn trước khi bày lên đĩa (màn hình); đừng thái xong rồi cất lại kho chuỗi đã thái, muốn đổi món là hết nguyên liệu.
+
+> **Tóm gọn 1 câu:** Filter AngularJS thành hàm helper JS + `Intl`: format lúc render, giữ nguyên dữ liệu gốc trong state, truyền locale rõ ràng.
+
 ### Keyword chính
 `Intl.NumberFormat` · `Intl.DateTimeFormat` · `toLocaleString` · `helper function` · `filter thay thế`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này chạy qua 4 helper trong ví dụ: tiền tệ, ngày, số thập phân, chữ hoa — mỗi cái thay một filter AngularJS tương ứng.
+
 1. Định nghĩa hàm helper `formatVND`, `formatDate`, `formatNumber` (module-level, không nằm trong class).
 2. `FormatDemo` khởi tạo state `{ price: 1250000, date: new Date(2024,4,17), num: 1234567.891 }`.
 3. `render()`: gọi `{formatVND(s.price)}`, `{formatDate(s.date)}`, `{formatNumber(s.num, 2)}`, `{"geeks".toUpperCase()}`.
@@ -34,41 +44,7 @@
 **Chạy:** mở `index.html` bằng trình duyệt.
 
 ## Ví dụ chi tiết
-```jsx
-// Helpers thay AngularJS filter — dùng Intl (chuẩn JS, không legacy).
-// Currency ↔ {{ price | currency:"₫" }}
-function formatVND(n) {
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
-}
-// Date ↔ {{ d | date:"dd/MM/yyyy" }}
-function formatDate(d) {
-  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
-}
-// Number ↔ {{ n | number:2 }}
-function formatNumber(n, digits) {
-  return new Intl.NumberFormat("vi-VN", { minimumFractionDigits: digits || 0, maximumFractionDigits: digits || 0 }).format(n);
-}
-
-class FormatDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { price: 1250000, date: new Date(2024, 4, 17), num: 1234567.891 };
-  }
-  render() {
-    const s = this.state;
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Format helpers (≈ filter)</h2>
-        { /* Gọi helper ngay trong JSX — không cần template */ }
-        <p>currency: {formatVND(s.price)} <i>(↔ {"{{price | currency}}"})</i></p>
-        <p>date: {formatDate(s.date)} <i>(↔ {"{{d | date}}"})</i></p>
-        <p>number(2): {formatNumber(s.num, 2)} <i>(↔ {"{{n | number:2}}"})</i></p>
-        <p>uppercase: {"geeks".toUpperCase()} <i>(↔ {"{{s | uppercase}}"})</i></p>
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`Intl.NumberFormat("vi-VN", {style:"currency", currency:"VND"})`**: locale `vi-VN` quyết định dấu `.` phân cách nghìn; `currency: "VND"` đưa hậu tố `₫` và đúng tỷ lệ (0 số lẻ). ↔ `| currency`.
@@ -82,6 +58,9 @@ class FormatDemo extends React.Component {
 - **Vì sao nhét `{"{{price | currency}}"}` trong ngoặc**: chuỗi chứa `{{ }}` (cú pháp AngularJS) chỉ để hiển thị ví dụ; trong JSX phải bọc trong `{ }` để React in đúng chuỗi, không bị hiểu là code.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này là "từ điển" filter → helper, từng filter AngularJS một dòng — tra nhanh khi dịch code cũ.
+
 | AngularJS filter | JS/React (Intl) | Ghi chú |
 |---|---|---|
 | `{{ p \| currency:"₫" }}` | `new Intl.NumberFormat("vi-VN", {style:"currency", currency:"VND"}).format(p)` | Định dạng theo locale |
@@ -90,13 +69,22 @@ class FormatDemo extends React.Component {
 | `{{ s \| uppercase }}` | `s.toUpperCase()` | JS thuần |
 | Filter trong template | Gọi hàm trong JSX | Không có cú pháp `\|` |
 
+> **Cách đọc bảng này:** cột trái là filter quen thuộc trong template AngularJS, cột giữa là lời gọi hàm thay thế; đọc cột *Ghi chú* để thấy mỗi helper "trả gì" — đa số còn làm tốt hơn (locale-aware).
+
+> **Tóm gọn 1 câu:** Dấu `|` trong template thành cặp ngoặc gọi hàm trong JSX — `{{ p | currency }}` đổi thành `{formatVND(p)}`.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Lỗi format thường là "format sai lúc" hoặc "truyền sai kiểu" — mục này gom cả hai loại.
+
 - **Nhầm `Intl` parse lại object**: `format` nhận số/Date — truyền chuỗi `"1250000"` vẫn chạy nhưng ngầm ép kiểu; truyền sai kiểu có thể ra NaN. → Đảm bảo đúng kiểu dữ liệu.
 - **Quên locale**: `Intl.NumberFormat()` (không đối số) dùng locale mặc định — kết quả không ổn định giữa máy. → Ghi rõ `"vi-VN"`.
 - **Cộng chuỗi trước khi format**: `"Giá: " + price` → mất định dạng. → Format trước: `formatVND(price)` rồi nối.
 - **Cho rằng helper phải nằm trong class** → phụ thuộc instance, khó test. → Định nghĩa module-level (hoặc file `format.js`).
 - **Dùng `toFixed(2)` cho tiền tệ** → không có dấu phân cách nghìn, sai locale. → Dùng `Intl.NumberFormat` (cách chuẩn).
 - **Format trong `constructor`/state** rồi lưu chuỗi** → mất số gốc để tính toán lại, đổi locale không được. → Format mỗi lần render, giữ dữ liệu gốc.
+
+> **Tóm gọn 1 câu:** Hai lỗi để nhớ: không dùng `toFixed` cho tiền tệ (mất dấu phân cách), không lưu chuỗi đã format vào state (mất dữ liệu gốc).
 
 ## Best practices / Mẹo
 - Gom helpers vào file riêng (`format.js`) — như `filter.js` của Angular — import dùng chung.
@@ -109,6 +97,9 @@ class FormatDemo extends React.Component {
 - Luôn truyền locale rõ ràng (`"vi-VN"`, `"en-US"`) thay vì phụ thuộc mặc định của môi trường — kết quả ổn định giữa các máy.
 
 ## Bài tập nhỏ
+
+Bài số 3 hay: đổi locale bằng nút bấm — thấy ngay `Intl` "hiểu ngôn ngữ" như thế nào.
+
 1. Thêm helper `formatPercent` (Intl với `style:"percent"`) và hiển thị `0.1234` → `12,34%`.
 2. Khởi tạo `date` bằng `new Date()` hiện tại và định dạng thêm giờ: `hour/minute/second` — so sánh với `{{d | date:"HH:mm:ss"}}`.
 3. Thêm nút đổi ngôn ngữ hiển thị (`en-US` ↔ `vi-VN`) lưu locale trong state, truyền vào helper — minh họa "locale-aware".

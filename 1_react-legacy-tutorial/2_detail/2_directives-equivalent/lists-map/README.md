@@ -9,6 +9,9 @@
 - Thêm empty state khi danh sách rỗng (↔ giao diện khi `ng-repeat` không có phần tử).
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này dịch chi tiết từng tính năng của `ng-repeat` sang `map`: các biến "ma thuật" `$index/$first/$last` trở thành tham số hàm, `track by` trở thành `key`. Đọc để có bản dịch hoàn chỉnh.
+
 - AngularJS: `ng-repeat="x in items"` duyệt mảng, nhân bản template; cung cấp sẵn biến đặc biệt `$index`, `$first`, `$last`, `$even`, `$odd`; `track by` cho biết cách theo dõi phần tử.
 - React: `items.map(x => <li key={x.id}>...)` — map là hàm JS thường:
   - Phần tử hiện tại: tham số 1 (`x`).
@@ -20,10 +23,17 @@
 - **Không giới hạn ở `<li>`**: map có thể render `<tr>`, `<option>`, `<div>`, component tùy biến... miễn `key` đặt trên node gốc mỗi item.
 - `ng-repeat` kèm `filter:` trong template → trong React: `.filter()` trước `.map()` (xem bài `filter-search`).
 
+Ví von: nếu `ng-repeat` là chiếc máy giặt làm sẵn mọi bước (nhồi — giặt — vắt), thì `filter → map` là bạn tự đứng làm từng công đoạn — mất vài dòng code nhưng nhìn thấy rõ từng bước, sai ở đâu sửa đúng bước đó.
+
+> **Tóm gọn 1 câu:** `ng-repeat` biến thành `map` thuần JS: `$index` là tham số thứ 2, `$first/$last` tự so sánh, `track by` là `key` — và empty state là việc của bạn.
+
 ### Keyword chính
 `Array.map` · `key` · `$index` ↔ tham số index · `$first/$last` ↔ so sánh index · `track by` ↔ `key`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này chạy ví dụ 3 user với đủ "phụ kiện" của ng-repeat: đánh tag $first/$last, empty state khi list rỗng.
+
 1. `ListsMapDemo` khởi tạo state `{ users: [An, Bình, Chi] }` (mỗi user có `id` ổn định).
 2. `render()`: call `users.map(function (u, i) {...})` → duyệt mảng, với mỗi user tạo `<li key={u.id}>`.
 3. Với từng phần tử: tính `tag = i === 0 ? " ($first)" : (i === users.length - 1 ? " ($last)" : "")` → gắn vào text.
@@ -34,38 +44,7 @@
 **Chạy:** mở `index.html` bằng trình duyệt.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY class — đối chiếu ng-repeat chi tiết ($index/$first/$last).
-class ListsMapDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      users: [
-        { id: 1, name: "An" },
-        { id: 2, name: "Bình" },
-        { id: 3, name: "Chi" }
-      ]
-    };
-  }
-  render() {
-    const users = this.state.users; // lấy mảng dữ liệu
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Lists map (≈ ng-repeat)</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {users.map(function (u, i) {
-            // i ↔ $index; $first ↔ i===0; $last ↔ i===length-1
-            const tag = i === 0 ? " ($first)" : (i === users.length - 1 ? " ($last)" : "");
-            return <li key={u.id}>#{$index = i} — {u.name}{tag}</li>;
-          })}
-        </ul>
-        {/* Empty state ↔ ng-repeat không có phần tử */}
-        {users.length === 0 && <p>Danh sách trống.</p>}
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`users.map(function (u, i) {...})`**: `u` = phần tử, `i` = vị trí (0-based). Không có biến "ma thuật" — React dùng tham số hàm, rõ ràng hơn `$index`.
@@ -81,6 +60,9 @@ class ListsMapDemo extends React.Component {
 - **Số phần tử đổi → React diff theo key**: thêm/xóa/sắp xếp đều dựa trên `key`, không phải vị trí — đây là chỗ khác biệt rõ nhất so với việc AngularJS nhân bản DOM theo template.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này là bản dịch chi tiết nhất của ng-repeat: từng biến đặc biệt một — đây là bảng "tra từ điển" khi gặp code AngularJS cũ cần dịch.
+
 | AngularJS | React | Ghi chú |
 |---|---|---|
 | `ng-repeat="x in items"` | `items.map(x => <li key={x.id}>)` | Cùng duyệt mảng render list |
@@ -91,7 +73,14 @@ class ListsMapDemo extends React.Component {
 | `filter:q` trong repeat | `.filter()` trước `.map()` | Xử lý rõ ràng từng bước |
 | Repeat rỗng → không gì hiện | Tự thêm `{list.length === 0 && ...}` | Chủ động thêm empty state |
 
+> **Cách đọc bảng này:** các dòng xếp theo nhóm: dòng đầu là cách lặp cơ bản, các dòng giữa là biến đặc biệt `$index/$first/$last`, dòng cuối là những gì Angular tự làm mà React bắt bạn tự làm (empty state).
+
+> **Tóm gọn 1 câu:** Mọi "magic variable" của ng-repeat đều thành tham số hoặc phép so sánh JS — không còn gì ẩn sau tấm màn template.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Lỗi phổ biến nhất với map là quên `return` — mảng toàn `undefined` mà không có traceback rõ ràng.
+
 - **Quên `return` trong callback map** → mảng `<li>` toàn `undefined`, danh sách rỗng. → Luôn `return` JSX (hoặc dùng arrow expression).
 - **Dùng `index` làm key khi list đổi thứ tự/thêm-xóa** → state/DOM lệch (xem bài 11). → Dùng id ổn định.
 - **Muốn `$index` nhưng viết `map(x)`** → không có chỉ mục. → Nhận tham số 2: `.map((x, i) => ...)`.
@@ -99,6 +88,8 @@ class ListsMapDemo extends React.Component {
 - **Không có empty state** → lúc rỗng list "biến mất" lặng lẽ, người dùng không hiểu. → Thêm nhánh `length === 0`.
 - **Trả về cả một thẻ chứa nhiều `<li>` sai cấu trúc** → thẻ HTML ngữ nghĩa sai. → Map phải trả về đúng phần tử danh sách (`<li key=...>`) đặt trong thẻ cha (`<ul>`).
 - **Dùng `map` mà không gắn key trên node gốc mỗi item** → React không phân biệt được các node, cảnh báo + diff sai. → `key` đặt trên phần tử ngoài cùng do map trả về.
+
+> **Tóm gọn 1 câu:** Ba lỗi cần khắc cốt: quên `return` trong map, dùng index làm key cho list động, và quên empty state — cả ba đều khiến UI "sai một cách lặng lẽ".
 
 ## Best practices / Mẹo
 - Luôn render mảng từ một nguồn sạch: tính `visible = data.filter(...)` trước, rồi `visible.map(...)` — dễ đọc, dễ test.
@@ -109,6 +100,9 @@ class ListsMapDemo extends React.Component {
 - Kết hợp `map` với `filter` để thay `ng-repeat` + `ng-if`/`limitTo`, nhưng nhớ tách bước lọc ra trước khi map để JSX gọn.
 
 ## Bài tập nhỏ
+
+Năm bài này luyện từ biến đổi chỉ mục đến cắt danh sách — làm hết là xử lý được mọi tình huống ng-repeat thực tế.
+
 1. Thêm cột `$even/$odd` (đổi màu nền dòng chẵn/lẻ) dùng `i % 2 === 0`.
 2. Khởi tạo `users: []` tạm thời để thấy dòng "Danh sách trống." xuất hiện khi list rỗng.
 3. Thêm user mới vào mảng bằng nút bấm (`this.state.users.concat(...)`) và quan sát key mới sinh — nhấn mạnh không dùng index.

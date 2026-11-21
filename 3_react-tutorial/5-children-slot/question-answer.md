@@ -15,12 +15,9 @@
 - Tương đương `<ng-content>` của Angular nhưng không cần directive/select — chỉ là truyền dữ liệu.
 - Kiểu dành cho nó: `ReactNode` (element, string, number, fragment, mảng, `null`; boolean/null render ra trống).
 
-```tsx
-function Card({ children }: { children: ReactNode }) {
-  return <div className="card">{children}</div>;
-}
-<Card><p>Nội dung qua children.</p></Card>
-```
+> **Tóm gọn 1 câu:** `children` không có phép màu: chỉ là prop bình thường nhận mọi thứ bạn gói giữa 2 thẻ — như hộp quà quen nhận đủ mọi hình dạng quà.
+
+> 📄 **Code ví dụ:** [`examples/01-1-children-la-gi-co-phai-cu-phap.tsx`](examples/01-1-children-la-gi-co-phai-cu-phap.tsx)
 
 ---
 
@@ -34,11 +31,9 @@ function Card({ children }: { children: ReactNode }) {
   vùng nào nhận gì, không phụ thuộc attribute string dễ gõ sai.
 - Trong example, `Layout` có 3 vùng: `header` + `sidebar` (named slots) và `children` (vùng chính trong `<main>`).
 
-```tsx
-<Layout header={<h2>Header</h2>} sidebar={<nav>Menu</nav>}>
-  <Card>...</Card> {/* → children → <main> */}
-</Layout>
-```
+> 📄 **Code ví dụ:** [`examples/02-2-named-slots-trong-react-viet-the-nao.tsx`](examples/02-2-named-slots-trong-react-viet-the-nao.tsx)
+
+> **Tóm gọn 1 câu:** Named slots trong React = mỗi khe một prop `ReactNode` có tên — sai tên là TS la ngay, không như `select` string lặng lẽ sai ngầm.
 
 ---
 
@@ -54,6 +49,8 @@ function Card({ children }: { children: ReactNode }) {
 - Đây là pattern chuẩn 2026 cho UI kit: layout component quyết **khung**, cha quyết **nội dung**
   (đảo ngược kiểm soát — inversion of control).
 
+> **Tóm gọn 1 câu:** React chỉ chơi "kế thừa bằng cách bọc": khung do con dựng, nội dung do cha nhét — như khung ảnh bán sẵn, ai mua tự chèn ảnh mình.
+
 ---
 
 ## 4. Children có bị mutate được không? Muốn đếm/sửa children thì sao?
@@ -65,6 +62,8 @@ function Card({ children }: { children: ReactNode }) {
 - Muốn **đếm/duyệt/chuẩn hóa** → `Children` API: `Children.count`, `Children.map`, `Children.toArray` (DAY 9).
 - Muốn **inject prop** vào từng child (Steps, Tabs) → `cloneElement` (DAY 9), nhưng dùng khiêm tốn;
   đa số case nên compound + context (DAY 6).
+
+> **Tóm gọn 1 câu:** Children là hàng trưng bày trong tủ kính: nhìn, đếm được nhưng không đụng tay vào — muốn chỉnh thì dùng `Children` API theo quy tắc.
 
 ---
 
@@ -81,6 +80,8 @@ function Card({ children }: { children: ReactNode }) {
 - Ngược lại: khi `Layout` re-render vì state **riêng** của nó mà `App` không render lại, `children` cũ được
   React tái sử dụng — cây con không dựng lại.
 
+> **Tóm gọn 1 câu:** Children được "gói xong trước" ở cha rồi mới đưa vào con — element mới mỗi lần cha render, nên memo cần children ổn định.
+
 ---
 
 ## 6. Khi nào children là function? (Nhá hàng DAY 6)
@@ -93,6 +94,8 @@ function Card({ children }: { children: ReactNode }) {
 - Chi tiết và ví dụ `Mouse` xem DAY 6. Nhận diện pattern: thấy `{children(pos)}` trong thân component
   là biết đang dùng children-dạng-hàm.
 
+> **Tóm gọn 1 câu:** Children có thể là JSX tĩnh (slot) lẫn hàm (render props) — gọi nó trong thân component là phiên bản "hàm".
+
 ---
 
 ## 7. Chỉ muốn hiện child đầu tiên thì sao? (Lọc children ở chỗ nhận)
@@ -103,19 +106,14 @@ function Card({ children }: { children: ReactNode }) {
 - Cách đơn giản nhất: sửa ở **chỗ truyền** — xóa dòng không cần trong `App`.
 - Muốn `Card` tự lọc dù cha truyền mấy dòng (sửa ở **chỗ nhận**) — đúng use-case Children API (DAY 9):
 
-```tsx
-import { Children } from "react";
-
-function Card({ children }: { children: ReactNode }) {
-  const first = Children.toArray(children)[0]; // lấy phần tử đầu, bỏ phần còn lại
-  return <div className="card">{first ?? null}</div>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-7-chi-muon-hien-child-au-tien-thi.tsx`](examples/03-7-chi-muon-hien-child-au-tien-thi.tsx)
 
 - `Children.toArray` phẳng hóa mọi dạng children (1 element, mảng, fragment) thành mảng gọn + tự gán key,
   nên `[0]` luôn là "dòng đầu" bất kể cha truyền kiểu gì.
 - `?? null` phòng khi `Card` không có children nào (`toArray([])[0]` là `undefined`).
 - Kết quả: `App` vẫn truyền 2 dòng nhưng chỉ dòng đầu hiển thị — dòng 2 bị `Card` "nuốt".
+
+> **Tóm gọn 1 câu:** Lọc children ở "chỗ nhận" dùng `Children.toArray` — chuẩn hóa mọi hình dạng trước khi chọn, đừng gọi `.map` trực tiếp trên hàng thô.
 
 ---
 
@@ -131,6 +129,8 @@ function Card({ children }: { children: ReactNode }) {
 | `<ng-content select="...">` | props `header`/`sidebar` kiểu `ReactNode` | Type-check được từng slot |
 | Content projection + `@ContentChild` đọc/sửa | `Children` API + `cloneElement` (DAY 9) | React duyệt ngay lúc render |
 | Kế thừa component | Composition (bọc) | React không có thừa kế component |
+
+> **Cách đọc bảng này:** mỗi dòng là một khái niệm projection của Angular và bản dịch React; đọc để thấy React "giảm khái niệm" — bỏ directive, bỏ selector, bỏ kế thừa, chỉ còn props.
 
 ---
 
@@ -149,6 +149,8 @@ function Card({ children }: { children: ReactNode }) {
 thay vì 1–2 chuỗi — đó là chỗ cho children/slot.
 
 **Gặp nhau với ref:** modal/trigger đo DOM — `children` là nội dung modal, `ref` là node để focus khi mở + đo vị trí đặt popup (nối DAY 4).
+
+> **Tóm gọn 1 câu:** Thấy mình copy khung đi bọc lại hoặc cần nhận "cả mảng JSX" — đó là lúc thiết kế component theo children/slot.
 
 ---
 

@@ -1,0 +1,17 @@
+// .cursor/mcp.json — khai MCP server cho Cursor/agent
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-fetch"]
+    },
+    "react-docs": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://react.dev/mcp"]
+    },
+    "repo-fs": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/son/projects/my-react-app"]
+    }
+  }
+}

@@ -1,0 +1,3 @@
+// ❌ SAI: render -> setState -> render ...
+const items = useCartStore((s) => s);
+const [copy, setCopy] = useState(items); setCopy(items); // loop

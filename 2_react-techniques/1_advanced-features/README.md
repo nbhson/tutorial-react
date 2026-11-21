@@ -15,7 +15,11 @@ Sáu vấn đề thường trực của một SPA khi lên production:
 5. **UI đứng hình** — tác vụ nặng (parse, mã hóa, xử lý ảnh) block main thread → cần chạy ở thread riêng.
 6. **Routing thiếu an toàn và khô khan** — route không được bảo vệ flash nội dung, chuyển trang vụt cứng → cần guard + animation.
 
+> **Tóm gọn 1 câu:** Nhóm này là "hộp công cụ lên production": nhẹ gánh bundle, chạy được khi mất mạng, quản state đúng chỗ, và route an toàn mượt mà.
+
 ## Khi nào cần
+
+Mục này nói về ánh xạ giữa "nỗi đau" của app bạn và bài nên đọc. Đọc bảng điều hướng nhanh thay vì đọc xuôi toàn bộ.
 
 - App đã có nhiều route/màn hình, bundle đầu > 150–200KB gzip → **bài 1**.
 - Người dùng dùng trên mạng kém / muốn cài như native app → **bài 2**.
@@ -27,6 +31,8 @@ Sáu vấn đề thường trực của một SPA khi lên production:
 
 ## Các bài con
 
+Mục này nói về 7 bài trong nhóm kèm mô tả ngắn từng bài. Đọc để chọn bài phù hợp trước khi vào chi tiết.
+
 | # | Bài | Nội dung |
 |---|---|---|
 | 1 | [1-lazy-dynamic-import/](1-lazy-dynamic-import/README.md) | **Lazy + Dynamic Import**: `React.lazy` + `Suspense` tách bundle theo route/component, `import()` động tải theo điều kiện runtime, prefetch, ErrorBoundary cho chunk lỗi. Chỉ tải component/thư viện nặng (chart, editor, PDF) khi thực sự cần, cải thiện LCP/TTI. |
@@ -37,7 +43,11 @@ Sáu vấn đề thường trực của một SPA khi lên production:
 | 6 | [6-redux-toolkit/](6-redux-toolkit/README.md) | **Redux Toolkit (mini-track 5 bài)**: `1-slice-store` (slice + store + typed hooks) → `2-async-thunk` (pending/fulfilled/rejected) → `3-entity-adapter` (chuẩn hóa collection) → `4-rtk-query` (fetch hợp nhất, chọn với TanStack) → `5-devtools-persist` (time-travel, listener, persist). Dành cho app lớn cần audit/time-travel/undo; app vừa dùng bài 3. |
 | 7 | [7-zustand/](7-zustand/README.md) | **Zustand (mini-track 4 bài)**: `1-create-selectors` (create, selector, `useShallow`) → `2-async-actions` (fetch + optimistic tay) → `3-middleware-persist` (persist/devtools/immer) → `4-slices-pattern` (tách domain, một store nhiều file). Bản chi tiết của nửa Zustand trong bài 3. |
 
+> **Cách đọc bảng này:** mỗi dòng là một bài con; cột "Nội dung" liệt kê chủ đề theo thứ tự quan trọng. Muốn tra nhanh, đọc phần in đậm đầu mỗi ô để biết tên vấn đề rồi quyết định có vào chi tiết hay không.
+
 ## Thứ tự đọc gợi ý
+
+Mục này nói về lộ trình đọc đề xuất và lý do sắp xếp đó. Đọc để không đi lạc thứ tự khiến khái niệm sau phụ thuộc khái niệm trước.
 
 ```
 3 (state) → 7 (zustand sâu, khi cần) → 6 (redux, khi cần) → 1 (bundle) → 2 (offline) → 4 (worker) → 5 (routing)
@@ -45,7 +55,11 @@ Sáu vấn đề thường trực của một SPA khi lên production:
 
 Lý do: `3` là nền dữ liệu cho mọi app (dùng lại ở nhiều bài khác); `7` đào sâu nửa Zustand của bài 3; `6` là nhánh nâng cấp khi app vượt quy mô Zustand (đọc sau bài 3 để so sánh trực tiếp); `1` tối ưu tải ban đầu; `2` và `4` là các năng lực nền (offline, tính toán nền); `5` tổng hợp ở tầng điều hướng và thường cần biết cả state (3) lẫn lazy (1) để phối hợp. Nếu chỉ cần một bài, hãy vào trực tiếp theo "Khi nào cần".
 
+> **Tóm gọn 1 câu:** Đọc bài 3 làm nền trước, các bài còn lại chọn theo nỗi đau — như đi siêu thị, lấy giỏ (nền) rồi mới chọn đồ theo thực đơn (nhu cầu).
+
 ## Liên quan tới bài nào khác
+
+Mục này nói về sợi dây giữa nhóm này và các nhóm khác trong repo. Đọc khi cần truy vết kiến thức nền hoặc mở rộng.
 
 - **Bài 1 (lazy)** dùng lại ở nhóm `3_performance-optimization/3-code-splitting` (chiến lược chia chunk, prefetch) và `5_routing-animation-guard` (page mới vào không chờ chunk).
 - **Bài 2 (PWA)** ở DevTools có thể đo và tối ưu qua nhóm `6_dev-tools/4-devtools-perf`.
@@ -55,6 +69,8 @@ Lý do: `3` là nền dữ liệu cho mọi app (dùng lại ở nhiều bài kh
 
 ## Mô tả chi tiết từng bài
 
+Mục này nói về tóm tắt kỹ thuật cốt lõi của từng bài — đọc để nắm "cái hồn" của mỗi bài mà chưa cần mở file con.
+
 ### 1. Lazy + Dynamic Import
 Giải quyết "bundle phình to" bằng hai nửa: **route-level lazy** (mỗi route một chunk, tải khi điều hướng) và **conditional `import()`** (tải component nặng trong event handler như mở modal/editor). `React.lazy` chỉ hiểu **default export** — với named export phải map `import('./X').then(m => ({ default: m.X }))`. Bắt buộc bọc `<Suspense>` (nếu không React báo lỗi runtime) và nên thêm `ErrorBoundary` + nút "Thử lại" cho trường hợp mạng lỗi khi tải chunk.
 
@@ -62,7 +78,7 @@ Giải quyết "bundle phình to" bằng hai nửa: **route-level lazy** (mỗi 
 Dùng `vite-plugin-pwa` (bọc Workbox) để sinh service worker + manifest tự động. Ba chiến lược cache quan trọng: `CacheFirst` (asset tĩnh), `NetworkFirst` (API — luôn ưu tiên mới, rơi cache khi offline), `StaleWhileRevalidate` (hiện ngay + cập nhật nền). Chọn sai chiến lược là lỗi phổ biến nhất. Badge online/offline đọc `navigator.onLine` qua `useSyncExternalStore` để concurrent-safe.
 
 ### 3. Two-state Split (Zustand + TanStack Query)
-Chốt lại nguyên tắc: **server state để TanStack Query lo, client state để Zustand lo**. Query quản `queryKey`/`staleTime`/`invalidateQueries`/optimistic update; Zustand quản state thuộc phiên UI (sidebar, modal, cart nháp) với selector (`useShallow`) để tránh re-render thừa. Tuyệt đối không copy server data vào store — đó là nguồn desync.
+Chốt lại nguyên tắc: **server state để TanStack Query lo, client state để Zustand lo**. Ví von: Query là người quản lý kho hàng (luôn biết hàng mới/cũ), Zustand là người quản lý nội thất nhà (bố trí theo ý bạn) — đừng để quản lý kho phải lo việc đóng bàn ghế. Query quản `queryKey`/`staleTime`/`invalidateQueries`/optimistic update; Zustand quản state thuộc phiên UI (sidebar, modal, cart nháp) với selector (`useShallow`) để tránh re-render thừa. Tuyệt đối không copy server data vào store — đó là nguồn desync.
 
 ### 4. Web Worker
 Đẩy tác vụ > ~16ms ra thread riêng để main thread (nơi React render) không bị block. Giao tiếp qua `postMessage` (structured clone) và transferable object (`ArrayBuffer`, `OffscreenCanvas`) để tránh copy dữ liệu lớn. Worker **không có DOM** — chỉ tính toán rồi gửi kết quả về. Comlink giảm boilerplate; luôn `worker.terminate()` trong cleanup để tránh leak.
@@ -78,6 +94,8 @@ Track 4 bài đào sâu nửa Zustand của bài 3: `1-create-selectors` (create
 
 ## Sai lầm thường gặp (tổng hợp)
 
+Mục này nói về 7 sai lầm xuất hiện ở cả 7 bài, gom về một chỗ để tra nhanh khi app "hành xử lạ". Đọc để không lặp lại sai lầm của người đi trước.
+
 - **Quên `<Suspense>` quanh component lazy** → lỗi runtime "A component suspended while responding to synchronous input" — luôn đặt fallback (bài 1).
 - **Cache-first cho API** trong PWA → user thấy dữ liệu cũ mãi; API phải dùng `NetworkFirst`/`StaleWhileRevalidate` (bài 2).
 - **Copy server data vào Zustand** → desync, re-render dư; server state để nguyên trong Query (bài 3).
@@ -86,7 +104,11 @@ Track 4 bài đào sâu nửa Zustand của bài 3: `1-create-selectors` (create
 - **Nhét cả server cache vào Redux** → tự viết lại stale/retry mà Query đã có; Redux giữ client state + kết quả đã xử lý (bài 6).
 - **`AnimatePresence mode="wait"` để exit quá lâu** (>0.4s) → điều hướng cảm giác "đơ" (bài 5).
 
+> **Tóm gọn 1 câu:** Bảy sai lầm gom về một chủ đề: dùng công cụ sai việc — cache-first cho API, Query cho client state, localStorage cho bảo mật đều là "dùng chìa khóa nhà vào ổ xe máy".
+
 ## Câu hỏi thường gặp
+
+Mục này nói về các câu hỏi lựa chọn (lazy khi nào, Query khi nào, Redux hay Zustand) — tra nhanh khi đang phân vân giữa các phương án.
 
 - **Khi nào nên lazy hoá?** Khi bundle đầu > 150–200KB gzip, hoặc có module nặng chỉ dùng ở vài màn hình.
 - **PWA có cần cho mọi app?** Không — hợp với app dùng lại nhiều, mạng kém; không hợp dashboard realtime luôn phải mới.
@@ -98,5 +120,9 @@ Track 4 bài đào sâu nửa Zustand của bài 3: `1-create-selectors` (create
 
 ## Điểm chung
 
+Mục này nói về quy ước áp dụng cho mọi demo trong nhóm — đọc để biết cách tận dụng code mẫu.
+
 - Tất cả demo đi kèm `example.tsx` trong mỗi thư mục con, comment tiếng Việt từng dòng.
 - Kiến thức nền 2026: React 19.3, Vite 7, TanStack Query v5, Zustand v5, React Router v7, Motion.
+
+> **Tóm gọn 1 câu:** Mọi bài đều có code mẫu kèm comment tiếng Việt — đọc bài nào cũng có "bản chép chính tả" để đối chiếu.

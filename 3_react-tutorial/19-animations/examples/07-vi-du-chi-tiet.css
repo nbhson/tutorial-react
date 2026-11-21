@@ -1,0 +1,4 @@
+/* Tắt chuyển động khi user yêu cầu — nội dung vẫn đúng */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

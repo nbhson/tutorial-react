@@ -2,13 +2,15 @@
 
 ## Mô tả
 
-RSC cung cấp một **data layer nhiều tầng** để kiểm soát việc lấy và cache dữ liệu. Ba tầng chính:
+RSC cung cấp một **data layer nhiều tầng** để kiểm soát việc lấy và cache dữ liệu. Hãy hình dung như ba tầng tủ lạnh: ngăn đá (cache xuyên request), khung mì tự hủy sau bữa ăn (dedupe trong request), và nút "vứt đồ cũ" (revalidation). Ba tầng chính:
 
 1. **`cache()`** (từ `react`) — dedupe lời gọi hàm **theo args trong một request**.
 2. **fetch caching** (Next.js) — cache dữ liệu **xuyên request** với `cache: 'force-cache' | 'no-store'` và `next: { revalidate, tags }`.
 3. **Revalidation** — xóa cache có chủ đích sau mutation bằng `revalidatePath` / `revalidateTag`, kết hợp `unstable_cache`.
 
 Ngoài ra **`cacheSignal()`** (**React 19.2**, chỉ dùng trong RSC) trả về một `AbortSignal` khi vòng đời của `cache()` kết thúc — hữu ích để hủy công việc không còn cần thiết.
+
+> **Tóm gọn 1 câu:** Data layer của RSC gồm 3 tầng — `cache()` dedupe trong request, fetch cache xuyên request, và `revalidate*` để xóa cache có chủ đích.
 
 ## Mục tiêu
 
@@ -18,6 +20,8 @@ Ngoài ra **`cacheSignal()`** (**React 19.2**, chỉ dùng trong RSC) trả về
 
 ## Vấn đề giải quyết
 
+Mục này nêu hai thái cực dữ liệu: fetch trùng lặp lãng phí và cache sai hư hại — đọc để hiểu vì sao cần phân biệt rõ từng tầng cache.
+
 Hai vấn đề trái ngược:
 
 - **Fetch trùng lặp**: nhiều Server Component trong cùng một render cần chung một record (ví dụ user hiện tại) ⇒ gọi API/DB N lần thừa.
@@ -25,9 +29,13 @@ Hai vấn đề trái ngược:
 
 Ba tầng giải quyết riêng biệt: **dedupe trong request** (`cache()`), **cache xuyên request** (`fetch` options), và **xóa cache có chủ đích** (`revalidate*`).
 
+> **Tóm gọn 1 câu:** Hai bệnh "fetch thừa" và "cache sai" được chữa bởi ba loại thuốc riêng — `cache()`, fetch options, và `revalidate*`.
+
 ## Khái niệm cốt lõi
 
-- **`cache(fn)`** — bọc một hàm async; trong **cùng một request**, các lời gọi `cache(fn)(cùngArgs)` chỉ thực thi hàm **một lần**, các lần sau trả kết quả đã lưu. Khác React.memo: dedupe sống theo phạm vi request.
+Mục này định nghĩa từng API một — đây là phần "học thuộc" nhất của bài, đọc chậm từng bullet để phân biệt phạm vi sống của mỗi loại cache.
+
+- **`cache(fn)`** — bọc một hàm async; trong **cùng một request**, các lời gọi `cache(fn)(cùngArgs)` chỉ thực thi hàm **một lần**, các lần sau trả kết quả đã lưu. Ví von: trong một bữa ăn, gọi món "cà phê sữa" 3 lần thì quán pha đúng 1 ly rồi dọn ra lại — nhưng qua bữa khác (request khác) là pha ly mới. Khác React.memo: dedupe sống theo phạm vi request.
 - **`cacheSignal()`** (**React 19.2**, RSC-only) — gọi bên trong một hàm `cache()` để lấy `AbortSignal`. Khi vòng đời của `cache()` kết thúc, signal bị abort ⇒ bạn hủy fetch/tác vụ dài không còn cần.
 - **fetch cache (Next)**:
   - `cache: 'force-cache'` — dùng cache (mặc định cũ).
@@ -36,40 +44,15 @@ Ba tầng giải quyết riêng biệt: **dedupe trong request** (`cache()`), **
   - `next: { tags: ['posts'] }` — gắn tag để revalidate theo tag.
 - **`unstable_cache`** — cache kết quả một hàm (kể cả query DB không phải `fetch`) với key + tags.
 - **Revalidation**: `revalidatePath('/path')` làm mới theo route; `revalidateTag('tag')` làm mới mọi mục gắn tag đó.
-- **Khác biệt version**: default `fetch` cache **khác nhau giữa Next 14 và 15+**. Vì vậy **luôn khai báo rõ** `cache`/`revalidate`, đừng dựa vào mặc định.
+- **Khác biệt version**: default `fetch` cache **khác nhau giữa Next 14 và 15+**. Ví von như mặc định của công tắc đèn đổi giữa hai đời nhà: bật lên hay tắt đi là tùy đời — vì vậy **luôn khai báo rõ** `cache`/`revalidate`, đừng dựa vào mặc định.
+
+> **Tóm gọn 1 câu:** Mỗi API một "tuổi thọ" khác nhau — `cache()` sống đúng một request, fetch cache sống xuyên request, `revalidate*` là nút xóa có chủ đích.
 
 ## Cú pháp / API
 
-```tsx
-import { cache, cacheSignal } from 'react';
-import { unstable_cache } from 'next/cache';
+Mục này là bảng tra nhanh "nhu cầu → API": đang cần gì thì dò đúng dòng đó lấy đúng công cụ.
 
-// 1) Dedupe trong 1 request
-const getUser = cache(async (id: string) => {
-  const res = await fetch(`https://api.example.com/users/${id}`, {
-    cache: 'force-cache',
-    next: { revalidate: 60, tags: ['users'] },
-  });
-  return res.json();
-});
-
-// 2) Cache xuyên request theo tag
-const getPosts = unstable_cache(
-  async () => db.post.findMany(),
-  ['posts'],            // cache key parts
-  { tags: ['posts'], revalidate: 3600 },
-);
-
-// 3) Revalidate sau mutation (trong Server Action)
-// revalidatePath('/posts');
-// revalidateTag('posts');
-
-// 4) Hủy việc khi vòng đời cache() kết thúc (React 19.2, RSC-only)
-const getReport = cache(async (id: string) => {
-  const signal = cacheSignal();
-  return fetch(`https://api.example.com/report/${id}`, { signal });
-});
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 Bảng chọn tầng:
 
@@ -82,7 +65,11 @@ Bảng chọn tầng:
 | Xóa cache sau mutation | `revalidatePath` / `revalidateTag` | xuyên request |
 | Hủy việc khi request xong | `cacheSignal()` | 1 request |
 
+> **Cách đọc bảng này:** bắt đầu từ cột "Nhu cầu" (viết bằng ngôn ngữ bài toán của bạn), dò sang cột "API" để lấy công cụ, và xem cột "Phạm vi" để biết cache sống bao lâu — 1 request hay xuyên request.
+
 ## Luồng hoạt động (Flow)
+
+Mục này mô tả 6 bước dữ liệu đi qua các tầng cache trong một request — từ lúc gọi helper đến lúc mutation xóa cache.
 
 1. Server Component gọi helper đã bọc `cache()`.
 2. Lần gọi đầu trong request thực thi fetch/DB; các lần sau cùng args trả cache.
@@ -91,56 +78,15 @@ Bảng chọn tầng:
 5. Next xóa cache tương ứng; request kế tiếp lấy dữ liệu mới.
 6. `cacheSignal()` abort các tác vụ khi vòng đời `cache()` kết thúc (React 19.2).
 
+> **Tóm gọn 1 câu:** Request đi qua các tầng: `cache()` chặn fetch trùng, fetch options cache xuyên request, mutation xong thì `revalidate*` dọn đúng chỗ cần dọn.
+
 ## Ví dụ chi tiết
+
+Mục này chứng minh `cache()` hoạt động thật qua console log — thấy tận mắt 3 card nhưng chỉ 2 lần fetch.
 
 Xem [`example.tsx`](example.tsx). Diễn giải đầy đủ:
 
-```tsx
-import { Suspense, cache, use } from 'react';
-
-// 1. cache(): cùng id trong 1 request chỉ fetch 1 lần.
-const getUser = cache(async (id: string) => {
-  console.log(`[fetch] user ${id}`); // in 1 lần cho mỗi id / request
-  const res = await fetch(`https://jsonplaceholder.typicode.com/users/${id}`, {
-    // 2. fetch caching (Next): cache xuyên request 60s.
-    // Trong Next: { next: { revalidate: 60, tags: ['users'] } }
-    // Demo Vite/plain React: dùng cache mặc định của fetch wrapper.
-  });
-  if (!res.ok) throw new Error('Fetch lỗi');
-  return res.json() as Promise<{ name: string; phone: string }>;
-});
-
-function UserCard({ id }: { id: string }) {
-  // `use()` unwrap promise — Server Component truyền promise xuống client.
-  const user = use(getUser(id));
-  return (
-    <p>
-      {user.name} — {user.phone}
-    </p>
-  );
-}
-
-export default function CacheFetchDemo() {
-  return (
-    <div>
-      <h2>cache() + fetch caching (RSC)</h2>
-      <p>2 card id=1 dedupe thành 1 fetch (xem console).</p>
-      <Suspense fallback={<p>Đang tải...</p>}>
-        {/* id=1 xuất hiện 2 lần → chỉ 1 fetch nhờ cache() */}
-        <UserCard id="1" />
-        <UserCard id="1" />
-        <UserCard id="2" />
-      </Suspense>
-      <p>
-        <small>
-          Sau mutation gọi revalidateTag('users') / revalidatePath('/users') để
-          xóa cache có chủ đích (Next.js).
-        </small>
-      </p>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -153,6 +99,8 @@ export default function CacheFetchDemo() {
 
 ## So sánh với cách làm cũ
 
+Mục này đối chiếu cách "tự chế cache" trước đây với các API chuẩn hóa bây giờ — từng hàng là một việc không còn phải tự làm.
+
 | Cách cũ | Cách mới | Lợi ích |
 |---------|----------|---------|
 | Tự lưu cache trong `useState`/context | `cache()` dedupe theo request | Không fetch trùng, không code thủ công |
@@ -161,7 +109,11 @@ export default function CacheFetchDemo() {
 | Query DB không cache được | `unstable_cache` bọc hàm | Cache cả non-fetch với tags |
 | Fetch treo khi request kết thúc | `cacheSignal()` (React 19.2) | Hủy việc không còn cần |
 
+> **Cách đọc bảng này:** đọc ngang từng hàng để thấy "cách chắp vá cũ → API chuẩn mới → lợi ích"; cột giữa chính là thứ nên tra lại khi cần dùng.
+
 ## Lỗi thường gặp
+
+Mục này là 5 lỗi cache "đau nhất" — từ hành vi đổi bất ngờ khi nâng cấp Next cho tới lộ dữ liệu người khác vì cache theo user.
 
 1. **Dựa vào default fetch cache** ⇒ hành vi khác nhau giữa Next 14 và 15+. *Fix:* luôn khai báo `cache`/`next.revalidate` tường minh.
 2. **Nghĩ `cache()` cache xuyên request** ⇒ thực ra chỉ trong 1 request. *Fix:* cần xuyên request thì dùng `next.revalidate`/tags hoặc `unstable_cache`.
@@ -179,9 +131,13 @@ export default function CacheFetchDemo() {
 
 > Lưu ý: đây là API **framework-dependent** — `cache()`/`cacheSignal()` đến từ `react`, còn `unstable_cache`/`revalidate*` đến từ Next.js.
 
+> **Tóm gọn 1 câu:** Chọn tầng cache theo tính chất dữ liệu: ít đổi thì cache có TTL, theo user thì `no-store`, DB query thì `unstable_cache` — đừng "cache đại trà".
+
 ## Bài tập nhỏ
 
 Bọc `getUser(id)` bằng `cache()` rồi render ba `UserCard` với id `1, 1, 2`. Kiểm tra console chỉ có **2** lần fetch. Sau đó thêm `next: { revalidate: 60, tags: ['users'] }` và viết một Server Action `refreshUser()` gọi `revalidateTag('users')` — mô tả điều gì xảy ra với các request tiếp theo.
+
+> **Tóm gọn 1 câu:** Ba tầng cache như ba ngăn tủ lạnh: ngăn đá (xuyên request), khay trong bữa ăn (trong request), và nút vứt đồ cũ (revalidate) — nhớ tuổi thọ từng ngăn là không còn nhầm.
 
 ## Reference
 

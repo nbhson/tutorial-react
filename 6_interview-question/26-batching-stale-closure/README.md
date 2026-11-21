@@ -15,19 +15,7 @@
 
 ### 1. Automatic batching (React 18) — "N setState, 1 render"
 
-```tsx
-// Bấm 1 lần:
-function Inc() {
-  const [count, setCount] = useState(0);
-  const [name, setName] = useState("");
-  const onBtn = () => {
-    setCount(1);          // update #1 — KHÔNG render ngay
-    setCount((c) => c + 1); // update #2 (xếp hàng)
-    setName("a");          // update #3 (component khác? cùng tree)
-  };
-  // → React GỘP: re-render 1 lần với count = 2, name = "a"
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-automatic-batching-react-18-n-setstate-1.tsx`](examples/01-1-automatic-batching-react-18-n-setstate-1.tsx)
 
 - **Trước 18**: batch chỉ trong event handler của React; `Promise.then`, `setTimeout`, native listener → **mỗi setState 1 render**. **Từ 18**: **mọi context** đều batch (scheduler gộp).
 - **Hệ quả**: **không đọc được state ngay sau khi `set` trong cùng 1 tick** — `setCount(c => c + 1); console.log(count)` vẫn in giá trị **cũ** (render là việc của scheduler).
@@ -48,26 +36,7 @@ React xếp **update thành hàng (queue)**, chạy tuần tự khi render:
 
 Closure **đóng gói giá trị THỜI ĐIỂM TẠO**, không "biến đổi theo thời gian":
 
-```tsx
-// ❌ setTimeout đọc count "cũ":
-useEffect(() => {
-  setTimeout(() => console.log(count), 3000); // in 0 dù 3s sau đã bấm nhiều lần
-}, [count]); // ← deps CHƯA đủ: không [count] thì effect không chạy lại → closure mãi count=0
-
-// ✅ (a) deps đủ: effect chạy lại mỗi khi count đổi → closure MỚI (đọc giá trị hiện tại)
-useEffect(() => {
-  const id = setTimeout(() => console.log(count), 3000);
-  return () => clearTimeout(id);
-}, [count]);
-
-// ✅ (b) functional: không cần closure "đúng", React cấp giá trị hiện tại
-setTimeout(() => setCount((c) => c + 1), 3000); // c luôn = giá trị ở THỜI ĐIỂM CHẠY
-
-// ✅ (c) useRef giữ "giá trị sống" (đọc mới mà không re-create effect):
-const countRef = useRef(0);
-// render: countRef.current = count;
-// effect (deps []): setTimeout(() => console.log(countRef.current), 3000); // LUÔN đọc mới
-```
+> 📄 **Code ví dụ:** [`examples/02-3-stale-closure-vi-sao-state-tre-1.tsx`](examples/02-3-stale-closure-vi-sao-state-tre-1.tsx)
 
 > **Mẹo nhận dạng stale**: (1) log/state trong **callback setTimeout/listener** khác với giá trị hiện tại; (2) **event listener tự đăng ký** (không qua React) giữ closure mount; (3) **effect deps thiếu** → effect không chạy lại → closure cũ. (Liên hệ Q27: `useEffectEvent` = "đọc mới nhất mà không thêm deps" — 19.2+.)
 
@@ -84,6 +53,8 @@ React 18+ cho phép `setState` **trong event handler của RSC/Actions** (`useAc
 | `(click)` xử lý đồng bộ | Click handler của React **cũng batch** (mọi `setState` cùng tick) | Giống nhau về "1 event = 1 xử lý", khác **cơ chế** (Zone vs scheduler) |
 
 > **Nói đúng câu chốt**: "React 18 batch **mọi** `setState` trong 1 tick (click, Promise, timeout) thành **1 render** (scheduler). Functional update là 'xếp hàng' (cộng dồn); trị giá là 'ghi đè'. Stale closure là **đặc tính function** (đóng gói thời điểm tạo) — sửa bằng **deps đủ / functional / ref**; Angular (field class) không dính dạng lỗi này, nhưng trả giá bằng Zone.js + CDK."
+
+> **Tóm gọn 1 câu:** Nhiều `setState` cùng tick là bỏ cùng một giỏ rồi mang đi cân một lần (batching); còn closure là tấm ảnh chụp giá trị lúc render — muốn cộng dồn lên giá trị mới nhất thì dùng dạng hàm `c => c + 1`, đừng chụp lại tấm ảnh cũ.
 
 ## Bẫy khi phỏng vấn
 

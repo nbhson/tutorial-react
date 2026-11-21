@@ -6,25 +6,28 @@
 > Khi state đổi thì reconciliation (diff) chạy theo cơ chế nào? key trong list quan trọng đến mức nào?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- React không vẽ thẳng lên trình duyệt. Mỗi lần vẽ nó tạo một **bản mô tả giao diện bằng object JS** (rẻ), so với bản trước để tìm đúng chỗ khác nhau, rồi chỉ sửa mấy chỗ đó trên DOM thật (đắt).
+
+Mục này là câu trả lời 30 giây — đủ ba ý: Virtual DOM là gì, so diff thế nào, và key đóng vai gì.
+
+- React không vẽ thẳng lên trình duyệt. Mỗi lần vẽ nó tạo một **bản mô tả giao diện bằng object JS** (rẻ), so với bản trước để tìm đúng chỗ khác nhau, rồi chỉ sửa mấy chỗ đó trên DOM thật (đắt). Ví von: như architect sửa trên bản vẽ giấy (rẻ, xoắn xới thoải mái) trước khi đục tường nhà thật (đắt).
 - So theo "loại + key": cùng loại thì giữ node cũ, khác loại thì vẽ mới.
 - `key` là "căn cước" của từng dòng trong list để so không nhầm hàng — vì sao thì xem Q8.
+
+> **Tóm gọn 1 câu:** Virtual DOM là "bản thảo giấy" để diff — sửa trên giấy rẻ, đục tường thật (DOM) chỉ một lần cuối cùng ở đúng chỗ cần sửa.
 
 ## Trả lời chi tiết
 
 ### 1. Virtual DOM là gì, chính xác
 
-```tsx
-// JSX biên dịch thành object (mô tả UI), KHÔNG phải DOM node thật:
-<p onClick={handler}>Count: {count}</p>
-// ≈ jsx("p", { onClick: handler, children: `Count: ${count}` })
-```
+> 📄 **Code ví dụ:** [`examples/01-1-virtual-dom-la-gi-chinh-xac.tsx`](examples/01-1-virtual-dom-la-gi-chinh-xac.tsx)
 
 - React giữ **2 bản**: cây **cũ** (đang hiển thị trong DOM thật) và cây **mới** (vừa render).
 - So 2 bản (reconciliation) → tính ra **chỉ node nào cần thay** → **commit** vào DOM thật (DOM mutation + reflow/paint).
 - Điều kiện tiên quyết: **render thuần khiết** (pure) — cùng props/state → cùng JSX. Nếu render có side-effect (đọc biến ngoài, mutation, `Math.random()`), 2 bản so với nhau không có nghĩa gì → React (đặc biệt StrictMode) sẽ lộ bug.
 
 ### 2. Luồng reconciliation (bước-by-bước)
+
+Mục này đi qua 5 bước từ lúc state đổi đến lúc DOM thật được patch — thuộc được luồng này là trả lời "cập nhật giao diện kiểu gì" trọn vẹn.
 
 ```
 1. state/props đổi (setCount, prop mới, context)
@@ -36,17 +39,7 @@
 
 Ví dụ `Counter` (chỉ `<p>` đổi, `<button>` giữ nguyên trong DOM thật):
 
-```tsx
-function Counter() {
-  const [count, setCount] = useState(0);
-  return (
-    <>
-      <p>Count: {count}</p>
-      <button onClick={() => setCount((c) => c + 1)}>Tăng</button>
-    </>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-luong-reconciliation-buoc-by-buoc.tsx`](examples/02-2-luong-reconciliation-buoc-by-buoc.tsx)
 
 ### 3. Diff chạy theo "type + key", không phải "index"
 
@@ -54,16 +47,11 @@ function Counter() {
 - **Type khác** → React **cắt toàn bộ subtree con** (không diff tiếp), create node DOM mới (vì DOM node không chuyển đổi "tag" được).
 - **key trong list** → key là "chữ ký" ổn định: thêm/xóa/đảo, React so key để biết "item nào là item nào".
 
-```tsx
-// ĐÚNG — key ổn định theo id:
-{posts.map((p) => <PostCard key={p.id} post={p} />)}
-
-// SAI — index làm key: xóa item đầu → state nội bộ "nhảy" (input của item
-// thứ 2 nhận state của item thứ 1) vì React "giữ nhầm" node theo vị trí.
-{posts.map((p, i) => <PostCard key={i} post={p} />)}
-```
+> 📄 **Code ví dụ:** [`examples/03-3-diff-chay-theo-type-key-khong-phai.tsx`](examples/03-3-diff-chay-theo-type-key-khong-phai.tsx)
 
 ### 4. "Virtual DOM có nhanh hơn DOM thật không?" (bẫy kinh điển)
+
+Mục này là chỗ "ăn điểm hay mất điểm" của câu hỏi: trả lời bừa "nhanh hơn" là mất; trả lời có điều kiện là thắng.
 
 - **Câu trả lời đúng**: **Không hẳn**, với "so sánh thuần" 1 lần. Object JS rẻ hơn DOM mutation (reflow/paint đắt), nên React chọn **giới hạn số lần sửa DOM thật** (chỉ patch phần khác), thay vì "sờ DOM trực tiếp" (như trước đây, hay như template engine).
 - **Không phải "virtualization" (hiding offscreen list items)** — đừng nhầm Virtual DOM (object model) với list virtualization (render chỉ phần visible trong viewport).
@@ -95,6 +83,8 @@ React (v DOM):
 | **High-frequency (60fps, canvas/SVG)** | v DOM overhead > DOM mutation → dùng `requestAnimationFrame` + canvas/SVG direct |
 | **List 50k item, scroll** | Diff 50k node = đắt → **virtualization** (render chỉ phần visible) + v DOM |
 
+> **Cách đọc bảng này:** mỗi hàng là một "lỗ hổng" của Virtual DOM — nhớ 3 case này để trả lời phản biện "vậy khi nào direct DOM tốt hơn?" một cách tự tin.
+
 ### 5. Đối chiếu Angular (điểm "ăn điểm" cho người từ Angular)
 
 | Angular (Zone.js) | React |
@@ -106,6 +96,8 @@ React (v DOM):
 > Nói cách khác: **Angular "nghe lén" (Zone patch)**, **React "tự báo" (setter + unidirectional data flow)** — nên React không cần "quét" toàn bộ binding như Angular 2-14 (Angular 15+ đã có signal-based, giảm scope của "nghe lén").
 
 ## Bẫy khi phỏng vấn
+
+Mục này là 5 bẫy kinh điển xoay quanh Virtual DOM — bẫy số 1 ("nhanh hơn vì object rẻ") đánh gục vô số ứng viên mỗi năm.
 
 1. **Tưởng "Virtual DOM nhanh hơn" vì "object rẻ"** → trả lời "có" là sai: nhanh là vì **giới hạn số lần chạm DOM thật** (chỉ patch phần khác), không phải "đoán object rẻ hơn DOM".
 2. **Nhầm Virtual DOM với list virtualization** (thư viện như `react-window`, `@tanstack/virtual`) → 2 thứ khác nhau: 1 là model, 1 là "chỉ render phần visible".

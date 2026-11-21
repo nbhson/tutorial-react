@@ -10,6 +10,8 @@
 
 **Bộ tối thiểu (nhớ 6 cái):** `Content-Security-Policy` (allowlist tài nguyên), `Strict-Transport-Security` (ép HTTPS), `X-Content-Type-Options: nosniff` (chặn đoán MIME), `Referrer-Policy` (giới hạn referrer), `Permissions-Policy` (tắt quyền nhạy cảm), `frame-ancestors 'none'` trong CSP (chống clickjacking, thay X-Frame-Options cũ).
 
+> **Tóm gọn 1 câu:** Mục tiêu của bài: nắm 6 header sống còn, hiểu CSP chặn thế nào (nonce/hash thay `'unsafe-inline'`), và biết header phải cấu hình ở tầng HTTP chứ không phải trong React.
+
 ### 2. Hiểu CSP hoạt động ra sao, nonce/hash khác `'unsafe-inline'` thế nào
 
 **Vì sao:** CSP là allowlist "cái gì được tải/chạy từ đâu", chia theo loại (`script-src`, `style-src`, `img-src`, `connect-src`, `font-src`, `frame-ancestors`, `base-uri`, `form-action`) với `default-src` làm mặc định. `'unsafe-inline'` cho script inline chạy — bật là CSP mất nửa tác dụng (XSS inline chạy tự do). Nonce (server sinh ngẫu nhiên mỗi response, thẻ nào có nonce đúng mới chạy) và hash (cho phép theo nội dung file) là cách cho phép inline có kiểm soát thay vì mở toang.
@@ -29,6 +31,8 @@
 
 ## Khái niệm cốt lõi
 
+Mục này mổ xẻ CSP từng directive một, so nonce với hash, và giải nghĩa các header còn lại. Ví von: CSP như danh sách khách mời ở cổng — không có tên trong danh sách thì dù trèo fence vào được (XSS lọt) cũng bị bảo vệ chặn ngay tại sảnh.
+
 ### 1. CSP = allowlist theo loại tài nguyên
 
 `default-src 'self'` là mặc định (chỉ cùng origin). Từng loại ghi đè: `script-src` (JS), `style-src` (CSS), `img-src` (ảnh), `connect-src` (fetch/XHR/WS — quên domain API là app "im lặng lỗi"), `font-src`, `frame-ancestors` (ai được nhúng mình), `base-uri` (chặn đổi `<base>`), `form-action` (chặn submit ra ngoài). Thiếu directive nào thì `default-src` quyết — nên `default-src 'self'` chặt từ đầu rồi mở có kiểm soát.
@@ -37,12 +41,7 @@
 
 `'self'` = cùng scheme+host+port. Không `'unsafe-inline'` = script/style inline bị chặn. Nhiều lib UI cần style inline → `style-src` hay phải nới `'unsafe-inline'` (chấp nhận được, style ít nguy hiểm hơn script); script thì không bao giờ nới ở prod.
 
-```nginx
-# ❌ SAI (prod): mở unsafe-inline cho script — XSS inline chạy tự do, CSP vô dụng
-# add_header Content-Security-Policy "script-src 'self' 'unsafe-inline'" always;
-# ✅ ĐÚNG (prod): script chỉ từ file cùng origin (Vite build ra file riêng nên đủ)
-# add_header Content-Security-Policy "script-src 'self'" always;
-```
+> 📄 **Code ví dụ:** [`examples/01-2-self-va-cam-unsafe-inline-cho-script.nginx.conf`](examples/01-2-self-va-cam-unsafe-inline-cho-script.nginx.conf)
 
 ### 3. Nonce vs Hash — cho phép inline có kiểm soát
 
@@ -60,7 +59,11 @@ Script có nonce hợp lệ được quyền nạp thêm script (bundler động
 
 HSTS ép HTTPS 1 năm + subdomain (chỉ bật sau khi HTTPS ổn — khóa cứng nhầm là tự DDoS mình). `nosniff` chặn đoán MIME (file tải lên giả ảnh chứa JS không bị thực thi). Referrer-Policy `strict-origin-when-cross-origin` (nội bộ giữ path, cross-site chỉ origin). Permissions-Policy tắt camera/mic/geo mặc định (cần mới mở theo origin). `frame-ancestors 'none'` chống nhúng iframe (clickjacking) — thay `X-Frame-Options` cũ.
 
+> **Tóm gọn 1 câu:** CSP là danh sách khách mời theo từng loại tài nguyên — `default-src 'self'` chặt từ đầu, nonce/hash cho inline có kiểm soát, report-only để rollout không vỡ app.
+
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là quy trình 5 bước rollout CSP an toàn: report-only trước, chốt allowlist từ vi phạm thật, rồi mới bật chặn — đi nhanh quá là tự chặn nhầm CDN của chính mình.
 
 ### Bước 1. Bắt đầu report-only, đọc Console thu thập nguồn
 
@@ -82,69 +85,17 @@ HSTS sau khi HTTPS ổn. Mỗi header verify ở DevTools Network → Response H
 
 `securityheaders.com` phải A trở lên. Mỗi deploy kiểm tra lại (header ở hạ tầng, dễ bị ghi đè khi đổi CDN config).
 
+> **Tóm gọn 1 câu:** Luồng chuẩn: report-only 1–2 tuần → chốt allowlist từ vi phạm thật → bật chặn có report-uri → verify bằng securityheaders.com.
+
 ## Ví dụ chi tiết
 
 Mirror đầy đủ với `example.tsx` cùng thư mục (không rút gọn) + config server:
 
-```nginx
-# Nginx phục vụ SPA đã build — header áp cho mọi response (mirror từ README gốc, giữ nguyên)
-# Vì sao always: Nginx chỉ add cho response 2xx mặc định — always để cả lỗi cũng có header
-add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.example.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.nginx.conf`](examples/02-vi-du-chi-tiet.nginx.conf)
 
-# Ép HTTPS trong 1 năm, áp cả subdomain — chỉ bật sau khi HTTPS chạy ổn (khóa cứng nhầm là tự chặn mình)
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-# Không để trình duyệt "đoán" MIME — file giả ảnh chứa JS không bị thực thi (chặn sniff)
-add_header X-Content-Type-Options "nosniff" always;
-# Chỉ gửi origin khi đi cross-site — nội bộ giữ path, ngoài chỉ biết domain (chống rò URL nội bộ)
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-# Tắt quyền nhạy cảm mặc định — cần (gọi video) thì mở theo origin cụ thể, không mở toang
-add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.json`](examples/03-vi-du-chi-tiet.json)
 
-```json
-// vercel.json — cấu hình tương đương trên Vercel (mirror từ README gốc)
-{
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; connect-src 'self' https://api.example.com"
-        }
-      ]
-    }
-  ]
-}
-```
-
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-// Component meta bổ trợ (KHÔNG thay thế headers server):
-// Vì sao không thay: meta thiếu frame-ancestors/report-uri, dễ bị ghi đè — header HTTP mới quyết định ở prod
-export function SecurityMeta() {
-  return (
-    <>
-      <meta name="referrer" content="strict-origin-when-cross-origin" />
-      <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-    </>
-  );
-}
-
-// Fetch luôn gửi kèm credentials để cookie httpOnly đi theo,
-// kết hợp CSP/connect-src giới hạn domain ở tầng server.
-// Vì sao include: cookie httpOnly (xem bài 4) chỉ đi theo khi credentials include + CORS server cho phép
-export async function secureFetch(path: string) {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
-    credentials: 'include', // cookie phiên đi theo — không có là 401 dù đã login
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (res.status === 401) window.location.assign('/login'); // hết phiên → về login (dùng assign để không Back lại trang cần auth)
-  return res;
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -154,7 +105,7 @@ Mọi loại không ghi đè đều chỉ cùng origin. Muốn mở (ảnh Unspl
 
 ### `script-src 'self'` — chặn script lạ dù XSS lọt
 
-Payload `<script src="https://evil.com/x.js">` chèn được vào DOM cũng không chạy vì domain lạ. Kết hợp sanitize (bài 1) thành 2 lớp: lọt lớp 1 còn lớp 2.
+Payload `<script src="https://evil.com/x.js">` chèn được vào DOM cũng không chạy vì domain lạ. Ví von: dù kẻ trộm lọt được vào sân (XSS lọt qua sanitize), cổng ra vào vẫn chỉ mở cho khách có giấy mời — trộm vẫn đứng ngoài cửa. Kết hợp sanitize (bài 1) thành 2 lớp: lọt lớp 1 còn lớp 2.
 
 ### `style-src ... 'unsafe-inline'` — nhượng bộ có lý do
 
@@ -162,7 +113,7 @@ Nhiều UI lib chèn style inline. Style ít nguy hiểm hơn script nên nới 
 
 ### `connect-src` — quên là fetch "chết im"
 
-`fetch`/`WS` tới domain không liệt kê bị chặn, lỗi hiện ở Console chứ không phải exception rõ — app "im lặng lỗi". Thêm đúng domain API (+ socket nếu có). Mỗi lần thêm vendor mới (analytics, chat) là kiểm tra lại directive này.
+`fetch`/`WS` tới domain không liệt kê bị chặn, lỗi hiện ở Console chứ không phải exception rõ — app "im lặng lỗi". Thêm đúng domain API (+ socket nếu có). Ví von: như điện thoại bị cắt sóng lặng lẽ — không báo "sai số", chỉ là không bao giờ gọi được. Mỗi lần thêm vendor mới (analytics, chat) là kiểm tra lại directive này.
 
 ### `frame-ancestors 'none'` + `base-uri`/`form-action` — chống 3 trò
 
@@ -172,12 +123,7 @@ Nhiều UI lib chèn style inline. Style ít nguy hiểm hơn script nên nới 
 
 ### 1. Copy CSP dev (`'unsafe-inline'` script) sang prod → vô hiệu XSS-shield
 
-```nginx
-# ❌ SAI (prod): copy từ dev (dev cần inline cho HMR)
-# add_header Content-Security-Policy "script-src 'self' 'unsafe-inline'" always;
-# ✅ ĐÚNG (prod): chỉ self — build ra file riêng nên không cần inline
-# add_header Content-Security-Policy "default-src 'self'; script-src 'self'; ..." always;
-```
+> 📄 **Code ví dụ:** [`examples/05-1-copy-csp-dev-unsafe-inline-script-sang.nginx.conf`](examples/05-1-copy-csp-dev-unsafe-inline-script-sang.nginx.conf)
 
 ### 2. Đặt CSP trong `<meta>` thay header → thiếu directive quan trọng
 
@@ -195,11 +141,15 @@ Triệu chứng: UI trắng/treo, không báo đỏ rõ, Console có dòng CSP b
 
 Nonce đổi mỗi response nhưng file build hash cố định không nhúng nonce động — không bao giờ khớp. File tĩnh dùng `'self'`/hash, nonce chỉ cho inline server render động.
 
+> **Tóm gọn 1 câu:** 5 lỗi đắt giá: copy CSP dev sang prod, nhét CSP vào `<meta>`, bật chặn khi chưa report-only, quên `connect-src`, và dùng nonce cho file tĩnh.
+
 ## Best practices / Mẹo
 
 ### Tối thiểu quyền + version control hạ tầng + log vi phạm
 
 Chỉ mở đúng nguồn cần, không `*`. CSP trong file hạ tầng có git để review như code. `report-to` log định kỳ — vi phạm tăng sau release là mùi bundle mới. App có `innerHTML` thì thêm `require-trusted-types-for` (nối bài 1). HSTS sau HTTPS ổn. Mỗi vendor mới kiểm tra lại CSP.
+
+> **Tóm gọn 1 câu:** Tối thiểu quyền + header nằm ở hạ tầng có git + log vi phạm định kỳ — đó là bộ ba để CSP sống khỏe lâu dài.
 
 ## Bài tập nhỏ
 

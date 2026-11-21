@@ -4,6 +4,8 @@ Mỗi câu là một thư mục con chứa `README.md` theo đúng cấu trúc q
 
 ## Cách dùng để "hỏi liên tục"
 
+Mục này giải thích quy tắc chơi của bộ đề: mỗi câu có sẵn "nhánh rẽ" ở cuối để tự kéo thành chuỗi phỏng vấn — đọc để biết cách luyện hỏi móc nối thay vì học rời rạc.
+
 Mỗi câu hỏi cuối file có section **"Câu hỏi liên quan"** với 2 nhánh:
 - **Hỏi tiếp (liên tục)**: câu hỏi cùng chủ đề, đi thẳng, hỏi nhau liên tiếp không nhảy topic.
 - **Đào sâu (xuyên nhóm)**: câu hỏi khác nhóm, nhưng cùng một cơ chế/vấn đề nền — giúp đào sâu khi đã nắm chủ đề.
@@ -12,6 +14,8 @@ Bạn có thể hỏi theo group (dưới đây) để đi từ nền tảng →
 
 ## Nhóm câu hỏi
 
+Mục này là "bản đồ toàn bộ đề": 12 nhóm xếp từ nền tảng đến kỹ thuật thực chiến — đọc mục này để chọn lộ trình ôn (đi theo nhóm từ trên xuống) hoặc tra nhanh câu cần củng cố.
+
 > **Chú thích:** số `Qx` trong tiêu đề nhóm là số thứ tự gốc của câu hỏi (khớp tên thư mục `Qx-...`); số trong bảng có thể không liền kề vì một số câu được xếp sang nhóm khác theo cơ chế — giải thích ở ghi chú cuối từng bảng.
 
 ### Nhóm 1 — Nền tảng React (Q1–Q2)
@@ -19,6 +23,8 @@ Bạn có thể hỏi theo group (dưới đây) để đi từ nền tảng →
 |---|---|---|
 | 1 | Theo em, React gọi là library chứ không phải framework thì khác nhau ở chỗ nào? | [`01-library-vs-framework`](01-library-vs-framework/README.md) |
 | 2 | React 18 với 19 khác nhau chỗ nào? Sao 19 được gọi là bản bước ngoặt? | [`02-react-18-vs-19`](02-react-18-vs-19/README.md) |
+
+> **Cách đọc bảng này:** (áp dụng cho mọi bảng nhóm bên dưới) mỗi dòng là một câu hỏi; cột "#" là số Q gốc khớp tên thư mục, cột "Câu hỏi" là nội dung hỏi thật, cột "Thư mục" bấm vào là tới câu trả lời — đọc dọc cột "Câu hỏi" để chọn câu luyện, đừng học thuộc số thứ tự.
 
 ### Nhóm 2 — JSX & Virtual DOM (Q6–Q8)
 | # | Câu hỏi | Thư mục |
@@ -118,3 +124,5 @@ Bạn có thể hỏi theo group (dưới đây) để đi từ nền tảng →
 | 47 | Bấm nút mà UI khựng 200ms vì tính toán nặng, em đẩy ra khỏi main thread kiểu gì? | [`47-lag-worker`](47-lag-worker/README.md) |
 
 > Nhóm 11 là "thực chiến" (forms phức tạp, profile, loading, race condition, offline cache, accessibility, migration version). Nhóm 12 là "kỹ thuật nâng cao" (code review, real-time, upload, worker).
+
+> **Tóm gọn 1 câu:** Bộ đề này như tủ sách 12 ngăn xếp từ nền tảng đến thực chiến — mỗi câu là một "móc xích" nối sang câu khác, ôn theo nhánh "hỏi tiếp / đào sâu" là tự thành ca phỏng vấn thật.

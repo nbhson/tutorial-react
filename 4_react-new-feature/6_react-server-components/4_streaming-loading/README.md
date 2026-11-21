@@ -2,13 +2,15 @@
 
 ## Mô tả
 
-Streaming SSR cho phép server **gửi HTML về browser theo từng mảnh** thay vì chờ toàn bộ trang render xong mới trả. Người dùng thấy **shell** (layout, header, phần tĩnh) gần như ngay lập tức; phần dữ liệu chậm stream đến sau, khít chỗ `<Suspense>` fallback đang hiển thị. Đây là cơ chế built-in của **Next.js App Router** (qua `loading.js` và `<Suspense>`) và của React 18+ SSR (`renderToPipeableStream`).
+Streaming SSR cho phép server **gửi HTML về browser theo từng mảnh** thay vì chờ toàn bộ trang render xong mới trả. Giống như phục vụ bàn ăn theo kiểu "món nào xong mang món đó" thay vì chờ đủ bộ menu mới dọn ra — khách có ngay món khai vị trong lúc món chính còn nấu. Người dùng thấy **shell** (layout, header, phần tĩnh) gần như ngay lập tức; phần dữ liệu chậm stream đến sau, khít chỗ `<Suspense>` fallback đang hiển thị. Đây là cơ chế built-in của **Next.js App Router** (qua `loading.js` và `<Suspense>`) và của React 18+ SSR (`renderToPipeableStream`).
 
 Ba tầng trong bài này:
 
 1. **`loading.js` theo route segment** — Next tự bọc segment trong `<Suspense>`, fallback tự động.
 2. **`<Suspense>` thủ công trong Server Component** — chia page thành nhiều vùng với thời gian tải khác nhau (granularity do bạn quyết).
 3. **Streaming ở tầng nền** — `renderToPipeableStream` (Node) / `renderToReadableStream` (Web streams) gửi shell trước, hole sau; RSC payload cũng stream theo.
+
+> **Tóm gọn 1 câu:** Streaming SSR = server gửi HTML theo đợt — shell hiện trước, phần chậm "khai quật" sau ngay tại chỗ Suspense fallback đang đứng.
 
 ## Mục tiêu
 
@@ -19,6 +21,8 @@ Ba tầng trong bài này:
 
 ## Vấn đề giải quyết
 
+Mục này kể về thời SSR "chờ đủ mới gửi" — đọc để hiểu giá trị thật của streaming đo được bằng TTFB và First Paint.
+
 SSR "classic" (React 17) phải `await` **mọi** data của trang rồi mới gửi HTML:
 
 - **TTFB (Time To First Byte) chậm** — 1 query chậm 2s làm cả trang trắng 2s dù header/menu sẵn sàng ngay.
@@ -27,55 +31,29 @@ SSR "classic" (React 17) phải `await` **mọi** data của trang rồi mới g
 
 Streaming giải quyết: server trả shell + skeleton ngay, mỗi phần data xong thì stream thêm — TTFB và First Paint giảm mạnh, phần chậm không chặn phần nhanh.
 
+> **Tóm gọn 1 câu:** SSR cũ là "all-or-nothing" — một query chậm khóa cả trang; streaming tách page thành vùng nhanh/chậm, vùng nào xong hiện vùng đó.
+
 ## Khái niệm cốt lõi
 
+Mục này định nghĩa bộ từ khóa của streaming: shell, hole, `loading.js`, Suspense thủ công — và phân biệt với Suspense client-side cùng tên khác nghề.
+
 - **Shell** — phần HTML render được ngay (layout, header, nội dung tĩnh, những Server Component không chờ data). Gửi đi trong response đầu tiên.
-- **Hole** — chỗ trong cây mà data chưa xong. Server **không chờ** hole: gửi placeholder trước, khi data xong thì stream đoạn HTML/RSC payload để thay chỗ đó.
+- **Hole** — chỗ trong cây mà data chưa xong. Ví von: như ghế trống có thẻ "chức ngồi chờ được xác nhận" trong hội trường — server gửi sẵn chỗ trống kèm biển fallback, data xong thì "khách" vào ghế ngay. Server **không chờ** hole: gửi placeholder trước, khi data xong thì stream đoạn HTML/RSC payload để thay chỗ đó.
 - **`loading.js`** — file đặc biệt theo segment trong App Router. Next bọc segment đó trong `<Suspense fallback={<Loading/>}>` cho bạn; mỗi segment có loading riêng ⇒ loading "nested" theo route, không phải 1 loading cho cả app.
 - **`<Suspense>` thủ công** — bọc trực tiếp component async chậm trong page: vùng nào chậm chỉ fallback vùng đó. Đây là cách đạt **granularity nhỏ hơn** loading.js (cấp component thay vì cấp route).
-- **Streaming ≠ Suspense client-side** — Suspense client (DAY 13) bắt việc *tải code* (lazy chunk) trên browser; streaming SSR là việc *render và gửi HTML* từ server. Cùng cơ chế "suspend → fallback", khác môi trường.
+- **Streaming ≠ Suspense client-side** — Suspense client (DAY 13) bắt việc *tải code* (lazy chunk) trên browser; streaming SSR là việc *render và gửi HTML* từ server. Ví von: cùng chữ "giao hàng", một bên là giao đồ ăn trong thành phố (browser tải code), một bên là giao hàng quốc tế qua cảng (server render HTML) — quy trình và phương tiện khác hẳn. Cùng cơ chế "suspend → fallback", khác môi trường.
+
+> **Tóm gọn 1 câu:** Shell = phần giao ngay, hole = ghế chờ data, `loading.js` = fallback tự động theo route, Suspense thủ công = fallback theo vùng bạn chọn.
 
 ## Cú pháp / API
 
-```tsx
-// app/dashboard/loading.tsx — Next tự bọc segment này trong <Suspense>
-export default function Loading() {
-  return <DashboardSkeleton />; // hiện khi segment này (và con nó) đang stream
-}
-```
+Mục này so sánh 3 cơ chế hiện loading trong bảng — tra nhanh để chọn đúng cơ chế cho từng tình huống.
 
-```tsx
-// app/dashboard/page.tsx — Server Component async, stream thủ công theo vùng
-import { Suspense } from "react";
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
-export default function DashboardPage() {
-  return (
-    <div>
-      <h1>Dashboard</h1>
-      {/* Vùng nhanh — render cùng shell */}
-      <Revenue />
-      {/* Vùng chậm — stream sau, fallback hiện trước */}
-      <Suspense fallback={<ChartSkeleton />}>
-        <SlowChart /> {/* async component, await 2s */}
-      </Suspense>
-      <Suspense fallback={<TableSkeleton />}>
-        <RecentOrders />
-      </Suspense>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-cu-phap-api.tsx`](examples/02-cu-phap-api.tsx)
 
-```tsx
-// app/layout.tsx — chỉ là server component thường; loading.js KHÔNG đặt ở layout gốc trừ khi muốn loading toàn app
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="vi">
-      <body>{children}</body>
-    </html>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-cu-phap-api.tsx`](examples/03-cu-phap-api.tsx)
 
 Quy tắc nhanh:
 
@@ -85,7 +63,11 @@ Quy tắc nhanh:
 | `<Suspense>` thủ công | Cấp component trong page | Bạn tự bọc | Chia page thành vùng nhanh/chậm khác nhau |
 | Shell + hole (tầng nền) | Toàn trang | Framework tự lo | Hiểu để debug, không viết tay trong App Router |
 
+> **Cách đọc bảng này:** đọc cột "Cơ chế" để biết có mấy lựa chọn, cột "Ai khai báo" cho biết bạn phải viết gì hay Next tự lo, cột "Khi nào dùng" là câu trả lời trực tiếp cho câu hỏi "trang này nên dùng cái nào".
+
 ## Luồng hoạt động (Flow)
+
+Mục này đi theo một request `/dashboard` qua 7 bước — từ lúc server bắt đầu render đến lúc fallback được thay bằng nội dung thật.
 
 1. Request tới `/dashboard`. Server bắt đầu render cây Server Component.
 2. Phần render **đồng bộ** (layout, header, section tĩnh) xong ngay → server **gửi shell HTML** về browser. Browser vẽ shell ngay — user không thấy màn trắng.
@@ -95,57 +77,17 @@ Quy tắc nhanh:
 6. React (client runtime) **thay fallback bằng nội dung thật** đúng vị trí, không reload trang, không re-render phần đã vẽ.
 7. Thứ tự stream theo thứ tự hoàn thành — vùng nhanh hiện trước vùng chậm, bất kể vị trí trong cây.
 
+> **Tóm gọn 1 câu:** Shell về trước, hole để fallback trấn an, data xong đâu stream đến đó — thứ tự hiện theo tốc độ hoàn thành, không theo vị trí trong cây.
+
 ## Ví dụ chi tiết
+
+Mục này ghép `loading.js` và Suspense thủ công vào cùng một trang để thấy cả hai tầng hoạt động song song.
 
 Xem [`example.tsx`](example.tsx). Diễn giải đầy đủ:
 
-```tsx
-// app/dashboard/page.tsx — SERVER COMPONENT
-type Sale = { id: string; total: number };
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
-async function getRevenue() {
-  await new Promise((r) => setTimeout(r, 200)); // nhanh — vào shell
-  return { revenue: 52_400_000, orders: 131 };
-}
-
-async function getSlowChart() {
-  await new Promise((r) => setTimeout(r, 2500)); // chậm — stream sau
-  return [{ day: "T2", value: 12 }, { day: "T3", value: 19 }];
-}
-
-// Vùng nhanh: KHÔNG bọc Suspense — render cùng shell, hiện ngay
-async function Revenue() {
-  const sales = await fetchSales(); // ~200ms, nằm trong shell
-  return <p>Doanh thu: {sales.revenue.toLocaleString("vi-VN")}đ</p>;
-}
-
-// Vùng chậm: bọc Suspense thủ công — chỉ vùng này fallback + stream sau
-async function SlowChart() {
-  const series = await getWeeklySales(); // 2s
-  return <Chart data={series} />;
-}
-
-export default function DashboardPage() {
-  return (
-    <section>
-      <h1>Dashboard</h1>
-      <Suspense fallback={<ChartSkeleton />}>
-        <SlowChart />            {/* chậm — stream sau, không chặn phần trên */}
-      </Suspense>
-      <Suspense fallback={<TableSkeleton />}>
-        <RecentOrders />          {/* stream theo lượt xong của nó */}
-      </Suspense>
-    </div>
-  );
-}
-```
-
-```tsx
-// app/dashboard/loading.tsx — fallback CẤP ROUTE (Next tự bọc Suspense)
-export default function Loading() {
-  return <DashboardSkeleton />; // hiện ngay khi segment /dashboard đang render
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -157,6 +99,8 @@ export default function Loading() {
 
 ## So sánh với cách làm cũ
 
+Mục này đo lường khoảng cách giữa SSR "chờ hết" và streaming — cả về trải nghiệm người dùng lẫn chỉ số Core Web Vitals.
+
 | Cách cũ | Cách mới | Lợi ích |
 |---------|----------|---------|
 | `getServerSideProps` chờ tất cả data | Shell stream ngay, hole đi sau | First paint ~ ngay cả khi data chậm |
@@ -164,7 +108,11 @@ export default function Loading() {
 | Spinner toàn trang khi 1 widget chậm | Fallback theo vùng | Widget chậm không chặn trang |
 | TTFB chậm vì data chậm nhất quyết định | Shell không phụ thuộc data chậm | Core Web Vitals (LCP) tốt hơn |
 
+> **Cách đọc bảng này:** đọc ngang từng hàng — cột "Cách cũ" là hành vi chờ tất cả, cột "Cách mới" là hành vi chia đợt, cột "Lợi ích" chỉ ra người dùng và chỉ số được gì.
+
 ## Lỗi thường gặp
+
+Mục này là 6 lỗi khiến streaming "hỏng ngầm" — code vẫn chạy nhưng mất hết lợi ích, hoặc skeleton nhấp nháy khó chịu.
 
 1. **`await` mọi thứ ở đầu page rồi mới return JSX** ⇒ mất streaming — cả trang chờ query chậm nhất. *Fix:* đẩy `await` xuống component con, bọc `<Suspense>` cho phần chậm.
 2. **Đặt `loading.js` ở `app/layout.tsx` gốc** ⇒ mọi navigation đều fallback toàn app, "nháy" skeleton vô nghĩa. *Fix:* đặt `loading.js` ở segment thực sự chậm (cấp page/section).
@@ -174,6 +122,8 @@ export default function Loading() {
 6. **Streaming + `revalidate`/cache hiểu sai** — stream nhanh không đồng nghĩa data tươi; cache semantics vẫn do `fetch`/`cache()` quyết (bài 3).
 
 ## Khi nào dùng / Khi nào không
+
+Mục này giúp chọn giữa `loading.js` (cấp route) và Suspense thủ công (cấp vùng) — và vài trường hợp nên tránh streaming hẳn.
 
 **Dùng streaming + Suspense theo route khi:**
 
@@ -190,6 +140,8 @@ export default function Loading() {
 ## Bài tập nhỏ
 
 Dựng `app/orders/page.tsx` với 3 vùng: header tĩnh, bảng đơn hàng (`await` 300ms), biểu đồ doanh thu (`await` 2s). Yêu cầu: header hiện cùng shell; bảng có `loading.js` riêng theo segment; biểu đồ bọc `<Suspense>` với skeleton riêng. Kiểm tra bằng Network tab: thấy HTML đến 2 đợt (shell → chart).
+
+> **Tóm gọn 1 câu:** Streaming là "phục vụ món nào xong món đó" — đừng chờ món chậm nhất khóa cả bàn, và đừng bọc spinner toàn trang cho một widget bé xíu.
 
 ## Reference
 

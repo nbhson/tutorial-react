@@ -7,11 +7,16 @@
 > Sai lầm phổ biến nhất khi "nghiên cứu performance" (chưa đo đã sửa, `useMemo` lan tràn) là gì?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
+
+Mục này là "bản nói 30 giây" — đưa được đúng tinh thần "đo trước sửa sau" là đã ăn điểm ngay từ câu đầu; phần chi tiết bên dưới để đỡ khi bị hỏi từng công cụ.
+
 - Luật đầu: **đo trước sửa sau**. Quy trình: profile → tìm pha tốn (vẽ CPU, layout/paint, JS main thread, RAM) → sửa đúng pha → đo lại, giữ ngưỡng ở CI.
 - 4 đồ nghề: Performance tab (xem main thread, frame rớt), Profiler của React DevTools (xem component nào vẽ lâu/vẽ nhiều), Lighthouse (LCP/INP), web-vitals + Sentry cho số liệu thật ở production.
 - Bẫy phổ biến: chưa đo đã rải `useMemo` khắp nơi — vừa rối code vừa không trúng bệnh.
 
 ## Trả lời chi tiết
+
+Mục này trình bày bộ đồ nghề và thứ tự soi của "bác sĩ hiệu năng app": chẩn đoán trước, kê đơn sau — đọc để trả lời được "quy trình ra sao" chứ không chỉ "dùng tool gì".
 
 ### 1. Quy trình "đo trước, sửa sau" (4 bước)
 
@@ -21,6 +26,8 @@
 | 2. Xác định pha | Flame graph + "Frames" | **Render** (CPU cao, nhiều commit) → Q16/Q29 · **Layout/Paint** (long task, DOM nhiều) → Q31 · **JS Main** (blocking, long task) → Web Worker · **Network** (blocking) → Q20/Q22 |
 | 3. Sửa | Theo pha | (Q16 memo, Q29 transition, Q31 virtual, Q23 code split, Web Worker) |
 | 4. Đo lại | Cùng profile | **Xác nhận** metric cải thiện (không "nghi ngờ là đã nhanh") |
+
+> **Cách đọc bảng này:** mỗi dòng là một bước của vòng chẩn đoán, đọc theo thứ tự 1 → 4 như quy trình bác sĩ (soi, định bệnh, kê đơn, tái khám); cột Công cụ là "dụng cụ của từng bước", cột Làm gì là hành động cụ thể — bước 4 quan trọng ngang bước 1 vì không đo lại thì không biết thuốc có tác dụng.
 
 **Budget CI (Q23)**: script `bun run check:perf` (Lighthouse INP < 200ms, JS critical < 200KB gzip) — "chống phình lại".
 
@@ -53,6 +60,8 @@
 | **INP** (Interaction to Next Paint) | "User bấm → UI phản hồi" | < 200ms (good) |
 | **CLS** (Cumulative Layout Shift) | "UI nhảy (layout shift)" | < 0.1 (good) |
 
+> **Cách đọc bảng này:** mỗi dòng là một metric đo trải nghiệm người dùng thật ở production; cột "Đo gì" giải thích hiện tượng đời thường (vẽ xong chưa, phản hồi nhanh không, UI có nhảy không), cột Target là ngưỡng "tốt" — nhớ nhất là INP đã thay FID từ 2024.
+
 **Đo production**: `web-vitals` (lib) → báo Sentry/DataDog (theo cohort device). **Chống "giật INP"**: nút bấm chạy tính toán nặng → **Web Worker** (Q "nút lag 200ms") / `startTransition` (Q29, "đắt được hoãn").
 
 ### 5. Bẫy "chưa đo đã sửa" (thường gặp)
@@ -64,14 +73,22 @@
 | "Gõ tìm kiếm" → `debounce` (giả sử) | Profile: filter 10k item (CPU) → Q29 `useDeferredValue`/`startTransition` (không debounce, "đúng" hơn) |
 | "App nặng" → "nâng cấp React" | Profile: code bundle (Q23) / cache (Q32) — "phần khác" |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp "phản xạ sai ↔ cách làm đúng"; đọc theo cặp để thấy điểm chung — tất cả đều là "chẩn đoán vội" trước khi profile. Đây chính là mục "tự kiểm tra bản thân" trước khi rải `useMemo`.
+
 ## Bẫy khi phỏng vấn
+
+Mục này là "bản đồ mìn": 4 câu trả lời nghe hợp lý nhưng sai — hiệu năng là chủ đề người ta đặc biệt thích cài mồi "chưa đo đã sửa".
 
 1. **"Chậm → useMemo cho hết" (bẫy #1)** → **sai** (Q16) — profile trước, "nhiều useMemo = code méo, không giúp nếu bottleneck khác" (layout, network, main thread).
 2. **"`useCallback`/`useMemo` = tối ưu" (thừa số)** → **sai** (Q16) — chỉ có ý nghĩa khi "truyền function/object cho con memo" (Q11, Q30) — "đo trước".
 3. **"INP = FID (FID cũ)"** → **sai** (2024+ FID deprecated, **INP** thay — "nói được = ăn điểm").
 4. **"Profile chỉ cần DevTools, không cần production"** → **sai** (user thật = device chậm, network thật — `web-vitals` + Sentry, không "vì sao dev nhanh mà prod chậm").
 
+> **Tóm gọn 1 câu:** Sửa hiệu năng như chữa bệnh: phải soi (profile) định được vị trí nghẽn trước rồi mới kê đơn — bốc thuốc tùy hứng (`useMemo` cho hết) là vừa tốn tiền vừa không chữa được bệnh.
+
 ## Gợi ý câu chốt
+
+Mục này gói cả bài thành một đoạn trả lời mẫu — đọc để tập nói trọn một hơi rồi diễn đạt lại bằng giọng của mình.
 
 > "Chậm = **đo trước, sửa sau** (không 'nghi ngờ rồi useMemo hết' — Q16). **4 công cụ (2026)**: (1) Chrome DevTools **Performance** (Main thread, Frames, flame graph — 'ai tốn'), (2) **React DevTools Profiler** (commit per component, 'ai render thừa, ai đắt' — Q30 cascade), (3) **Lighthouse** (LCP/INP/CLS — target: LCP<2.5s, INP<200ms, CLS<0.1 — INP thay FID 2024+), (4) **`web-vitals`** + Sentry (production, cohort thật). **Sửa theo pha**: render (Q16/Q29), layout (Q31), JS long (Web Worker), network (Q20/Q22/Q23). **Quét lại**: budget CI (Q23), 'chống phình lại'."
 

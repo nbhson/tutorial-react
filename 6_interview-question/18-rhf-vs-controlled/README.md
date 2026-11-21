@@ -15,6 +15,8 @@
 
 ### 1. Chênh lệch CỐT LÕI: "khi nào re-render"
 
+Mục này là trái tim của câu hỏi: hai cách làm form khác nhau hoàn toàn ở chỗ **giá trị nằm đâu và gõ phím thì ai vẽ lại** — đọc ngang từng dòng là thấy ngay khác biệt.
+
 | | Controlled thuần (Q17) | RHF (`register`) |
 |---|---|---|
 | Giá trị nằm ở | **State** React | **DOM** (ref của RHF, ngoài React state) |
@@ -28,35 +30,7 @@
 
 ### 2. `register` hoạt động ra sao (bước-by-bước)
 
-```tsx
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-const Schema = z.object({
-  email: z.string().email("Email không hợp lệ"),
-  pass: z.string().min(6, "Tối thiểu 6 ký tự"),
-});
-type Form = z.infer<typeof Schema>; // 1 schema -> 1 type (không viết 2 lần)
-
-function Login() {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<Form>({ resolver: zodResolver(Schema), mode: "onTouched" });
-
-  return (
-    <form onSubmit={handleSubmit((d) => console.log(d, /* d: Form */))}>
-      <input {...register("email")} placeholder="Email" />
-      {errors.email && <small role="alert">{errors.email.message}</small>}
-      <input type="password" {...register("pass")} placeholder="Mật khẩu" />
-      {errors.pass && <small role="alert">{errors.pass.message}</small>}
-      <button disabled={isSubmitting}>{isSubmitting ? "Đang gửi..." : "Login"}</button>
-    </form>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-2-register-hoat-ong-ra-sao-buoc-by.tsx`](examples/01-2-register-hoat-ong-ra-sao-buoc-by.tsx)
 
 **`register("email")` trả về gì + RHF dùng nó làm gì:**
 
@@ -89,6 +63,8 @@ function Login() {
 | `FormArray` | `useFieldArray({ control, name })` | Dynamic list (thêm/xóa dòng) |
 | `FormGroup` (class) | **Không có class** — form = object values + schema + `mode` | RHF gọn hơn (không kế thừa class) |
 
+> **Cách đọc bảng này:** cột trái là khái niệm Angular Reactive Forms bạn đã biết, cột giữa là "tên gọi mới" trong RHF + Zod — đọc ngang từng dòng để chuyển vocab; dòng `FormGroup` là dòng khác căn bản nhất (không còn class).
+
 ### 5. `mode` — "vòng validate" (mất ít điểm nếu không biết)
 
 `useForm({ mode: "onTouched" })` quyết định **khi nào RHF chạy validate** (hiện lỗi):
@@ -98,6 +74,8 @@ function Login() {
 - `"onSubmit"` (chỉ khi submit) — ít khó chịu, nhưng thông báo trễ.
 
 **Luôn**: **submit** validate **toàn bộ** (bất luận `mode`) — đây là điểm khác với mỗi phím (hiện lỗi sớm hay muộn tùy `mode`); **submit luôn kiểm tra toàn bộ**.
+
+> **Tóm gọn 1 câu:** Controlled là mỗi phím gõ đều phải về sổ cái ghi sổ (state → render); RHF là phím gõ ở lại quầy (DOM), chỉ báo cáo lên khi có chuyện (lỗi, submit) — cùng một nguồn sự thật, chỉ khác nơi giữ bản nháp.
 
 ## Bẫy khi phỏng vấn
 

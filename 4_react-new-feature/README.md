@@ -1,8 +1,12 @@
 # React New Features
 
-Tổng hợp các tính năng mới của React từ version 18 đến 19.3, React Compiler 1.0 và React Server Components. Mỗi folder chứa README tổng quan + các demo minh họa (`README.md` + `example.tsx`).
+Tổng hợp các tính năng mới của React từ version 18 đến 19.3, React Compiler 1.0 và React Server Components. Hãy hình dung chương này như một album ảnh gia đình của React: 4 "bức ảnh" version (18 → 19.3) chụp theo dòng thời gian, kèm 2 "video quay chậm" về hai đứa em lớn — Compiler (tự động memoize) và RSC (render trên server). Mỗi folder chứa README tổng quan + các demo minh họa (`README.md` + `example.tsx`).
+
+> **Tóm gọn 1 câu:** Chương này gom toàn bộ "hành trang mới" của React 2022–2026 — version mới, Compiler, và RSC — kèm thứ tự đọc gợi ý theo trình độ.
 
 ## Tổng quan theo version
+
+Mục này liệt kê 6 folder của chương theo dòng thời gian — dùng làm mục lục để nhảy nhanh vào version cần tìm.
 
 | # | Folder | Version / Chủ đề | Ngày phát hành | Điểm nhấn |
 |---|--------|------------------|----------------|-----------|
@@ -13,7 +17,11 @@ Tổng hợp các tính năng mới của React từ version 18 đến 19.3, Rea
 | 5 | [5_react-compiler](5_react-compiler/README.md) | React Compiler 1.0 | 10/2025 (stable) | Auto-memoization, setup Vite/Next, Rules of React, ESLint plugin |
 | 6 | [6_react-server-components](6_react-server-components/README.md) | RSC (stable) | 2024 → nay | App Router, Server Actions, `cache()` + `fetch` caching, streaming/loading.js, prerender + PPR |
 
+> **Cách đọc bảng này:** đọc theo cột "Ngày phát hành" để thấy dòng thời gian, cột "Điểm nhấn" là bản tóm tắt một dòng của từng folder — click vào cột Folder để vào chi tiết.
+
 ## Timeline React (2022 → 2026)
+
+Mục này vẽ dòng thời gian dạng ASCII cho ai thích nhìn "toàn cảnh một lần", kèm mô tả feature nổi bật của từng version.
 
 ```
 03/2022  React 18 ────── Concurrent Rendering, createRoot, Automatic Batching, Transitions
@@ -46,7 +54,11 @@ Tổng hợp các tính năng mới của React từ version 18 đến 19.3, Rea
 - **Đã biết React 18**: bắt đầu thẳng ở 19, rồi song song Compiler (5) và RSC (6).
 - **Đi nhanh theo nhu cầu**: form/mutation → 19 (+6 RSC); hiệu năng/memo → 5 Compiler; UI animation/SSR tinh tế → 19.3; tab/ẩn hiện rẻ → 19.2.
 
+> **Tóm gọn 1 câu:** Đọc theo timeline nếu mới học, nhảy theo nhu cầu nếu đã biết 18 — bản đồ đường ở mục này là đủ để không lạc.
+
 ## Liên quan tới phần khác của tutorial
+
+Mục này chỉ ra các "cầu nối" từ chương này sang những phần còn lại của tutorial — đọc để biết kiến thức ở đây được dùng lại ở đâu.
 
 - **`2_react-techniques/3_performance-optimization/1-react-compiler-memo`**: bản thực hành sâu của `5_react-compiler`.
 - **`2_react-techniques/1_advanced-features/3-store-zustand-tanstack-query`**: dùng `use()` + Server Actions của React 19 cho data fetching.
@@ -61,11 +73,9 @@ Tổng hợp các tính năng mới của React từ version 18 đến 19.3, Rea
 
 ## Cách dùng ví dụ
 
-```bash
-# Copy nội dung example.tsx vào project của bạn rồi chạy
-npm install react@latest react-dom@latest
-npx vite  # hoặc next dev
-```
+Mục này giải thích cấu trúc file của mỗi folder con — biết rồi thì đọc mọi bài sau đều quen tay.
+
+> 📄 **Code ví dụ:** [`examples/01-cach-dung-vi-du.sh`](examples/01-cach-dung-vi-du.sh)
 
 Mỗi thư mục con có 2 file:
 

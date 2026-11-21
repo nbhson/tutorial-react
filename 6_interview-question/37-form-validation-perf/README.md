@@ -6,52 +6,26 @@
 > Viết bằng `useState` + tự check hợp lệ sau mỗi keystroke thì có gì vấn đề? Dùng `react-hook-form` + `zod` thì khác chỗ nào, và khi nào thì tự viết vẫn hợp lý hơn?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
+
+Mục này là "bản nói 30 giây" — trả lời được khung 3 gạch đầu dòng là đã chứng minh tư duy perf; phần chi tiết bên dưới để đỡ khi bị hỏi đào.
+
 - Tự viết `useState` + validate trong lúc render: mỗi phím gõ là vẽ lại **cả form + chạy lại toàn bộ rule** → 20 ô là lag.
 - RHF + Zod: state form nằm ngoài React, gõ không vẽ lại; `register` không bind value; schema chạy một lần (debounce khi `mode: 'onChange'`).
 - Form dưới 5 ô không check chéo thì tự viết + Zod check tay vẫn hợp lý. Form chéo/động/nhiều section thì RHF.
 
 ## Trả lời chi tiết
 
+Mục này lần lượt giải thích vì sao validate mỗi keystroke là chết, rồi xếp hạng 3–4 cách làm (tự viết, RHF+Zod, Actions) theo hoàn cảnh — đọc để chọn đúng thuốc cho đúng bệnh.
+
 ### 1. Vì sao "validate cả form mỗi keystroke" chết
 
-```tsx
-// SAI: re-render cả form + validate cả form mỗi phím
-const [values, setValues] = useState(initial);
-const errors = validateAll(values);  // chạy lại MỌI lần setValues
-// input A gõ 1 ký tự → setValues({...values, a}) → render cả form + validate 20 field
-```
+> 📄 **Code ví dụ:** [`examples/01-1-vi-sao-validate-ca-form-moi-keystroke.tsx`](examples/01-1-vi-sao-validate-ca-form-moi-keystroke.tsx)
 
-Mỗi keystroke = **1 re-render form** + **chạy lại validation N field** (O(N) per keystroke → O(N×keys) tổng). **`react-hook-form` đảo ngược**: form state là **ref ngoài React**, React không re-render form khi gõ (đọc value qua `register` + internal ref, chỉ re-render "ô bị validate").
+Mỗi keystroke = **1 re-render form** + **chạy lại validation N field** (O(N) per keystroke → O(N×keys) tổng). **`react-hook-form` đảo ngược**: form state là **ref ngoài React**, React không re-render form khi gõ (đọc value qua `register` + internal ref, chỉ re-render "ô bị validate"). Ví von: tự validate mỗi keystroke giống như mỗi lần bạn viết thêm một chữ trong sổ, cả văn phòng phải đọc lại từ trang 1 để soi lỗi; RHF là mỗi người tự giữ trang của mình — ai sai thì chỉ trang đó được gọi đến.
 
 ### 2. `react-hook-form` + `zod` (combo chuẩn 2026)
 
-```tsx
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  confirm: z.string(),
-}).refine((d) => d.password === d.confirm, { message: "trùng", path: ["confirm"] });
-type FormData = z.infer<typeof schema>;
-
-export function Signup() {
-  const { register, handleSubmit, formState: { errors, isValid } } = useForm<FormData>({
-    resolver: zodResolver(schema),
-    mode: "onChange",         // validate khi gõ (không phải khi submit)
-    criteriaMode: "firstError", // chỉ show lỗi đầu tiên (đỡ "nổ đỏ" cả form)
-  });
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <input {...register("email")} />
-      {errors.email?.message && <span>{errors.email.message}</span>}
-      {/* ... */}
-    </form>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-react-hook-form-zod-combo-chuan-2026.tsx`](examples/02-2-react-hook-form-zod-combo-chuan-2026.tsx)
 
 **Điểm ăn điểm**: `zodResolver` + `refine` (cross-field) là 1 nguồn (Q18, Q35) — không "viết regex email 2 lần" (1 ở validation, 1 ở type).
 
@@ -63,42 +37,19 @@ export function Signup() {
 | `react-hook-form` (no resolver) | Form có **dynamic fields** (add/remove), không cần schema nghiêm | Lib nhẹ, "khéo tay" |
 | **`react-hook-form` + `zod` (resolver)** | Form **nghiêm túc** (cross-field, type-safe, API nhận cùng schema) | 1 schema = 1 type + 1 validate (Q35, Q18) — **chuẩn** |
 
+> **Cách đọc bảng này:** mỗi dòng là một cách viết form xếp từ nhẹ nhất đến nghiêm túc nhất; cột "Khi nào" là cột quyết định — dò đúng dòng khớp với form của bạn, đừng chọn dòng "chuẩn nhất" cho mọi trường hợp.
+
 **Q19 (bẫy kinh điển)**: "form thì luôn RHF" → **sai** (form 3 field thì `useState` đủ, thêm lib = overhead "nghi thức").
 
 ### 4. React 19 form Actions: validate ở server, hành vi async "miễn phí"
 
 React 19 đưa form vào luồng **Actions**: `<form action={fn}>` — `fn` chạy (client handler hoặc Server Action), React quản `pending`/reset/retry; **validation có thể nằm ở server** mà form vẫn hiện lỗi ngay. Combo với `useActionState` + Zod chạy **cùng 1 schema ở cả 2 phía**:
 
-```tsx
-// app/actions.ts — SERVER: cùng schema Zod với client
-"use server";
-const Schema = z.object({ email: z.string().email(), pass: z.string().min(8) });
+> 📄 **Code ví dụ:** [`examples/03-4-react-19-form-actions-validate-o-server.tsx`](examples/03-4-react-19-form-actions-validate-o-server.tsx)
 
-export async function signup(_prev: State, formData: FormData): Promise<State> {
-  const parsed = Schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return { errors: z.flattenError(parsed.error).fieldErrors }; // KHÔNG throw — trả lỗi về form
-  }
-  await createUser(parsed.data);
-  return { errors: null };
-}
-```
+> 📄 **Code ví dụ:** [`examples/04-4-react-19-form-actions-validate-o-server.tsx`](examples/04-4-react-19-form-actions-validate-o-server.tsx)
 
-```tsx
-// Signup.tsx — CLIENT: useActionState nhận state lỗi + useFormStatus hiện pending
-"use client";
-const [state, action, pending] = useActionState(signup, { errors: null });
-
-return (
-  <form action={action}>
-    <input name="email" />      {/* KHÔNG value/onChange — uncontrolled, React 19 giữ giá trị qua submit */}
-    {state.errors?.email && <span>{state.errors.email[0]}</span>}
-    <Submit />                  {/* trong Submit dùng useFormStatus() đọc pending */}
-  </form>
-);
-```
-
-**Vì sao không lag?** Input là **uncontrolled** (không `value`/`onChange` per keystroke) ⇒ gõ 0 re-render form; validate chạy **1 lần khi submit** ở server. Đây chính là hướng "perf" thứ ba cạnh RHF: state trong FormData (browser native), không nằm trong React.
+**Vì sao không lag?** Input là **uncontrolled** (không `value`/`onChange` per keystroke) ⇒ gõ 0 re-render form; validate chạy **1 lần khi submit** ở server. Đây chính là hướng "perf" thứ ba cạnh RHF: state trong FormData (browser native), không nằm trong React. Ví von: input controlled là bạn liên lạc từng chữ với quầy bằng loa mỗi khi gõ; input uncontrolled là viết trọn phiếu rồi đưa qua quầy một lần lúc submit — quầy (server) mới là người kiểm phiếu.
 
 **So với RHF + Zod client-side:**
 
@@ -110,61 +61,22 @@ return (
 | Progressive enhancement | Không (cần JS) | Có — form chạy cả khi JS chưa load |
 | Cộng đồng/thư viện (autocomplete, dynamic fields) | RHF dày hơn | Vẫn thô hơn — form phức tạp UX nhiều thì RHF dễ sống hơn |
 
+> **Cách đọc bảng này:** mỗi dòng là một tiêu chí so sánh hai hướng; cột giữa là RHF + Zod validate ở client, cột phải là React 19 Actions validate ở server — các dòng "Chống bypass" và "Progressive enhancement" là hai điểm chỉ Actions có, còn dòng cuối là lý do RHF chưa chịu biến mất.
+
 **Quyết định thực chiến (2026):** form CRUD / login → Actions + `useActionState` (đơn giản, an toàn, ít dep); form phức tạp nhiều tương tác client (wizard, dynamic rows, autosave) → RHF + Zod; validate nghiêm túc thì **luôn validate lại ở server** dù client đã check.
 
 ### 5. `useOptimistic` cho validate "trước" + `useFormStatus` cho nút submit
 
-```tsx
-function Submit() {
-  const { pending } = useFormStatus(); // KHÔNG cần prop drilling từ form cha
-  return <button disabled={pending}>{pending ? "Đang lưu..." : "Đăng ký"}</button>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-5-useoptimistic-cho-validate-truoc-useformstatus-cho-nut.tsx`](examples/05-5-useoptimistic-cho-validate-truoc-useformstatus-cho-nut.tsx)
 
 - **`useFormStatus`** đọc trạng thái `<form>` cha qua Context ẩn của React — component nút không cần nhận prop `pending` (chi tiết ở DAY 22 của `3_react-tutorial`).
 - **`useOptimistic`** — với mutation inline (thêm item vào list), hiện kết quả kỳ vọng ngay, server từ chối thì rollback. Cặp đôi này thay thế phần lớn "loading state + disable nút" viết tay trước 19.
 
 ### 6. Ví dụ tổng hợp: form bình luận dùng Actions end-to-end
 
-```tsx
-// app/actions.ts
-"use server";
-const CommentSchema = z.object({
-  body: z.string().min(3, "Ít nhất 3 ký tự").max(500, "Tối đa 500 ký tự"),
-});
-export type CommentState = { errors: { body?: string[] } | null; ok: boolean };
+> 📄 **Code ví dụ:** [`examples/06-6-vi-du-tong-hop-form-binh-luan.tsx`](examples/06-6-vi-du-tong-hop-form-binh-luan.tsx)
 
-export async function addComment(_prev: CommentState, formData: FormData): Promise<CommentState> {
-  const parsed = CommentSchema.safeParse({ body: String(formData.get("body") ?? "") });
-  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, ok: false };
-  await db.comment.create({ data: parsed.data });
-  revalidatePath("/post/1");           // data mới vào lần render sau
-  return { errors: null, ok: true };
-}
-```
-
-```tsx
-// components/CommentForm.tsx
-"use client";
-import { useActionState, useRef } from "react";
-import { addComment, type CommentState } from "./actions";
-
-export function CommentForm() {
-  const [state, action, pending] = useActionState<CommentState, FormData>(addComment, { errors: null, ok: false });
-  const formRef = useRef<HTMLFormElement>(null);
-
-  return (
-    <form
-      ref={formRef}
-      action={async (fd) => { await action(fd); if (!state.errors) formRef.current?.reset(); }}
-    >
-      <textarea name="body" required minLength={3} />
-      {state.errors?.body?.[0] && <p role="alert">{state.errors.body[0]}</p>}
-      <SubmitButton /> {/* useFormStatus đọc pending của form cha */}
-    </form>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/07-6-vi-du-tong-hop-form-binh-luan.tsx`](examples/07-6-vi-du-tong-hop-form-binh-luan.tsx)
 
 Điểm cần chỉ ra khi phỏng vấn:
 
@@ -182,9 +94,15 @@ export function CommentForm() {
 | React 19 Actions (`useActionState`) | 0 (uncontrolled) | **Server** (schema) | CRUD/login/mutation, cần chống bypass |
 | Actions + RHF hybrid | 0 | Client live + server re-check | Enterprise: UX live + an toàn server |
 
+> **Cách đọc bảng này:** mỗi dòng là một cách viết form; đọc cột "Re-render khi gõ" để hiểu mức perf, cột "Validate ở đâu" để hiểu mức an toàn, và cột "Dùng khi" là kết luận — dòng cuối (hybrid) là đáp án cho app lớn khi không muốn hy sinh UX lẫn an toàn.
+
 Không có "cách đúng duy nhất" — có **ranh giới đúng**: mọi đường đều phải re-validate ở server; client validate chỉ là UX.
 
+> **Tóm gọn 1 câu:** Đừng bắt cả form trả bài sau mỗi phím gõ — để state ở ngoài React (RHF) hoặc trao phiếu một lần cho server (Actions), và dù client validate đến đâu thì server vẫn phải kiểm lại lần cuối.
+
 ## Bẫy khi phỏng vấn
+
+Mục này là "bản đồ mìn": 7 câu trả lời nghe hợp lý nhưng sai — biết trước 7 chỗ ngập là câu hỏi form nào cũng đi được.
 
 1. **"Validate cả form mỗi keystroke bằng `useState`"** → lag (Q17), RHF "tránh" bằng form state ngoài React (không re-render).
 2. **"Zod thì chỉ cho type, không validate runtime"** → **sai** (Q18, Q35) — `zod` = schema runtime + `z.infer` (1 nguồn 2 mục đích).
@@ -194,7 +112,11 @@ Không có "cách đúng duy nhất" — có **ranh giới đúng**: mọi đư�
 6. **"Action throw Error là cách trả lỗi validation"** → **sai**: throw là lỗi hệ thống; validation error phải **trả về state** qua `useActionState` để form hiện cạnh field, không sập boundary.
 7. **"Đặt `value` + `onChange` lên input trong form dùng action"** → tự biến uncontrolled thành controlled, mất lợi ích 0 re-render; để uncontrolled (`name` + `defaultValue`) và đọc qua FormData.
 
+> **Tóm gọn 1 câu:** Bẫy lớn nhất là tin "client validate rồi thì khỏi cần server" — mọi validation phía client chỉ là lịch sự, server mới là người kiểm duyệt cuối cùng.
+
 ## Gợi ý câu chốt
+
+Mục này gói cả bài thành một đoạn trả lời mẫu — đọc để tập nói trọn một hơi rồi diễn đạt lại bằng giọng của mình.
 
 > "Form N field: tự viết `useState` re-render form mỗi keystroke (Q17). **RHF + zod** = form state ngoài React (ref, không re-render) + `zodResolver` (validate 1 lần, `refine` cross-field, `z.infer` type = 1 nguồn — Q18, Q35). `mode: 'onChange'` + `criteriaMode: 'firstError'` = validate khi gõ, show 1 lỗi. Từ React 19 có thêm **Actions**: `<form action>` + `useActionState` + validate Zod **ở server** — input uncontrolled nên gõ 0 re-render, chống bypass, progressive enhancement; nút dùng `useFormStatus` đọc pending. **Quyết định (Q19)**: form < 5 field → tự viết; tương tác nặng → RHF+zod; CRUD/login → Actions; validation nghiêm túc luôn re-check server."
 

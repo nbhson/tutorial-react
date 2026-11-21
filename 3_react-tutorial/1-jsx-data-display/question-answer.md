@@ -3,6 +3,8 @@
 > File hỏi–đáp chi tiết cho `3_react-tutorial/1-jsx-data-display`.
 > Đọc kèm: `README.md` (lý thuyết) + `example.tsx` (controlled input chạy được).
 
+File này giải đáp 10 câu hỏi thường gặp nhất về JSX và hiển thị dữ liệu — từ "JSX là gì" đến batching của `setState`. Đọc tuần tự như một buổi hỏi–đáp, hoặc tra theo câu đang thắc mắc.
+
 ---
 
 ## 1. JSX thực chất là gì? Có phải template string hay HTML?
@@ -15,12 +17,11 @@
 - Vì là code nên mọi chỗ trong JSX đều là TS thật: biến, hàm, import, type đều dùng được.
 - Hệ quả: JSX tuân thủ luật TS — sai type props báo đỏ lúc compile, không đợi chạy mới biết.
 
-```tsx
-// Bạn viết:
-<h3>Your name: {name}</h3>
-// Compiler hiểu gần như:
-jsx("h3", { children: ["Your name: ", name] });
-```
+Ví von: JSX như **đơn đặt món viết trên giấy order** — không phải món ăn (HTML), không phải lời kể (string), mà là tờ giấy có cấu trúc để "bếp" (compiler) đọc và chuẩn bị đúng.
+
+> 📄 **Code ví dụ:** [`examples/01-1-jsx-thuc-chat-la-gi-co-phai.tsx`](examples/01-1-jsx-thuc-chat-la-gi-co-phai.tsx)
+
+> **Tóm gọn 1 câu:** JSX là cú pháp TS được dịch thành object mô tả UI — vì là code thật nên sai kiểu là báo đỏ ngay lúc compile.
 
 ---
 
@@ -34,12 +35,11 @@ jsx("h3", { children: ["Your name: ", name] });
 - `if`/`for` là **statement** (câu lệnh, không trả giá trị) nên **không** viết trực tiếp trong `{}`.
   Muốn rẽ nhánh/lặp thì dùng ternary, `&&`, hoặc `.map()` — hoặc tính trước ra biến rồi nhúng biến vào.
 
-```tsx
-<p>Next year: {user.age + 1}</p>              // ✅ expression
-<p>{user.age >= 18 ? "Người lớn" : "Trẻ"}</p> // ✅ ternary thay cho if
-// {if (ok) { ... }}                          // ❌ statement
-// {for (...) { ... }}                        // ❌ statement
-```
+Ví von: `{}` chỉ nhận thứ **trả được về giá trị**, như cân chỉ nhận đồ vật chứ không nhận "hành động cầm đồ lên" — muốn "hành động" thì làm trước, rồi đặt kết quả lên cân.
+
+> 📄 **Code ví dụ:** [`examples/02-2-expression-la-gi-cai-gi-uoc-phep.tsx`](examples/02-2-expression-la-gi-cai-gi-uoc-phep.tsx)
+
+> **Tóm gọn 1 câu:** `{}` là cửa ngõ đưa dữ liệu vào JSX và chỉ nhận expression — muốn `if`/`for` thì biến thành ternary/`&&`/`.map()` hoặc tính ra biến trước.
 
 ---
 
@@ -56,6 +56,8 @@ jsx("h3", { children: ["Your name: ", name] });
 - Cạm bẫy kinh điển: `{count && <p/>}` khi `count = 0` sẽ in ra số **"0"** (vì `0` vẫn render được).
   Muốn ẩn khi 0 thì viết tường minh `{count > 0 && <p/>}`.
 
+> **Tóm gọn 1 câu:** `{}` render được string/number/JSX, bỏ qua `true`/`false`/`null`/`undefined` — nhưng crash với object trần và in "0" oan nếu `&&` không so sánh tường minh.
+
 ---
 
 ## 4. Attribute binding trong React viết thế nào? (So với `[src]`, `[class]`, `[style]`)
@@ -69,11 +71,11 @@ jsx("h3", { children: ["Your name: ", name] });
 - `style` nhận **object camelCase**, không phải chuỗi CSS: `style={{ color: "red", backgroundColor: "#fff" }}`.
   Hai ngoặc `{{ }}`: ngoặc ngoài là "nhúng expression", ngoặc trong là "object literal".
 
-```tsx
-<img src={user.avatarUrl} alt={user.name} width={120} />
-<div className={isActive ? "active" : ""} style={{ color: "red" }} />
-<label htmlFor="name">Tên</label>
-```
+Ví von: nếu Angular cần "ngoặc vuông nhấn mạnh cái này là dữ liệu động", thì React tin rằng **mọi attribute trong ngoặc nhọn đều là dữ liệu động sẵn** — không cần nhấn thêm.
+
+> 📄 **Code ví dụ:** [`examples/03-4-attribute-binding-trong-react-viet-the-nao.tsx`](examples/03-4-attribute-binding-trong-react-viet-the-nao.tsx)
+
+> **Tóm gọn 1 câu:** React gán dữ liệu động bằng `{expr}` — nhớ bộ đổi tên `className`/`htmlFor`/`tabIndex` và `style` nhận object camelCase.
 
 ---
 
@@ -88,10 +90,11 @@ jsx("h3", { children: ["Your name: ", name] });
   nhưng với React Compiler 1.0 việc này được memo tự động — không cần `useCallback` vội.
 - Với React Compiler, chỉ `useCallback` khi đã đo thấy bottleneck hoặc cần ref ổn định cho API ngoài.
 
-```tsx
-<button onClick={() => alert(`Hello ${name}`)}>Click me!</button> // ✅ gọi khi click
-// <button onClick={alert(`Hello ${name}`)}>                        // ❌ gọi ngay lúc render
-```
+Ví von: `onClick={fn}` là **đưa số điện thoại** cho React ("cần thì gọi"), còn `onClick={fn()` là **bấm số gọi luôn ngay lúc đưa máy** — hoàn toàn sai thời điểm.
+
+> 📄 **Code ví dụ:** [`examples/04-5-event-binding-vi-sao-onclick-fn-ma.tsx`](examples/04-5-event-binding-vi-sao-onclick-fn-ma.tsx)
+
+> **Tóm gọn 1 câu:** Truyền tham chiếu hàm (`{fn}`), không gọi sẵn (`{fn()}`); cần tham số thì bọc arrow — và Compiler sẽ lo memo giúp.
 
 ---
 
@@ -106,6 +109,8 @@ jsx("h3", { children: ["Your name: ", name] });
   `e: React.ChangeEvent<HTMLInputElement>` từ context nên bạn không cần khai type thủ công.
   Chỉ khai tường minh khi tách handler ra hàm riêng ngoài JSX.
 - `e.target.value` là text hiện tại trong ô input tại thời điểm gõ.
+
+> **Tóm gọn 1 câu:** `e` là SyntheticEvent — bộ đồng phục thống nhất React khoác cho event trình duyệt; TS tự suy kiểu, bạn chỉ cần lấy `e.target.value`.
 
 ---
 
@@ -122,11 +127,11 @@ jsx("h3", { children: ["Your name: ", name] });
 - Bỏ `value` mà giữ `onChange` → thành **uncontrolled**: DOM tự giữ giá trị, state chỉ "nghe ké".
   Uncontrolled (`defaultValue` + `ref`) ít dùng, chỉ hợp cho form rất lớn cần tránh re-render mỗi phím gõ (DAY 11).
 
-```tsx
-<input value={name} onChange={(e) => setName(e.target.value)} /> // ✅ controlled chuẩn
-// <input value={name} />   // ❌ frozen: gõ không được
-// <input defaultValue={name} /> // uncontrolled: DOM tự giữ
-```
+Ví von: controlled input như **quầy thu ngân giữ sổ chính** — khách nói gì (gõ) đều phải ghi vào sổ (state), rồi màn hình đọc từ sổ; bỏ `onChange` là sổ không ai ghi, màn hình hiện đúng bản cũ mãi.
+
+> 📄 **Code ví dụ:** [`examples/05-7-controlled-input-la-gi-vi-sao-bo.tsx`](examples/05-7-controlled-input-la-gi-vi-sao-bo.tsx)
+
+> **Tóm gọn 1 câu:** Controlled input = state là nguồn sự thật duy nhất: `value` chảy ra màn hình, `onChange` bơm từ bàn phím vào — mất một chiều là input "đứng im".
 
 ---
 
@@ -140,6 +145,8 @@ jsx("h3", { children: ["Your name: ", name] });
 - Dùng `<div>` bọc cũng chạy, nhưng DOM phình thêm một tầng vô nghĩa → CSS layout (flex/grid) dễ lệch,
   DevTools rối. Quy tắc: cần nhóm thuần túy thì dùng fragment; chỉ dùng `<div>` khi thật sự cần style/box.
 
+> **Tóm gọn 1 câu:** Fragment là "túi không hình" gom nhiều element cho đủ quy tắc một node gốc — đỡ một tầng `<div>` vô nghĩa làm lệch layout.
+
 ---
 
 ## 9. Dữ liệu "tính được" (derived data) có cần `useState` không?
@@ -152,11 +159,11 @@ jsx("h3", { children: ["Your name: ", name] });
 - Chỉ `useState` cho dữ liệu **độc lập, do user/hệ thống sinh ra** (text đang gõ, toggle, data từ server).
   Mọi thứ suy ra được (`fullName`, `total`, `nextYear`) thì tính inline hoặc qua biến/hàm thuần.
 
-```tsx
-const nextYear = user.age + 1; // ✅ tính khi render
-<p>Next year: {nextYear}</p>
-// const [nextYear, setNextYear] = useState(...) // ❌ state dư, dễ lệch
-```
+Ví von: derived data giống **tính tiền thừa từ tiền khách đưa** — khách đưa 100k là "state", tiền thừa 90k là kết quả tính ra; không ai cất riêng tiền thừa vào két (state riêng) rồi lo đồng bộ hai số.
+
+> 📄 **Code ví dụ:** [`examples/06-9-du-lieu-tinh-uoc-derived-data-co.tsx`](examples/06-9-du-lieu-tinh-uoc-derived-data-co.tsx)
+
+> **Tóm gọn 1 câu:** Suy ra được thì tính lúc render, đừng `useState` thêm — state chỉ dành cho dữ liệu độc lập sinh ra từ ngoài.
 
 ---
 
@@ -168,6 +175,10 @@ const nextYear = user.age + 1; // ✅ tính khi render
 - **Không.** React **batching**: gộp mọi `setState` trong cùng một event handler thành **một lần re-render**.
 - Muốn update dựa trên giá trị trước (đếm, nối chuỗi nhanh) thì dùng **functional update**
   `setName(prev => prev + "!")` để không mất update khi batching/dồn event.
+
+Ví von: batching như **gom đơn hàng cùng địa chỉ vào một chuyến xe** — 3 món đặt liên tiếp vẫn giao một chuyến (một render); functional update là ghi chú "tính trên số dư hiện tại" để không giao nhầm theo giá cũ.
+
+> **Tóm gọn 1 câu:** 3 lần `setState` trong một event = 1 lần render nhờ batching — dựa trên giá trị trước thì dùng functional update `prev => ...`.
 
 ---
 

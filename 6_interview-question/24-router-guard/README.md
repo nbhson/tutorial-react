@@ -15,16 +15,7 @@
 
 ### 1. Tầng 1: component guard (`RequireAuth`/`RequireRole`) — đọc state client, redirect ngay
 
-```tsx
-import { Navigate } from "react-router-dom";
-
-export function RequireRole({ roles, children }: { roles: string[]; children: ReactNode }) {
-  const { roles: myRoles } = useAuth();              // từ Context/Zustand (root loader, 1 lần)
-  const ok = roles.some((r) => myRoles.includes(r));  // cần 1 trong các role
-  if (!ok) return <Navigate to="/403" replace />;     // ← redirect lần RENDER ĐẦU
-  return <>{children}</>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-1-tang-1-component-guard-requireauth-requirerole-oc.tsx`](examples/01-1-tang-1-component-guard-requireauth-requirerole-oc.tsx)
 
 - **`replace` — vì sao bắt buộc** (điểm ăn điểm nhỏ nhưng lộ nền tảng): không `replace` → history có entry trang cấm → bấm **Back** là quay lại → guard đá lại → **kẹt vòng lặp** Back/đá. `replace` xóa entry cấm khỏi history.
 - **Đúng thời điểm**: trong **body render** (không phải `useEffect`). Render là pure — quyết định "hiện con hay redirect" trước khi mount.
@@ -32,34 +23,7 @@ export function RequireRole({ roles, children }: { roles: string[]; children: Re
 
 ### 2. Tầng 2: guard ở `loader` (Data Router v7) — chặn từ "cổng", như `canActivate` + resolver
 
-```tsx
-// router.ts — Data Router (React Router v7 framework/library mode)
-import { redirect } from "react-router-dom";
-
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    // root loader: fetch /api/me MỘT LẦN — cả app đọc lại (useRouteLoaderData('root'))
-    loader: async () => {
-      const r = await fetch("/api/me", { headers: authHeader() });
-      if (r.status === 401) return redirect("/login");
-      return r.json(); // { roles: [...] }
-    },
-    children: [
-      {
-        path: "admin",
-        loader: async ({ request }) => {
-          const me = useRouteLoaderData("root");      // đọc cache, không fetch lại
-          if (!me?.roles?.includes("admin")) return redirect("/403");
-          return null;
-        },
-        element: <AdminPage />,
-        errorElement: <NotFound />,
-      },
-    ],
-  },
-]);
-```
+> 📄 **Code ví dụ:** [`examples/02-2-tang-2-guard-o-loader-data-router.tsx`](examples/02-2-tang-2-guard-o-loader-data-router.tsx)
 
 - **Vì sao tầng này "ăn điểm"**: loader chạy **trong router, trước khi React tạo element** → không flash 1 frame, không có component nào mount, **không fetch data của trang cấm**. Hoạt động cả với SSR (client guard thì SSR render trang cấm → flash server-side).
 - **`useRouteLoaderData` — dedupe**: root fetch `/api/me` 1 lần, mọi route con đọc lại — không N request trùng + N chỗ xử lý 401.
@@ -67,15 +31,7 @@ export const router = createBrowserRouter([
 
 ### 3. Vì sao guard trong `useEffect` là SAI (bẫy kinh điển)
 
-```tsx
-// ❌ SAI: page ĐÃ render + ĐÃ fetch rồi mới đá
-function Admin() {
-  useEffect(() => { if (!isAdmin) navigate("/403"); }, []); // 1–2 frame nội dung + data nhạy cảm đã bay về
-  return <BangQuanTri />;
-}
-
-// ✅ ĐÚNG: quyết định ở render (RequireRole) hoặc trước render (loader)
-```
+> 📄 **Code ví dụ:** [`examples/03-3-vi-sao-guard-trong-useeffect-la-sai.tsx`](examples/03-3-vi-sao-guard-trong-useeffect-la-sai.tsx)
 
 Thứ tự đúng: **loader (trước render) → render đầu (component) → tuyệt đối không effect (sau render)**.
 
@@ -90,6 +46,8 @@ Thứ tự đúng: **loader (trước render) → render đầu (component) → 
 | `UrlTree` redirect object | `redirect('/403')` (Response) / `<Navigate>` | Loader throw Response (kèm status), component trả JSX |
 | Guard + DI service | `useRouteLoaderData('root')` + Context/Zustand | Data guard đọc từ 1 nơi |
 
+> **Cách đọc bảng này:** cột Angular là một guard class duy nhất (`canActivate`), cột React tách thành nhiều mảnh — đọc ngang từng dòng để tìm "vai tương đương"; dòng `CanDeactivate` là dòng không có bản dịch trực tiếp, đọc kỹ ghi chú.
+
 > **Nói đúng câu chốt**: "Angular guard là **class DI chạy trong router engine** (canActivate/canDeactivate). React không có engine guard — thay bằng **loader** (chặn + fetch trước render, mạnh nhất) và **component wrapper + `<Navigate replace>`** (chặn ở render, tức thì theo state client). `CanDeactivate` không có tương đương built-in — xử lý bằng store (chặn save-trạng-thái), không chặn điều hướng."
 
 ### 5. Bảo mật: guard client ≠ bảo mật (điểm không được thiếu)
@@ -97,6 +55,8 @@ Thứ tự đúng: **loader (trước render) → render đầu (component) → 
 - Token trong `localStorage`/Context → **ai cũng đọc/sửa được** (DevTools) — guard client chỉ **giấu UI** (UX + không phí request).
 - **Quyền thật do server quyết**: mọi API endpoint check JWT/role phía backend (bài auth-httpOnly-cookie: ưu tiên **httpOnly cookie** để JS không đọc được token).
 - Guard client thất bại = UX tệ (vẫn vào được UI cấm, data không về). Guard client đúng = UX tốt; **bảo mật = 2 tầng (UI + server), không phải 1**.
+
+> **Tóm gọn 1 câu:** Guard client là ổ khóa cánh cửa (giấu UI, chặn sớm ở render hoặc loader) chứ không phải két sắt — khóa thật vẫn nằm ở server, kẻ xấu có thể leo cửa sổ (gọi thẳng API).
 
 ## Bẫy khi phỏng vấn
 

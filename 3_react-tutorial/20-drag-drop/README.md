@@ -7,64 +7,47 @@
 
 ## Khái niệm cốt lõi (Core)
 
-### 1. Không directive ma thuật — chỉ events + state
-Angular CDK cho `cdkDropList`/`cdkDrag`/`cdkDragHandle` làm sẵn (preview, placeholder,touch). React native chỉ có HTML5 events (`onDragStart/onDragEnter/onDragOver/onDrop/onDragEnd`) + thuộc tính `draggable`. Kéo không di chuyển DOM trực tiếp — nó set state (`dragId`), thả thì **tạo mảng mới** thứ tự mới; React vẽ lại. Đúng nguyên tắc bất biến DAY 2.
+Mục này nói về hai tầng drag & drop của React 2026: HTML5 native để học cơ chế, dnd-kit để ship prod — đọc để hiểu triết lý chung trước: kéo thả chỉ là đổi state mảng.
 
-```tsx
-// example.tsx: 4 events + 1 state là đủ demo
-<li draggable // bật kéo
-  onDragStart={() => setDragId(it.id)} // ghi nguồn (id, không index)
-  onDragOver={(e) => e.preventDefault()} // CHO PHÉP drop (quên là onDrop không chạy)
-  onDrop={() => dropOn(it.id)} // setState mảng mới bất biến
-  onDragEnd={reset} // thả ra ngoài cũng reset
->
-```
+### 1. Không directive ma thuật — chỉ events + state
+Angular CDK cho `cdkDropList`/`cdkDrag`/`cdkDragHandle` làm sẵn (preview, placeholder,touch). React native chỉ có HTML5 events (`onDragStart/onDragEnter/onDragOver/onDrop/onDragEnd`) + thuộc tính `draggable`. Kéo không di chuyển DOM trực tiếp — nó set state (`dragId`), thả thì **tạo mảng mới** thứ tự mới; React vẽ lại. Đúng nguyên tắc bất biến DAY 2. Ví von: Angular giao cho bạn "cần cẩu dựng sẵn"; React đưa bạn găng tay và bộ ròng rọc — tự lắp, nhưng hiểu rõ cần cẩu chạy thế nào.
+
+> 📄 **Code ví dụ:** [`examples/01-1-khong-directive-ma-thuat-chi-events-state.tsx`](examples/01-1-khong-directive-ma-thuat-chi-events-state.tsx)
 
 Vì sao id mà không index? Vì index dịch khi list thêm/xóa giữa lúc kéo (socket thêm item lúc đang kéo) — nguồn index cũ trỏ sai item. Id ổn định + `findIndex` lúc drop luôn đúng.
 
+> **Tóm gọn 1 câu:** Kéo thả React = nhớ nguồn (id) khi cầm, tạo mảng mới khi thả — không hề đụng tay vào DOM.
+
 ### 2. HTML5 native — đủ học, thiếu prod
-`draggable` + ghi nguồn + `preventDefault` ở `onDragOver` + đổi chỗ ở `onDrop`. Giới hạn: touch/mobile không chạy (cần Pointer/Touch sensor), a11y không (keyboard/screen reader bó tay), ghost style hạn chế, kéo giữa 2 list tự lo. Demo/học thì đủ; prod (board, kanban, mobile) thì dnd-kit.
+Mục này về "bộ găng tay cơ bản": đủ để hiểu cơ chế, nhưng thiếu 3 thứ prod cần — đọc để biết giới hạn trước khi chọn.
+
+`draggable` + ghi nguồn + `preventDefault` ở `onDragOver` + đổi chỗ ở `onDrop`. Giới hạn: touch/mobile không chạy (cần Pointer/Touch sensor), a11y không (keyboard/screen reader bó tay), ghost style hạn chế, kéo giữa 2 list tự lo. Demo/học thì đủ; prod (board, kanban, mobile) thì dnd-kit. Ví von: native như xe đạp thập cẩm — chạy được, nhưng mang hàng nặng hay đi mưa thì cần xe khác.
+
+> **Tóm gọn 1 câu:** Native đủ để học và demo — thiếu touch + a11y nên prod phải lên dnd-kit.
 
 ### 3. dnd-kit — chuẩn prod 2026
-Headless + keyboard (Space nhấc, arrows di, Space thả) + screen reader announcements + touch/pointer sensor + `DragOverlay` preview + `arrayMove` + `closestCenter`/`verticalListSortingStrategy` + `activationConstraint` (kéo khi đủ distance/delay, tránh nhầm click nút trong). Cấu trúc: `<DndContext>` (quản kéo + `onDragEnd`) + `<SortableContext items strategy>` (list) + `useSortable({ id })` mỗi item (cho `setNodeRef`/`transform`/`listeners`/`attributes`).
+Mục này về "bộ đồ đầy đủ" của drag & drop production: từ keyboard sensor đến DragOverlay — đọc để biết từng mảnh lắp vào đâu.
 
-```tsx
-// dnd-kit sortable (npm i @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities):
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+Headless + keyboard (Space nhấc, arrows di, Space thả) + screen reader announcements + touch/pointer sensor + `DragOverlay` preview + `arrayMove` + `closestCenter`/`verticalListSortingStrategy` + `activationConstraint` (kéo khi đủ distance/delay, tránh nhầm click nút trong). Cấu trúc: `<DndContext>` (quản kéo + `onDragEnd`) + `<SortableContext items strategy>` (list) + `useSortable({ id })` mỗi item (cho `setNodeRef`/`transform`/`listeners`/`attributes`). Ví von: dnd-kit là cần cẩu chính hãng có kiểm định — bốc vác được, người khuyết tật vẫn điều khiển được bằng bảng điều khiển (keyboard).
 
-function Item({ id }: { id: string }) {
-  // useSortable tách behavior (ref/listeners/attributes/transform) khỏi UI — bạn tự render
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  return (
-    <li ref={setNodeRef} // BẮT BUỘC: không gắn là không đo vị trí, kéo không chạy
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      {...attributes} {...listeners}> {/* a11y + handle kéo */}
-      {id}
-    </li>
-  );
-}
-// Cha:
-<DndContext collisionDetection={closestCenter} onDragEnd={({ active, over }) => {
-  if (!over || active.id === over.id) return; // thả ra ngoài/về chỗ cũ -> no-op
-  setItems((xs) => arrayMove(xs, xs.findIndex((x) => x.id === active.id), xs.findIndex((x) => x.id === over.id)));
-}}>
-  <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-    {items.map((x) => <Item key={x.id} id={x.id} />)}
-  </SortableContext>
-</DndContext>
-```
+> 📄 **Code ví dụ:** [`examples/02-3-dnd-kit-chuan-prod-2026.tsx`](examples/02-3-dnd-kit-chuan-prod-2026.tsx)
 
 `arrayMove(arr, from, to)` = `moveItemInArray` CDK (rút + chèn, trả mảng mới). Kéo giữa 2 cột (kanban) thì `onDragEnd` phân biệt container qua `active.data`/`over.data` + setState 2 cột bất biến (tương đương `transferArrayItem`).
 
+> **Tóm gọn 1 câu:** dnd-kit là chuẩn prod: touch, keyboard, a11y, overlay đủ bộ — bạn lắp `DndContext` + `SortableContext` + `useSortable` là chạy.
+
 ### 4. Hàm `move` thuần — trái tim test được
-`move(list, from, to)` trong example: copy + splice 2 bước, không mutate gốc. Dùng chung cho drop native, nút Lên/Xuống (a11y), `onDragEnd` dnd-kit. Test `expect(move(["a","b","c"], 0, 2)).toEqual(["b","c","a"])` không cần render (DAY 21).
+`move(list, from, to)` trong example: copy + splice 2 bước, không mutate gốc. Dùng chung cho drop native, nút Lên/Xuống (a11y), `onDragEnd` dnd-kit. Test `expect(move(["a","b","c"], 0, 2)).toEqual(["b","c","a"])` không cần render (DAY 21). Ví von: `move` như công thức hoán vị viết ra giấy — ai làm theo cũng ra cùng kết quả, kiểm tra được mà không cần dựng cả sân khấu.
+
+> **Tóm gọn 1 câu:** Tách hoán vị thành hàm thuần `move` — test không cần render, và drop/nút/dnd-kit cùng dùng một công thức.
 
 ### Keyword chính
 `draggable`, `onDragStart` (ghi nguồn id), `onDragEnter/Leave` (highlight), `onDragOver` + `preventDefault` (cho drop — quên là liệt), `onDrop` (setState mới), `onDragEnd` (reset cả thả ngoài), `move`/`arrayMove` (hoán vị bất biến), `DndContext`/`SortableContext`/`useSortable`/`setNodeRef`/`transform`/`attributes`/`listeners`, `DragOverlay`, keyboard sensor, `activationConstraint`.
 
+> **Tóm gọn 1 câu:** Thuộc bộ từ này là nắm cả 2 tầng: events native + hệ mảnh dnd-kit — nhớ nhất là `preventDefault` ở `onDragOver` nếu không muốn drop "liệt".
+
 ## Luồng hoạt động (Flow)
+Mục này đi theo một lượt kéo item A thả lên item C — đọc để thấy thứ tự events và thời điểm state đổi.
 1. Render với 3 item id `a/b/c`; mỗi `<li>` `draggable` + 5 handler + `key={id}` + nút ↑/↓ a11y.
 2. Bắt đầu kéo A → `onDragStart` → `setDragId("a")` (chỉ nguồn, chưa đổi list). Style nguồn mờ (`opacity 0.5`).
 3. Kéo qua B → `onDragEnter` B → `setOverId("b")` → B highlight (`background #e3f2fd`). Rời B → `onDragLeave` xóa (nếu vẫn B).
@@ -75,112 +58,20 @@ function Item({ id }: { id: string }) {
 8. Nút ↑/↓: `step(id, ±1)` → `findIndex` + `move` chung — không kéo vẫn reorder (keyboard/screen reader/test).
 9. (dnd-kit) `useSortable` cho `transform` (nhấc lên khi kéo) + `listeners` (handle) + `attributes` (role/tabIndex/aria) + `setNodeRef` (đo). `onDragEnd({ active, over })` → index qua id → `arrayMove` → `setItems` mới. `over` null (ra ngoài) thì bỏ qua. `<DragOverlay>` preview bay theo chuột; `layout` Motion trượt về chỗ (DAY 19).
 
+> **Tóm gọn 1 câu:** Một cú kéo là một chuỗi events: start ghi nguồn → enter highlight → over cho phép → drop hoán vị → end reset — DOM không bao giờ bị đụng tay.
+
 ## Ví dụ chi tiết
+Mục này cho code chạy được từ native tới dnd-kit — copy về chạy thử rồi đọc phần giải thích.
 Khớp 1-1 với `example.tsx` (native + id + highlight + nút a11y + `move` thuần):
 
-```tsx
-// example.tsx — DAY 20: native DnD (học) + id ổn định + highlight + nút a11y + dnd-kit ý tưởng
-// Mục đích: kéo thả = setState mảng bất biến khi drop; prod dùng dnd-kit (touch/keyboard).
-import { useState } from "react"; // (1) items (thứ tự) + dragId (nguồn) + overId (highlight đích)
-
-type Item = { id: string; label: string }; // (2) id ỔN ĐỊNH làm key + định danh kéo (không index — index dịch khi list đổi giữa lúc kéo)
-
-const INITIAL: Item[] = [ // (3) Dữ liệu id ổn định — key={it.id} để reorder giữ đúng state (DAY 2)
-  { id: "a", label: "Mục A" },
-  { id: "b", label: "Mục B" },
-  { id: "c", label: "Mục C" },
-];
-
-// (4) Hàm thuần hoán vị — dễ test (DAY 21), tái dùng cho nút Lên/Xuống (a11y) + dnd-kit onDragEnd.
-export function move<T>(list: T[], from: number, to: number): T[] {
-  if (from === to) return list; // no-op thả về chỗ cũ
-  const next = [...list]; // bất biến: copy, không splice gốc (splice gốc là mutate state)
-  const [m] = next.splice(from, 1); // rút khỏi cũ
-  next.splice(to, 0, m); // chèn vào mới — chính là arrayMove của dnd-kit
-  return next;
-}
-
-export default function App() {
-  const [items, setItems] = useState(INITIAL);
-  const [dragId, setDragId] = useState<string | null>(null); // (5) Nguồn là id (không index) — an toàn khi mảng đổi giữa lúc kéo
-  const [overId, setOverId] = useState<string | null>(null); // (6) Đích để highlight khi kéo qua (onDragEnter/Leave)
-
-  const dropOn = (toId: string) => {
-    // (7) No-op khi không nguồn hoặc về chỗ cũ — không setState thừa
-    if (dragId === null || dragId === toId) { setOverId(null); return; }
-    setItems((xs) => {
-      const from = xs.findIndex((x) => x.id === dragId); // tìm index lúc drop (không tin index lúc drag)
-      const to = xs.findIndex((x) => x.id === toId);
-      if (from === -1 || to === -1) return xs;
-      return move(xs, from, to); // mảng mới -> React re-render thứ tự mới, không đụng DOM tay
-    });
-    setDragId(null); setOverId(null); // (8) Reset nguồn/highlight sau drop
-  };
-
-  // (9) Phương án không kéo (a11y + test ổn định): nút Lên/Xuống dùng chung move().
-  const step = (id: string, dir: -1 | 1) => {
-    setItems((xs) => {
-      const i = xs.findIndex((x) => x.id === id);
-      const j = i + dir;
-      if (i === -1 || j < 0 || j >= xs.length) return xs;
-      return move(xs, i, j);
-    });
-  };
-
-  return (
-    <ul>
-      {items.map((it) => (
-        <li
-          key={it.id} // (10) Key ổn định — KHÔNG key={index} (reorder là index dịch, state nhảy sai)
-          draggable // (11) Bật kéo HTML5 — không có là drag không bắt đầu
-          onDragStart={() => setDragId(it.id)} // (12) Ghi nguồn là id (dataTransfer string cũng được nhưng id state gọn demo)
-          onDragEnter={() => setOverId(it.id)} // highlight đích khi kéo qua
-          onDragLeave={() => setOverId((o) => (o === it.id ? null : o))}
-          onDragOver={(e) => e.preventDefault()} // (13) BẮT BUỘC: mặc định trình duyệt từ chối drop; không gọi là onDrop không chạy (pitfall #1)
-          onDrop={() => dropOn(it.id)} // (14) Thả là setState mảng mới (bất biến), React vẽ thứ tự mới
-          onDragEnd={() => { setDragId(null); setOverId(null); }} // thả ra ngoài (over null) cũng reset
-          style={{
-            padding: 8, margin: 4, border: "1px solid #999", cursor: "grab",
-            background: overId === it.id ? "#e3f2fd" : "#fff", // highlight đích
-            opacity: dragId === it.id ? 0.5 : 1, // mờ nguồn đang kéo
-          }}
-        >
-          {it.label}
-          {/* (15) Nút a11y: keyboard/screen reader + test ổn định hơn kéo */}
-          <button onClick={() => step(it.id, -1)} aria-label={`Di chuyển ${it.label} lên`}>↑</button>
-          <button onClick={() => step(it.id, 1)} aria-label={`Di chuyển ${it.label} xuống`}>↓</button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// Ghi chú dnd-kit prod (xem README copy):
-// DndContext + SortableContext + useSortable({ id }) -> attributes/listeners/setNodeRef/transform +
-// arrayMove(items, from, to) trong onDragEnd({ active, over }) + DragOverlay preview +
-// keyboard sensor (Space nhấc, arrows di, Space thả) + activationConstraint (tránh kéo nhầm khi click nút trong).
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 dnd-kit sortable đầy đủ (copy vào prod):
 
-```tsx
-// npm i @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
-function Item({ id }: { id: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  return (
-    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners}>
-      {id} <button>Theo handle dưới sẽ kéo từ tay cầm</button>
-    </li>
-  );
-}
-// Cha: sensors (pointer + keyboard) + onDragEnd arrayMove + DragOverlay + SortableContext strategy
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
+Mục này soi từng dòng handler và hook — đọc khi bạn thắc mắc "vì sao phải preventDefault, vì sao id mà không index".
 - Dòng `type Item = { id: string; label: string }`: id ổn định vừa key vừa định danh kéo. Vì sao string id mà không index? Vì index là vị trí (đổi khi reorder), id là danh tính (giữ khi reorder) — kéo cần danh tính.
 - Khối `move(list, from, to)`: thuần (cùng input → cùng output, không đụng ngoài) nên test không render. `from === to` trả mảng gốc (không set mới thừa). `[...list]` copy rồi mới splice — splice gốc là mutate state (cùng tham chiếu, React không thấy). Đây chính `arrayMove` (dnd-kit) / `moveItemInArray` (CDK).
 - Dòng `dragId: string | null` (không number index): null khi không kéo. Vì sao id? Để `findIndex` lúc drop (mảng có thể đổi giữa lúc kéo — socket thêm item). Index lúc drag + mảng đổi = trỏ sai.
@@ -194,6 +85,8 @@ function Item({ id }: { id: string }) {
 - dnd-kit `attributes`/`listeners`: `attributes` (role/tabIndex/aria-describedby) + `listeners` (pointer/keyboard handlers). Tách để gắn `listeners` vào tay cầm riêng (`cdkDragHandle`): kéo chỉ từ handle, nút trong không bị kéo nhầm (+ `activationConstraint: { distance: 5 }`).
 
 ## Bảng so sánh Angular ↔ React
+Mục này đối chiếu Angular CDK DragDrop với native + dnd-kit — đọc như bảng chuyển đổi linh kiện khi chuyển dự án.
+
 | Angular CDK | React (native / dnd-kit) | Ghi chú |
 |---|---|---|
 | `cdkDropList` (vùng thả) | `<DndContext>` + `<SortableContext>` (2 tầng) | dnd-kit tách quản kéo + list sortable |
@@ -202,56 +95,34 @@ function Item({ id }: { id: string }) {
 | `transferArrayItem` (2 list) | `setState` 2 cột trong `onDragEnd` (phân biệt qua `active`/`over` data) | Kanban: `columns: { todo, done }` cập nhật cả hai |
 | `cdkDropListConnectedTo` (nối list) | `DndContext` bọc nhiều `SortableContext` | Kéo chéo list trong 1 context |
 | `cdkDragPreview` (bóng kéo) | `<DragOverlay>` (dnd-kit) | Preview bay theo chuột, gốc giữ chỗ |
-| `cdkDragPlaceholder` (giữ chỗ) |fluido `transform` + CSS khi kéo | Giữ layout không sập khi nhấc |
+| `cdkDragPlaceholder` (giữ chỗ) | item giữ chỗ + `transform` + CSS khi kéo | Giữ layout không sập khi nhấc |
 | `cdkDragHandle` (tay cầm) | `listeners` gắn vào handle + `activationConstraint` | Kéo chỉ từ handle, click nút trong không nhầm |
 | `enterPredicate` (chặn nhận) | `disabled`/`data` + check trong `onDragOver`/`onDragEnd` | Logic chặn ở event |
 | CDK touch + a11y sẵn | native thiếu → dnd-kit sensor/keyboard/announcements | Prod mobile/a11y phải dnd-kit |
 
+> **Cách đọc bảng này:** mỗi dòng là một linh kiện CDK của Angular, cột giữa là mảnh thay thế bằng native hoặc dnd-kit, cột Ghi chú tóm khác biệt — hàng cuối (touch/a11y) là lý do chính để prod chọn dnd-kit.
+
 ## Lỗi thường gặp (Common pitfalls)
+Mục này là "bản đồ bẫy" của drag & drop — drop liệt im lặng, state nhảy, item rớt mất; đa số lỗi không có console error nên phải biết trước.
 
 ### 1. Quên `preventDefault` ở `onDragOver` → drop liệt
-```tsx
-// ❌ SAI: onDrop không bao giờ chạy, không lỗi console — tưởng code sai chỗ khác
-<li onDragStart={...} onDrop={() => drop(i)}>{it}</li>
-```
-```tsx
-// ✅ ĐÚNG: luôn preventDefault để cho drop (như example)
-<li onDragStart={...} onDragOver={(e) => e.preventDefault()} onDrop={() => drop(i)}>{it}</li>
-// dnd-kit không cần (tự lo va chạm) — 1 lý do chuyển prod
-```
+> 📄 **Code ví dụ:** [`examples/05-1-quen-preventdefault-o-ondragover-drop-liet.tsx`](examples/05-1-quen-preventdefault-o-ondragover-drop-liet.tsx)
+> 📄 **Code ví dụ:** [`examples/06-1-quen-preventdefault-o-ondragover-drop-liet.tsx`](examples/06-1-quen-preventdefault-o-ondragover-drop-liet.tsx)
 
 ### 2. `key={index}` cho sortable → nhảy sai
-```tsx
-// ❌ SAI: kéo A xuống C, input/focus/animation nhảy theo index, không theo item
-{items.map((it, i) => <li key={i}>{it}</li>)}
-```
-```tsx
-// ✅ ĐÚNG: key id ổn định (như example) — node di chuyển giữ state
-{items.map((it) => <li key={it.id}>{it}</li>)}
-```
+> 📄 **Code ví dụ:** [`examples/07-2-key-index-cho-sortable-nhay-sai.tsx`](examples/07-2-key-index-cho-sortable-nhay-sai.tsx)
+> 📄 **Code ví dụ:** [`examples/08-2-key-index-cho-sortable-nhay-sai.tsx`](examples/08-2-key-index-cho-sortable-nhay-sai.tsx)
 
 ### 3. Mutate state (`splice` gốc) → không thấy đổi
-```tsx
-// ❌ SAI: cùng tham chiếu, React bỏ qua (hoặc thấy nửa vời)
-setItems((xs) => { const [m] = xs.splice(from, 1); xs.splice(to, 0, m); return xs; });
-```
-```tsx
-// ✅ ĐÚNG: copy rồi splice (như move trong ví dụ)
-setItems((xs) => move(xs, from, to)); // move copy [...list] bên trong
-```
+> 📄 **Code ví dụ:** [`examples/09-3-mutate-state-splice-goc-khong-thay-oi.tsx`](examples/09-3-mutate-state-splice-goc-khong-thay-oi.tsx)
+> 📄 **Code ví dụ:** [`examples/10-3-mutate-state-splice-goc-khong-thay-oi.tsx`](examples/10-3-mutate-state-splice-goc-khong-thay-oi.tsx)
 
 ### 4. Không reset `dragId`/`overId` → lần sau sai nguồn + highlight kẹt
 Mô tả: drop xong quên `setDragId(null)` là kéo B vẫn nguồn A; `overId` kẹt highlight. Fix: reset cả drop thành công + no-op + `onDragEnd` (thả ngoài) như example.
 
 ### 5. Nguồn index khi list đổi giữa lúc kéo → trỏ sai
-```tsx
-// ❌ SAI: drag index 0, socket thêm đầu lúc đang kéo -> drop index 0 là item khác
-onDragStart={() => setDragIdx(i)} ... drop: move(xs, dragIdx, to)
-```
-```tsx
-// ✅ ĐÚNG: nguồn id + findIndex lúc drop (như example)
-onDragStart={() => setDragId(it.id)} ... drop: move(xs, find(id), find(toId))
-```
+> 📄 **Code ví dụ:** [`examples/11-5-nguon-index-khi-list-oi-giua-luc.tsx`](examples/11-5-nguon-index-khi-list-oi-giua-luc.tsx)
+> 📄 **Code ví dụ:** [`examples/12-5-nguon-index-khi-list-oi-giua-luc.tsx`](examples/12-5-nguon-index-khi-list-oi-giua-luc.tsx)
 
 ### 6. Native trên mobile/touch không chạy → UX vỡ điện thoại
 Mô tả: `draggable` desktop ổn, mobile không fire. Fix: dnd-kit Pointer/Touch/Keyboard sensor (1 code chạy cả 3). Demo học thì native, prod ship thì dnd-kit.
@@ -260,16 +131,11 @@ Mô tả: `draggable` desktop ổn, mobile không fire. Fix: dnd-kit Pointer/Tou
 Mô tả: chỉ kéo chuột, Tab không tới, screen reader không biết reorder. Fix: nút ↑/↓ mỗi item (`aria-label`, như example) + dnd-kit `attributes`/`announcements` (đọc "đã di A từ 1 tới 3").
 
 ### 8. Quên `setNodeRef` (dnd-kit) → kéo không hít
-```tsx
-// ❌ SAI: useSortable nhưng không gắn ref — không đo được, over luôn null
-const { setNodeRef, ...rest } = useSortable({ id }); return <li {...rest.attributes}>Hi</li>;
-```
-```tsx
-// ✅ ĐÚNG: luôn ref={setNodeRef} vào element gốc
-return <li ref={setNodeRef} {...attributes} {...listeners}>Hi</li>;
-```
+> 📄 **Code ví dụ:** [`examples/13-8-quen-setnoderef-dnd-kit-keo-khong-hit.tsx`](examples/13-8-quen-setnoderef-dnd-kit-keo-khong-hit.tsx)
+> 📄 **Code ví dụ:** [`examples/14-8-quen-setnoderef-dnd-kit-keo-khong-hit.tsx`](examples/14-8-quen-setnoderef-dnd-kit-keo-khong-hit.tsx)
 
 ## Best practices / Mẹo
+Mục này là "kế hoạch ship prod" cho drag & drop — đọc để biết tầng nào học, tầng nào ship, và những mảnh a11y/perf không được quên.
 - **Học native, ship dnd-kit** (hoặc Pragmatic DnD Atlassian cho board lớn). Vì sao 2 tầng? Vì native dạy events + bất biến (hiểu gốc), dnd-kit cho touch/keyboard/a11y/animation (đủ prod).
 - `move` thuần riêng file — test không render + tái dùng drop/nút/`onDragEnd`. Vì sao riêng? Vì hoán vị là logic thuần, không thuộc component nào.
 - `<DragOverlay>` + Motion `layout` cho "nhấc + trượt về" cao cấp. Vì sao? Vì native di là nhảy (không nội suy vị trí), overlay + layout là bay/trượt mượt.
@@ -279,11 +145,15 @@ return <li ref={setNodeRef} {...attributes} {...listeners}>Hi</li>;
 - `activationConstraint: { distance: 5, delay: 100 }` khi item có nút trong. Vì sao? Để click nút không thành kéo (đủ 5px/delay mới nhấc), kéo thật vẫn nhạy.
 
 ## Bài tập nhỏ
+Làm tay để nhớ — mỗi bài là một thí nghiệm kéo thả thật hoặc đo perf giữa native và dnd-kit.
+
 1. Native dùng **id** (như example) + `onDragEnter` highlight — kiểm tra socket thêm đầu lúc đang kéo không sai nguồn (so với bản index cũ).
 2. dnd-kit sortable + keyboard sensor (Space nhấc, arrows di, Space thả) + `<DragOverlay>` — Tab/Enter chỉ bàn phím reorder được. Ghi khác biệt a11y với native?
 3. Nút Lên/Xuống (như example) dùng chung `move` — test click nút (không kéo) vẫn reorder. Vì sao test nút ổn định hơn kéo E2E?
 4. `<DragOverlay>` preview + list 50 item — đo perf kéo (fps) native vs dnd-kit + `layout`. Khi nào cần virtualize?
 5. Kanban 2 cột (todo/done) kéo chéo — `onDragEnd` cập nhật 2 mảng bất biến. Thả ra ngoài (`over` null) thì sao (no-op)?
+
+> **Tóm gọn 1 câu:** Ghi nhớ cả bài trong 1 nhịp: kéo chỉ là đổi state theo id ổn định, thả là tạo mảng mới bất biến — prod thì dnd-kit lo touch/keyboard/a11y.
 
 ## Reference
 - https://docs.dndkit.com/

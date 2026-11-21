@@ -6,91 +6,32 @@
 > Làm sao upload **file lớn** với **progress bar**, **cancel** (user bấm "Hủy"), **resume** (mất mạng giữa chừng, tải tiếp)? `FormData` + `fetch` (Q20) có đủ không? Cần `XMLHttpRequest` (Q22) hay `fetch` (Q20)?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
+
+Mục này là "bản nói 30 giây" — nêu được "fetch không có progress, muốn progress phải XHR, muốn resume phải chunk" là đã ăn điểm; phần chi tiết bên dưới để đỡ khi bị hỏi từng mốc size.
+
 - **Vấn đề gốc**: `fetch` **không có sự kiện tiến trình upload** — chỉ hủy được (AbortController). Muốn progress bar phải dùng `XMLHttpRequest` (`upload.onprogress`).
 - **3 cách theo size**: (1) File nhỏ (< 5MB): `FormData` + `fetch` + AbortController — đơn giản, không progress. (2) File lớn (50–500MB): XHR + `upload.onprogress` — có progress, hủy được. (3) File rất lớn (500MB+): chia chunk 5MB, upload từng chunk — có progress từng chunk, hủy được, mất mạng gửi tiếp chunk còn thiếu.
 - **Điểm ăn điểm**: resume được vì server nhớ chunk nào rồi, client chỉ gửi tiếp phần thiếu.
 
 ## Trả lời chi tiết
 
+Mục này chia theo ba mức kích cỡ file (nhỏ / lớn / rất lớn), mỗi mức một công cụ và một giới hạn — đọc để biết "với file của mình thì dùng cái gì, mất gì".
+
 ### 1. "File nhỏ" (Q20) — `FormData` + `fetch` (Q20, Q21)
 
-```tsx
-// ✅ (Q20) — (Q20, Q21) < 5MB (Q20, Q21)
-async function uploadSmall(file: File, signal?: AbortSignal) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await fetch("/api/upload", {
-    method: "POST",
-    body: fd,
-    signal, // (Q21) "Cancel (Q21)
-  });
-  if (!res.ok) throw new Error("Upload failed");
-  return res.json();
-}
-// (Q20, Q21) "Cancel (Q21, Q20)
-const ac = new AbortController();
-uploadSmall(file, ac.signal);
-ac.abort(); // (Q21, Q20) "Cancel (Q21)
-// (Q20) "Không progress (Q20) (Q20, Q21) — "sai (Q22) file lớn (Q22)"
-```
+> 📄 **Code ví dụ:** [`examples/01-1-file-nho-q20-formdata-fetch-q20-q21.tsx`](examples/01-1-file-nho-q20-formdata-fetch-q20-q21.tsx)
 
 **Đúng khi**: **File < 5MB** (Q20, Q21). **Sai khi**: **File lớn (Q22)** — "không progress (Q20) (Q20)".
 
 ### 2. "File lớn" (Q22) — `XMLHttpRequest` + `upload.onprogress` (Q22)
 
-```tsx
-// ✅ (Q22) — (Q22) 50–500MB (Q22)
-function uploadLarge(file: File, onProgress: (pct: number) => void, onDone: (url: string) => void) {
-  const fd = new FormData();
-  fd.append("file", file);
-  const xhr = new XMLHttpRequest();
-  xhr.open("POST", "/api/upload");
-  xhr.upload.onprogress = (e) => {
-    if (e.lengthComputable) {
-      const pct = Math.round((e.loaded / e.total) * 100);
-      onProgress(pct); // (Q22) "Progress (Q22)
-    }
-  };
-  xhr.onload = () => onDone(JSON.parse(xhr.response).url);
-  xhr.send(fd);
-  // (Q22, Q21) "Cancel (Q22)
-  return () => xhr.abort(); // (Q22) "Cancel (Q22)
-}
-// (Q22, Q21) "Cancel (Q22)
-const cancel = uploadLarge(file, setProgress, setUrl);
-// "Cancel (Q22, Q21)
-cancel(); // (Q22) "Cancel (Q22)
-```
+> 📄 **Code ví dụ:** [`examples/02-2-file-lon-q22-xmlhttprequest-upload-onprogress-q22.tsx`](examples/02-2-file-lon-q22-xmlhttprequest-upload-onprogress-q22.tsx)
 
 **Đúng khi**: **File lớn (50–500MB) (Q22)** — "progress (Q22)", "cancel (Q22)", "thang (Q22)" (Q22). **Sai khi**: "File rất lớn (Q20, Q22)" — "không resume (Q20, Q22)" (Q20).
 
 ### 3. "File rất lớn" (Q20, Q22) — Chunk upload (Q20)
 
-```tsx
-// ✅ (Q20) — (Q20) 500MB+ (Q20)
-async function uploadChunked(file: File, onProgress: (pct: number) => void) {
-  const CHUNK = 5 * 1024 * 1024; // (Q20) "5MB (Q20)
-  const total = Math.ceil(file.size / CHUNK);
-  let uploaded = 0;
-  for (let i = 0; i < total; i++) {
-    const chunk = file.slice(i * CHUNK, (i + 1) * CHUNK); // (Q20) "Slice (Q20)
-    const res = await fetch(`/api/chunk?uploadId=X&part=${i}`, {
-      method: "POST",
-      body: chunk,
-    });
-    uploaded += 1;
-    onProgress(Math.round((uploaded / total) * 100)); // (Q22) "Progress (Q22)
-  }
-  await fetch(`/api/complete?uploadId=X`); // (Q20) "Complete (Q20)
-}
-// (Q20, Q22) "Cancel (Q21) + "resume (Q20, Q22)
-// "Cancel (Q21, Q20)
-const ac = new AbortController();
-uploadChunked(file, setProgress, ac.signal);
-ac.abort(); // (Q21, Q20) "Cancel (Q21)
-// "Resume (Q20) "Mất mạng, "gửi lại (chunk (Q20) (Q20)
-// "Server (Q20) "Nhận (Q20), "Client (Q20) "Kiểm tra (Q20)
-```
+> 📄 **Code ví dụ:** [`examples/03-3-file-rat-lon-q20-q22-chunk-upload.tsx`](examples/03-3-file-rat-lon-q20-q22-chunk-upload.tsx)
 
 **Đúng khi**: **File rất lớn (500MB+ (Q20, Q22))** — "chunk (Q20)", "progress (Q22)", "cancel (Q21)", "resume (Q20)" (Q20, Q22). **Sai khi**: "File nhỏ (Q20, Q21)" — "không (Q20, Q21)" (Q20).
 
@@ -102,16 +43,26 @@ ac.abort(); // (Q21, Q20) "Cancel (Q21)
 | 50–500MB (Q22) | `XMLHttpRequest` (Q22) | `upload.onprogress` (Q22) | `xhr.abort()` (Q22) | Không (Q22) |
 | 500MB+ (Q20, Q22) | Chunk upload (Q20) | Mỗi chunk (Q22) | `AbortController` (Q21) | Có (Q20) |
 
+> **Cách đọc bảng này:** mỗi dòng là một mức kích cỡ file; đọc ngang để biết cách upload, có progress không, hủy được không và có resume được không — cột Resume là cột phân tầng quan trọng nhất: chỉ chunk upload mới cứu được vụ mất mạng giữa chừng.
+
 **Điểm ăn điểm (Q20, Q22)**: "File lớn (Q22) → `XMLHttpRequest` + `upload.onprogress` (Q22) (Q22); "file rất lớn (Q20, Q22) → chunk (Q20) (Q20, Q22). `fetch` (Q20) không progress (Q20) (Q20).
+
+Ví von cho chunk upload: chuyển nhà cả căn 3 tầng khó hơn đi từng chuyến — chia đồ thành nhiều thùng (chunk 5MB), xe nào tới được kho thì ghi nhận, xe hư giữa đường chỉ bốc lại đúng thùng đó; server nhớ "đã nhận thùng nào" nên client chỉ gửi tiếp phần thiếu — đó chính là resume.
 
 ## Bẫy khi phỏng vấn
 
-1. **"fetch (Q20) upload file lớn"** → **Sai (Q22)**: "không progress (Q20) (Q20)". `XMLHttpRequest` (Q22) có `upload.onprogress` (Q22) (Q22).
-2. **"FormData (Q20) upload 500MB"** → **Sai (Q20, Q22)**: "không (Q20, Q22)", "không resume (Q20, Q22)" (Q20). Chunk (Q20) đúng (Q20, Q22).
-3. **"Không (Q21, Q22) upload"** → **Sai (Q21, Q22)**: "`AbortController` (Q21) (fetch) (Q21) hoặc `xhr.abort()` (Q22) (XHR) (Q22)".
-4. **"Progress (Q22) = `onprogress` (Q22)"** → **Đúng (Q22)**: "`upload.onprogress` (Q22) (Q22)", "percent (Q22)" (Q22).
+Mục này là "bản đồ mìn": 4 câu trả lời nghe hợp lý nhưng sai — upload file lớn là chủ đề người ta hay cài mồi "fetch làm được hết".
+
+1. **"Dùng `fetch` upload file lớn để có progress bar"** → **Sai (Q22)**: `fetch` không phát sự kiện tiến trình upload (Q20) — muốn progress phải `XMLHttpRequest` + `upload.onprogress` (Q22).
+2. **"`FormData` + `fetch` cho file 500MB"** → **Sai (Q20, Q22)**: không progress, không resume (Q20, Q22) — file rất lớn phải chunk upload (Q20).
+3. **"Upload không cần nút hủy"** → **Sai (Q21, Q22)**: phải hủy được — `AbortController` (Q21) với fetch, `xhr.abort()` (Q22) với XHR.
+4. **"Progress bar tính percent từ `upload.onprogress`"** → **Đúng (Q22)**: đây chính là cách đo chuẩn — đừng đo bằng `fetch` (Q20) vì nó không phát sự kiện này.
+
+> **Tóm gọn 1 câu:** Upload file lớn như chuyển nhà theo thùng: nhỏ thì một chuyến (fetch), lớn thì cần đồng hồ đo từng thùng (XHR progress), rất lớn thì chia thùng 5MB để mất mạng chỉ bốc lại đúng thùng thiếu.
 
 ## Gợi ý câu chốt
+
+Mục này gói cả bài thành một đoạn trả lời mẫu — đọc để tập nói trọn một hơi rồi diễn đạt lại bằng giọng của mình.
 
 > "Upload file (Q20, Q22): (1) **< 5MB** (Q20) → `FormData` + `fetch` (Q20, Q21) + `AbortController` (Q21) cancel (Q20, Q21) (Q20, Q21). (2) **50–500MB** (Q22) → **`XMLHttpRequest` (Q22) + `upload.onprogress`** (Q22) (progress (Q22), cancel (Q22), no (Q22)) (Q22). (3) **500MB+** (Q20, Q22) → **chunk upload (Q20)** (Q20, Q22) (progress (Q22), cancel (Q21), resume (Q20)) (Q20, Q22). `fetch` (Q20) không progress (Q20) (Q20) — "sai (Q22) file lớn (Q22)". **Điểm ăn điểm (Q20, Q22)**: "chunk (Q20) + `upload.onprogress` (Q22) + `AbortController` (Q21)" (Q20, Q21, Q22).
 

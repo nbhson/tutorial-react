@@ -23,57 +23,13 @@ React là **library không IoC** (Q1) — không có "nơi" để framework cho 
 
 ### 2. Pattern A: fetch wrapper (0 dependency)
 
-```ts
-// api/http.ts — 1 file, mọi code chỉ import cái này
-const TOKEN_KEY = "access_token";
-
-export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const res = await fetch(url, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
-  });
-  if (res.status === 401) {
-    // (xem §4) single-flight refresh rồi retry request này 1 lần
-  }
-  if (!res.ok) throw new ApiError(res.status, await res.text().catch(() => "")); // normalize
-  return res.json() as Promise<T>;
-}
-
-export class ApiError extends Error {
-  constructor(public status: number, public body: string) { super(`HTTP ${status}`); }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-2-pattern-a-fetch-wrapper-0-dependency.ts`](examples/01-2-pattern-a-fetch-wrapper-0-dependency.ts)
 
 Với TanStack Query (Q20): `queryFn: () => api<User[]>("/api/users")` — wrapper lo header/error, Query lo cache/retry/dedupe.
 
 ### 3. Pattern B: axios instance (gần Angular nhất)
 
-```ts
-import axios from "axios";
-
-export const http = axios.create({ baseURL: "/api", timeout: 15_000 });
-
-// "Request interceptor" — tương đương chain request Angular (gắn token/log):
-http.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem("access_token");
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
-});
-
-// "Response interceptor" — tương đương chain response (401 → refresh, unwrap):
-http.interceptors.response.use(
-  (res) => res,
-  async (err) => {
-    if (err.response?.status === 401 && !err.config._retried) {
-      err.config._retried = true;
-      await refreshOnce();              // single-flight (§4)
-      return http(err.config);          // retry request gốc
-    }
-    return Promise.reject(err);         // Query/UI xử lý (onError)
-  },
-);
-```
+> 📄 **Code ví dụ:** [`examples/02-3-pattern-b-axios-instance-gan-angular-nhat.ts`](examples/02-3-pattern-b-axios-instance-gan-angular-nhat.ts)
 
 > **Quy tắc chọn 1 client cho cả app** (fetch wrapper **hoặc** axios) — không "nửa app fetch, nửa app axios" (2 bộ hành vi error/header khác nhau).
 
@@ -83,22 +39,7 @@ Vấn đề: user có 3 request cùng lúc, access token hết hạn → **3 req
 
 Fix: **1 promise dùng chung** — request 401 đầu tiên tạo refresh, các request 401 sau **chờ cùng promise đó**:
 
-```ts
-let refreshing: Promise<string> | null = null;
-
-function refreshOnce() {
-  if (!refreshing) {
-    refreshing = api("/auth/refresh")   // gọi refresh (không qua interceptor 401!)
-      .then(({ access_token }) => {
-        localStorage.setItem("access_token", access_token);
-        return access_token;
-      })
-      .finally(() => { refreshing = null; });   // reset để lần sau refresh lại được
-  }
-  return refreshing;
-}
-// (thêm: refresh THẤT BẠI → logout + redirect /login, hủy mọi request đang chờ)
-```
+> 📄 **Code ví dụ:** [`examples/03-4-401-refresh-token-single-flight-iem-an.ts`](examples/03-4-401-refresh-token-single-flight-iem-an.ts)
 
 ### 5. Ngắn về retry: ai làm gì (tránh trùng)
 
@@ -109,6 +50,8 @@ function refreshOnce() {
 | Retry **nghiệp vụ** (API rate-limit, idempotency) | **Query / mutation** (`onError` + button) | Người dùng phải thấy, không silent |
 
 **Chọn 1 tầng cho mỗi loại retry** — trùng = retry nhân bội (2 tầng × 3 lần = 6+ request, 401-refresh-401-loop).
+
+> **Tóm gọn 1 câu:** React không có cổng kiểm soát dựng sẵn, nên bạn tự xây trạm thu phí (1 module `api()`) — mọi xe (request) đều phải qua đó để dán tem token và bị soi lỗi 401 tại một chỗ.
 
 ## Bẫy khi phỏng vấn
 

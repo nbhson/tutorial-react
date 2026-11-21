@@ -1,0 +1,3 @@
+::view-transition-group(.slide-in) { animation-duration: 300ms; }
+::view-transition-old(.slide-in)   { animation-name: slideOutLeft; }
+::view-transition-new(.slide-in)   { animation-name: slideInRight; }

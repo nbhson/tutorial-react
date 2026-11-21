@@ -11,11 +11,17 @@
 - Nắm giới hạn: API `unstable_`, cần framework hỗ trợ để lo streaming/resume.
 
 ## Vấn đề giải quyết
+
+Mục này đặt 3 chiến lược render cạnh nhau để thấy PPR đứng ở đâu: static nhanh mà cũ, dynamic tươi mà chậm. Đọc để hiểu bài toán "nửa tĩnh nửa động" mà PPR giải.
+
 - **Full static**: nhanh (CDN) nhưng data cũ — mỗi lần đổi phải rebuild; không hợp dữ liệu theo user.
 - **Full dynamic SSR**: data tươi nhưng **TTFB chậm** — phải chờ query chậm nhất xong mới trả HTML; một widget chậm làm cả trang chậm.
 - **PPR**: shell (header/layout/skeleton) pre-render và cache; các hole phụ thuộc user/session (giỏ hàng, feed cá nhân) được tính toán và stream sau → vừa nhanh (shell có sẵn) vừa tươi (hole stream).
 
 ## Khái niệm cốt lõi
+
+Mục này định nghĩa 2 khối xây của PPR: shell tĩnh và dynamic hole. Ví von: PPR giống cửa hàng đóng gói sẵn khung gian hàng (shell) từ trước, còn các quầy theo khách (giỏ hàng, feed) được hoàn thiện ngay lúc khách bước vào — biển hiệu đã treo sẵn, chỉ thiếu số liệu cá nhân.
+
 - **Static shell**: phần không phụ thuộc request — layout, nav, nội dung chung. Được **pre-render** một lần (build time/first request) và cache.
 - **Dynamic holes**: phần phụ thuộc request/user — bọc trong `<Suspense>`; khi pre-render React "để lại lỗ" (postponed state), tới request thật sẽ **resume** để render phần này.
 - **`prerender(element)`** (`react-dom/static`) trả `{ prelude, postponed }`: `prelude` là HTML shell; `postponed` là trạng thái để `resume`.
@@ -23,33 +29,15 @@
 - **Frontend/Backend split**: shell không gọi `cookies()`/`headers()`/dynamic API; hole mới được phép.
 - Trong Next.js: `export const experimental_ppr = true` bật PPR cho route; framework gọi prerender/resume hộ.
 
+> **Tóm gọn 1 câu:** PPR = "khung nhà dựng sẵn tại CDN, nội thất động stream sau" — shell nhanh như static, hole tươi như SSR.
+
 ## Cú pháp / API
 
-```tsx
-import { Suspense } from 'react';
-import { prerender } from 'react-dom/static';        // unstable_* trong core
-import { resume } from 'react-dom/server';
-
-// Build / first request:
-const { prelude, postponed } = await prerender(<App />);
-// -> gửi prelude (shell) cho client/CDN
-
-// Request thật (hoặc khi hole cần dữ liệu):
-const stream = await resume(<App />, postponed);
-// -> stream phần dynamic về client
-
-function App() {
-  return (
-    <Layout>                          {/* static — shell */}
-      <Suspense fallback={<Skeleton />}>
-        <PersonalFeed />              {/* dynamic hole — stream sau */}
-      </Suspense>
-    </Layout>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-cu-phap-api.tsx`](examples/01-cu-phap-api.tsx)
 
 ## Luồng hoạt động (Flow)
+
+Mục này theo một page PPR từ lúc build tới lúc nội dung động stream về trình duyệt — 5 bước cho thấy shell và hole tách nhau ở điểm nào.
 
 1. Build/first render: `prerender(<App/>)` render shell; gặp `<Suspense>` động → ghi lại **postponed**, để fallback trong shell.
 2. Shell (đã có skeleton) served ngay từ CDN → **TTFB rất thấp**.
@@ -57,56 +45,11 @@ function App() {
 4. React **stream** kết quả hole về → client thay skeleton bằng nội dung thật.
 5. CDN shell dùng chung; hole luôn tươi theo request.
 
+> **Tóm gọn 1 câu:** Shell đi đường tốc hành từ CDN, hole đi "chuyến sau" mang dữ liệu thật — hai chuyến riêng nhưng ghép thành một trang liền mạch.
+
 ## Ví dụ chi tiết
 
-```tsx
-// example.tsx — cấu trúc App PPR (React 19.2)
-import { Suspense } from 'react';
-
-// Shell tĩnh — pre-render 1 lần, cache ở CDN.
-function ShopLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div>
-      <header>
-        <h2>Shop — Partial Pre-rendering (React 19.2)</h2>
-        <nav>Home | Sản phẩm | Liên hệ</nav>
-      </header>
-      <main>{children}</main>
-    </div>
-  );
-}
-
-// Hole động 1: feed cá nhân — stream sau (query chậm).
-async function PersonalFeed() {
-  await new Promise((r) => setTimeout(r, 1200)); // giả lập query chậm
-  return <p>Gợi ý cho bạn: Giày chạy bộ, Tai nghe BT</p>;
-}
-
-// Hole động 2: giỏ hàng theo session — stream sau.
-async function CartBadge() {
-  await new Promise((r) => setTimeout(r, 600));
-  return <p>Giỏ hàng: 3 món</p>;
-}
-
-function FeedSkeleton() {
-  return <p>Đang tải gợi ý...</p>;
-}
-
-// Trong Next.js PPR: export const experimental_ppr = true
-// Framework tự gọi prerender/resume: shell trả ngay, 2 hole stream dần.
-export default function ShopPage() {
-  return (
-    <ShopLayout>
-      <Suspense fallback={<FeedSkeleton />}>
-        <PersonalFeed />
-      </Suspense>
-      <Suspense fallback={<p>Đang tải giỏ hàng...</p>}>
-        <CartBadge />
-      </Suspense>
-    </ShopLayout>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-vi-du-chi-tiet.tsx`](examples/02-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 - `ShopLayout` = shell tĩnh: header/nav giống nhau mọi user → pre-render, cache.
@@ -116,25 +59,38 @@ export default function ShopPage() {
 
 ## So sánh với cách làm cũ
 
+Bảng dưới so 3 chiến lược render theo TTFB và độ tươi dữ liệu. Đọc theo hàng từ static xuống PPR: dòng in đậm là điểm cân bằng được chọn.
+
 | Chiến lược | TTFB | Độ tươi dữ liệu | Ghi chú |
 |---|---|---|---|
 | Full static (SSG) | Rất nhanh | Cũ (rebuild mới đổi) | Không hợp data per-user |
 | Full dynamic SSR / `force-dynamic` | Chậm | Tươi | Chờ query chậm nhất |
 | **PPR** | Nhanh (shell CDN) | Tươi cho hole | Kết hợp tốt nhất cho page nửa tĩnh nửa động |
 
+> **Cách đọc bảng này:** đọc theo cột TTFB (tốc độ trả HTML đầu tiên) và cột "Độ tươi dữ liệu" — hai tiêu chí thường đánh đổi nhau; PPR là hàng duy nhất tốt ở cả hai, với điều kiện tách được hole.
+
 ## Lỗi thường gặp
+
+Mục này là 5 lỗi cấu trúc khi bật PPR — gốc rễ của hầu hết là "để động API lọt vào shell" (số 1) và không bọc Suspense riêng cho từng hole (số 2).
 1. **Đặt `await`/dynamic API trong shell (ngoài Suspense)** → vì sao: shell mất tính tĩnh, không cache được → fix: đưa mọi phần phụ thuộc request vào hole `<Suspense>`.
 2. **Không tách hole bằng `<Suspense>`** → vì sao: phần động kéo cả page chờ; PPR không phát huy → fix: bọc từng hole với fallback skeleton riêng.
 3. **Kỳ vọng API stable** → vì sao: `prerender`/`resume` còn `unstable_`; dùng qua Next.js PPR → fix: bám flag framework, không gọi core trực tiếp khi không cần.
 4. **Cho rằng PPR là "cache vĩnh viễn"** → vì sao: shell cache theo CDN cấu hình; hole luôn render theo request → fix: cấu hình revalidate/cache phù hợp cho shell.
 5. **Toàn page đã tĩnh hoặc toàn page bắt buộc dynamic đồng bộ** mà vẫn bật PPR → vì sao: thừa hoặc không tách được hole → fix: dùng SSG hoặc dynamic SSR thẳng.
 
+> **Tóm gọn 1 câu:** PPR chỉ phát huy khi trang có "vùng phân giới" rõ: shell sạch dynamic API, hole được Suspense bọc riêng — khác thì đừng ép.
+
 ## Khi nào dùng / Khi nào không
 - **Dùng**: page nửa tĩnh nửa động (ecommerce PDP, dashboard có layout chung + widget per-user, blog + comments cá nhân), shell cache CDN, hole phụ thuộc session.
 - **Không dùng**: page hoàn toàn tĩnh (SSG đủ), hoặc toàn bộ nội dung phụ thuộc request không tách hole được — lúc đó static/dynamic SSR thuần tốt hơn.
 
 ## Bài tập nhỏ
+
+Bài tập "soi HTML trả về" — quan sát skeleton về trước và nội dung thật thay dần, kèm thử nghiệm để xem TTFB sụp thế nào khi vi phạm quy tắc shell.
+
 - Dựng page "Sản phẩm": shell tĩnh (header + mô tả sản phẩm từ props), hole "Giá theo khu vực" và "Tồn kho" mỗi cái trong `<Suspense>` với skeleton riêng. Giả lập delay 800ms/1200ms. Quan sát HTML trả về: skeleton xuất hiện ngay, nội dung thật thay dần — và ghi chú nếu vô tình đặt `await` ra ngoài shell thì TTFB tăng thế nào.
+
+> **Tóm gọn 1 câu:** Skeleton tới trước, nội dung chui vào sau — còn TTFB tăng vọt nghĩa là bạn đã làm "bẩn" shell.
 
 ## Reference
 - [React 19.2 Release — Partial Pre-rendering](https://react.dev/blog/2025/10/01/react-19-2)

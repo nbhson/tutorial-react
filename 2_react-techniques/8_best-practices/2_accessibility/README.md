@@ -2,20 +2,19 @@
 
 > Nguồn: https://react.dev/learn/accessibility — https://www.w3.org/WAI/ARIA/apg/
 
+Bạn có biết 15% người dùng không thể (hoặc không tiện) dùng chuột, hoặc "nhìn" trang bằng tai? Accessibility (a11y) là kỹ năng làm app dùng được với **mọi người** — và tin vui là với React, phần lớn a11y đến miễn phí nếu bạn dùng đúng thẻ từ đầu.
+
 ## Mục tiêu
+
+Mục này nêu 3 mục tiêu lớn: viết semantic đúng, quản lý focus/label/lỗi, và kiểm tra bằng công cụ. Đọc để có bản đồ của cả bài.
 
 ### 1. Dùng semantic HTML đúng: nút/nav/main/heading thay cho `div onClick`
 
 **Vì sao:** `<button>` có sẵn focus (Tab tới được), keyboard (Enter/Space kích hoạt), role (screen reader đọc "button"), trạng thái (disabled). `div onClick` không có gì cả — user bàn phím không tới được, screen reader đọc "text" (không biết bấm được), không disabled đúng. Quy tắc đầu tiên của ARIA là "đừng dùng ARIA nếu HTML làm được" — semantic là a11y miễn phí.
 
-**Cơ chế:** React render HTML thật — thẻ đúng là trình duyệt + AT (assistive technology) hiểu ngay, không cần code thêm. Thẻ sai phải bù bằng `role` + `tabIndex` + key handler + focus style — 20 dòng để bằng 1 thẻ đúng.
+**Cơ chế:** React render HTML thật — thẻ đúng là trình duyệt + AT (assistive technology) hiểu ngay, không cần code thêm. Thẻ sai phải bù bằng `role` + `tabIndex` + key handler + focus style — 20 dòng để bằng 1 thẻ đúng. Hãy hình dung: thẻ đúng như **cửa có bản lề sẵn** — lắp là mở được; `div onClick` là tấm ván nhổ gỗ, muốn thành cửa bạn phải tự mài bản lề, khoá, tay nắm.
 
-```tsx
-// ❌ SAI: div giả button — Tab không tới, Enter không bấm, SR không đọc là nút
-<div onClick={dong}>X</div>
-// ✅ ĐÚNG: button thật — focus/keyboard/role miễn phí
-<button type="button" onClick={dong}>Đóng</button>
-```
+> 📄 **Code ví dụ:** [`examples/01-1-dung-semantic-html-ung-nut-nav-main.tsx`](examples/01-1-dung-semantic-html-ung-nut-nav-main.tsx)
 
 **Usecase thực tế:** mọi nút/icon-link/menu trong app. Quy tắc nhận diện: cái gì bấm được thì `button`/`a`; điều hướng thì `a`/`Link`; tiêu đề thì `h1-h6` đúng cấp; vùng chính thì `main`/`nav`/`header`. Chỉ `role="button"` + `tabIndex={0}` khi bất khả kháng (lib cũ render div).
 
@@ -27,30 +26,34 @@
 
 **Vì sao một công cụ không đủ:** eslint bắt tĩnh (thiếu alt, thiếu label) lúc gõ; axe bắt runtime (tương phản, cấu trúc) lúc chạy; keyboard walkthrough (Tab/Enter/Esc tay) bắt trải nghiệm thật (trap, thứ tự). Ba lớp như unit/integration/e2e. `prefers-reduced-motion` là tôn trọng OS (slide/parallax gây chóng mặt) — media query tắt animation khi user yêu cầu.
 
+> **Tóm gọn 1 câu:** Ba mục tiêu: thẻ semantic đúng để mọi thứ "miễn phí", label/focus/lỗi để screen reader dẫn đường được, và ba lớp công cụ bắt lỗi trước người dùng.
+
 ## Tổng quan
+
+Mục này đặt a11y vào bối cảnh thực tế: nó là yêu cầu sản phẩm, gốc rễ nằm ở HTML, và sửa sau thì đắt. Đọc để hiểu vì sao nên làm ngay từ đầu.
 
 - a11y là yêu cầu sản phẩm (người dùng bàn phím/screen reader), không phải "nice to have". Kiện tụng + hợp đồng chính phủ + thị phần (15% dân số khuyết tật) đều đòi.
 - Gốc rễ: React render HTML thật — dùng đúng thẻ semantic, phần lớn a11y miễn phí. ARIA chỉ khi HTML không đủ (menu phức tạp, live region, trạng thái động).
 - Áp dụng từ lúc viết component; retro-fit (sửa sau) đắt gấp 10 (đổi thẻ = đổi CSS + test + snapshot). Mỗi component mới đi qua checklist a11y nhanh (mục Giải thích).
 - Đối chiếu Angular `8_best-practices/a11y`: cùng chuẩn WAI-ARIA/APG, khác bind (JSX `htmlFor`/`aria-*` vs template `[attr.]`).
 
+Giống như xây nhà: lắp **lối đi cho xe lăn ngay từ bản vẽ** thì rẻ; xây xong mới đập tường làm ramp thì tốn gấp nhiều lần — a11y cũng vậy, sửa sau đắt gấp 10.
+
+> **Tóm gọn 1 câu:** a11y là yêu cầu bắt buộc chứ không phải món tráng miệng — dùng đúng thẻ từ đầu là gần như miễn phí, sửa sau thì đắt gấp 10.
+
 ## Khái niệm cốt lõi
+
+Mục này định nghĩa 7 khái niệm từ nguyên tắc đến công cụ. Đọc tuần tự — khái niệm sau xây trên khái niệm trước.
 
 ### 1. Semantic trước, ARIA sau — đừng ARIA khi HTML đủ
 
-`<button>` > `div[role=button]`; `<a href>` > `span[onClick]`; `<h1>` > `div.lon`. ARIA là keo cho trường hợp HTML không có (tablist, tree, live region), không phải thay thẻ đúng. Thừa ARIA (`role="button"` trên `<button>`) gây nhiễu SR.
+`<button>` > `div[role=button]`; `<a href>` > `span[onClick]`; `<h1>` > `div.lon`. ARIA là keo cho trường hợp HTML không có (tablist, tree, live region), không phải thay thẻ đúng. Thừa ARIA (`role="button"` trên `<button>`) gây nhiễu SR. Ví von: HTML semantic là **tường gạch xây sẵn**, ARIA là **keo dán vá chỗ gạch thiếu** — không ai xây cả nhà bằng keo.
 
 ### 2. Accessible name — nút/link phải có tên đọc được
 
-Text trong (`<button>Lưu</button>`), hoặc `aria-label` khi chỉ icon (`aria-label="Đóng menu"`). Icon-only không label là SR đọc "button" câm (không biết nút gì). Ảnh ý nghĩa cần `alt`; trang trí `alt=""` + `aria-hidden`.
+Text trong (`<button>Lưu</button>`), hoặc `aria-label` khi chỉ icon (`aria-label="Đóng menu"`). Icon-only không label là SR đọc "button" câm (không biết nút gì). Ảnh ý nghĩa cần `alt`; trang trí `alt=""` + `aria-hidden`. Giống **tấm danh thiếp**: nút không tên thì screen reader chỉ biết "có người đây" chứ không biết người đó là ai.
 
-```tsx
-// ❌ SAI: icon câm — SR đọc "button" không biết làm gì
-<button onClick={dong}><XIcon /></button>
-// ✅ ĐÚNG: tên rõ + icon ẩn với AT (trang trí)
-// (mirror CloseButton ở Ví dụ chi tiết)
-<button type="button" aria-label="Đóng menu" onClick={dong}><XIcon aria-hidden /></button>
-```
+> 📄 **Code ví dụ:** [`examples/02-2-accessible-name-nut-link-phai-co-ten.tsx`](examples/02-2-accessible-name-nut-link-phai-co-ten.tsx)
 
 ### 3. Label liên kết — mọi input có chủ
 
@@ -62,24 +65,21 @@ Lỗi: `aria-invalid={!!error}` (SR biết đang lỗi) + `aria-describedby={err
 
 ### 5. Focus management — modal trap + Esc + trả focus; route đổi đưa focus về đầu
 
-Modal mở: focus vào dialog, Tab quẩn trong (trap), `Esc` đóng, đóng xong trả về nút mở (không để focus rơi vào không khí). Route đổi: `h1` đầu trang `tabIndex={-1}` + `.focus()` (SR đọc tiêu đề mới, không đọc tiếp chỗ cũ). Không làm là user lạc (Tab ra ngoài modal, SR đọc sai trang).
+Modal mở: focus vào dialog, Tab quẩn trong (trap), `Esc` đóng, đóng xong trả về nút mở (không để focus rơi vào không khí). Route đổi: `h1` đầu trang `tabIndex={-1}` + `.focus()` (SR đọc tiêu đề mới, không đọc tiếp chỗ cũ). Không làm là user lạc (Tab ra ngoài modal, SR đọc sai trang). Modal trap giống **thang máy**: cửa đóng là bạn ở trong tới khi nhấn tầng (Esc) — không ai rơi lơ lửng giữa các tầng được.
 
 ### 6. `prefers-reduced-motion` — tắt animation khi OS yêu cầu
 
-```css
-/* Tôn trọng người nhạy cảm chuyển động — animation mạnh thành tức thì */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-6-prefers-reduced-motion-tat-animation-khi-os.css`](examples/03-6-prefers-reduced-motion-tat-animation-khi-os.css)
 
 Parallax/slide/spin là thủ phạm chính. Test bằng DevTools Rendering → Emulate reduce motion.
 
 ### 7. Công cụ — eslint tĩnh, axe runtime, keyboard tay
 
-`eslint-plugin-jsx-a11y` (thiếu alt/label/role sai lúc gõ). axe DevTools (tương phản, heading order, landmark lúc chạy). Keyboard walkthrough (Tab hết flow, Enter/Space/Esc) — máy không thay được cảm giác Tab lạc. Ba lớp đi cùng mỗi PR flow chính.
+`eslint-plugin-jsx-a11y` (thiếu alt/label/role sai lúc gõ). axe DevTools (tương phản, heading order, landmark lúc chạy). Keyboard walkthrough (Tab hết flow, Enter/Space/Esc) — máy không thay được cảm giác Tab lạc. Ba lớp đi cùng mỗi PR flow chính. Ví von ba lớp: eslint là **kiểm tra hàng ra lò**, axe là **kiểm hàng đóng thùng**, còn walkthrough là **tự dùng thử sản phẩm** — ba lớp không thay nhau được.
 
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là quy trình 6 bước để mỗi component/flow đi qua chuẩn a11y. Làm theo thứ tự — bước đầu (semantic) đỡ được nhiều việc ở các bước sau.
 
 ### Bước 1. Viết semantic trước, ARIA chỉ khi cần
 
@@ -105,65 +105,25 @@ Combobox/menu/dialog tự viết dễ sai trap/arrow/aria (APG dài 50 trang). H
 
 Một `h1`/trang, không nhảy cấp (`h1` → `h3`). `main`/`nav`/`header` đúng. Animation tôn trọng OS.
 
+> **Tóm gọn 1 câu:** 6 bước theo trật tự tự nhiên: viết thẻ đúng → gắn label + alert → đi bàn phím → chạy 2 công cụ → mượn lib cho phần khó → hoàn thiện chi tiết.
+
 ## Ví dụ chi tiết
+
+Mục này trỏ tới 3 file ví dụ đi kèm. Đọc để thấy từng khái niệm ở trên thành code thật.
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn — file thật chỉ có EmailField; CloseButton + CSS là khối bổ sung trong README gốc, giữ nguyên):
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-import { useId } from 'react';
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
-// Form field accessible: label liên kết id, lỗi báo qua role="alert"
-// Vì sao 4 thuộc tính này: label để biết nhập gì, invalid để biết đang lỗi,
-// describedby để đọc luôn thông báo, alert để đọc ngay khi xuất hiện
-export function EmailField({ error }: { error?: string }) {
-  const id = useId(); // id duy nhất, ổn định — tránh trùng khi render nhiều field cùng trang
-  const errId = `${id}-err`; // id vùng lỗi để aria-describedby trỏ tới (không trùng field khác)
-  return (
-    <div>
-      <label htmlFor={id}>Email</label> {/* liên kết với input qua id — bấm label là focus input */}
-      <input
-        id={id}
-        type="email" // type đúng để mobile hiện bàn phím @ + validate cơ bản
-        autoComplete="email" // giúp autofill + trình đọc màn hình biết đây là email
-        aria-invalid={!!error} // báo trạng thái lỗi cho AT (không có là SR không biết đang lỗi)
-        aria-describedby={error ? errId : undefined} // liên kết input với thông báo lỗi — focus là đọc lỗi
-      />
-      {error && (
-        // role="alert": live region — xuất hiện là SR đọc ngay, không đợi user Tab tới
-        <p id={errId} role="alert" style={{ color: 'red' }}>
-          {error} {/* lỗi bằng TEXT (không chỉ màu) — mù màu vẫn biết */}
-        </p>
-      )}
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
-```tsx
-// Icon button — mirror từ README gốc (bổ sung cạnh example.tsx)
-// Vì sao aria-label + aria-hidden: nút chỉ icon không có text — SR cần tên; icon trang trí cần ẩn
-export function CloseButton({ onClose }: { onClose: () => void }) {
-  return (
-    <button type="button" aria-label="Đóng menu" onClick={onClose}>
-      {/* type="button" để không submit form nhầm khi nằm trong form */}
-      <XIcon aria-hidden /> {/* icon trang trí — không cho SR đọc (đọc là nhiễu "graphic X") */}
-    </button>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.css`](examples/06-vi-du-chi-tiet.css)
 
-```css
-/* Tôn trọng người dùng muốn giảm chuyển động (mirror từ README gốc) */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
+> **Tóm gọn 1 câu:** Ba file ví dụ (TSX + CSS) hiện thực hóa cả 6 bước: EmailField có label/alert, CloseButton có accessible name, CSS tôn trọng reduced-motion.
 
 ## Giải thích từng phần
+
+Mục này bóc từng thuộc tính ARIA để bạn hiểu "vì sao cần". Đọc khi cần chọn đúng thuộc tính cho tình huống của mình.
 
 ### `useId()` — id ổn định không trùng
 
@@ -181,6 +141,8 @@ Không có: lỗi hiện mà SR im (đang đọc chỗ khác). Có: SR ngắt đ
 
 SR bỏ qua (không đọc "graphic"). Icon mang nghĩa (cảnh báo) thì `role="img"` + `aria-label`, không hidden.
 
+> **Tóm gọn 1 câu:** Từng thuộc tính là một câu trả lời: `useId` trả lời "id nào không trùng", `aria-invalid`/`describedby` trả lời "đang sai và sai gì", `role="alert"` trả lời "đọc ngay", `aria-hidden` trả lời "bỏ qua icon trang trí".
+
 ### Checklist nhanh mỗi component (giữ từ README gốc + cách kiểm):
 
 ```text
@@ -194,6 +156,8 @@ SR bỏ qua (không đọc "graphic"). Icon mang nghĩa (cảnh báo) thì `role
 ```
 
 ## Lỗi thường gặp / Chống chỉ định
+
+Mục này liệt kê 5 lỗi a11y kinh điển. Đọc để rà code của mình trước khi công cụ hay người dùng phải rà giúp.
 
 ### 1. `div`/`span` giả button → không focus/keyboard
 
@@ -215,11 +179,17 @@ Headless (Radix) hoặc trap tay (giữ Tab trong, Esc đóng, trả focus). Tes
 
 Media query trên + `useReducedMotion` cho JS animation (Motion). Test emulate ở DevTools.
 
+> **Tóm gọn 1 câu:** Năm lỗi chung một gốc: làm giả thứ HTML đã có sẵn — giả button, bỏ label, báo lỗi chỉ bằng màu, modal không khóa, animation không hỏi ý OS.
+
 ## Best practices / Mẹo
+
+Mục này gom mẹo vận hành a11y hằng ngày. Đọc để biến checklist thành thói quen thay vì gánh nặng.
 
 ### Bàn phím trước; eslint lúc gõ; landmark + heading; headless cho phức tạp; tương phản + zoom
 
 Tab/Enter làm được hết là cơ bản ổn (nhanh nhất, không tool). `jsx-a11y` bắt lúc code. `main` + một `h1` + không nhảy cấp. Combobox/menu/dialog dùng Radix/Aria (đừng tự viết APG). Tương phản + zoom 200% trước khi merge.
+
+> **Tóm gọn 1 câu:** Thói quen vàng: thử bàn phím trước (nhanh nhất), để eslint bắt lúc gõ, và phần phức tạp thì mượn lib chuẩn thay vì tự chế.
 
 ## Bài tập nhỏ
 

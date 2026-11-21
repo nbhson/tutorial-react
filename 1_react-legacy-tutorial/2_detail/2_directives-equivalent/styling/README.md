@@ -9,6 +9,9 @@
 - Dịch `ng-style` sang object `style` camelCase của React.
 
 ## Khái niệm cốt lõi (Core)
+
+Mục này nói về cách React "dịch" `ng-class`/`ng-style`: không còn directive, mọi class/style đều là chuỗi và object JS bạn tự ghép. Đọc để nắm các quy tắc đổi tên (className, camelCase) và idiom `filter(Boolean)`.
+
 - AngularJS:
   - `ng-class="{active: isActive}"` — object: key = class, value = boolean.
   - `ng-class="[a, b]"` — array các class.
@@ -22,10 +25,17 @@
 - **`className` là chuỗi**: không nhận object/mảng trực tiếp như `ng-class`; bạn phải tự tạo chuỗi bằng JS (ternary, mảng + `join`).
 - Ký hiệu `{{}}` trong `style={{color: c}}`: ngoặc ngoài mở expression JSX, ngoặc trong là object JS — đừng nhầm với `{{ }}` của AngularJS.
 
+Ví von: `ng-class` giống có "người giúp việc" xếp quần jean theo điều kiện (bận hay không, ngày hay tối); trong React bạn tự xếp — mỗi lần render là một lần tự nhìn vào tủ state và quyết định "hôm nay mặc gì".
+
+> **Tóm gọn 1 câu:** `class` thành `className`, key CSS thành camelCase, `ng-class` thành chuỗi JS tự ghép — React đưa bạn quyền quyết định, kèm trách nhiệm tự ghép cho đúng.
+
 ### Keyword chính
 `className` · `style` object · `camelCase` · `filter(Boolean)` · `template literal` · `ng-class`/`ng-style`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này chạy ví dụ ghép class động: state đổi → mảng class lọc falsy → join thành chuỗi → className cập nhật.
+
 1. `StylingDemo` khởi tạo state `{ isActive: false, isError: false, color: "green" }`.
 2. Render: `cls = ["box", isActive && "active", isError && "error"].filter(Boolean).join(" ")` → chuỗi class (vd `"box active"`).
 3. `<style>` tag trong JSX định nghĩa CSS `.box/.active/.error` cho ví dụ.
@@ -35,42 +45,7 @@
 **Chạy:** mở `index.html` bằng trình duyệt.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY class — đối chiếu ng-class/ng-style.
-class StylingDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { isActive: false, isError: false, color: "green" };
-    this.toggleActive = this.toggleActive.bind(this);
-    this.toggleError = this.toggleError.bind(this);
-    this.setColor = this.setColor.bind(this);
-  }
-  toggleActive() { this.setState(function (p) { return { isActive: !p.isActive }; }); }
-  toggleError() { this.setState(function (p) { return { isError: !p.isError }; }); }
-  setColor(e) { this.setState({ color: e.target.value }); }
-  render() {
-    const s = this.state;
-    // ↔ ng-class="{active: isActive, error: isError}"
-    // filter(Boolean) bỏ phần tử false/null/"" rồi join thành chuỗi class
-    const cls = ["box", s.isActive && "active", s.isError && "error"].filter(Boolean).join(" ");
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Styling (≈ ng-class/ng-style)</h2>
-        <style>{".box{border:1px solid #ddd;padding:12px;max-width:320px;margin:0 auto}.active{background:#e8f5e9}.error{border-color:red}"}</style>
-        <p>
-          <button onClick={this.toggleActive}>toggle active</button>{" "}
-          <button onClick={this.toggleError}>toggle error</button>{" "}
-          <input value={s.color} onChange={this.setColor} placeholder="màu (ng-style)" />
-        </p>
-        {/* ↔ ng-class + ng-style: className từ state, style object từ state */}
-        <div className={cls} style={{ color: s.color }}>
-          className="{cls}" — style color {s.color}
-        </div>
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`["box", s.isActive && "active", s.isError && "error"]`**: mảng bắt chước form array của `ng-class`. Khi cờ false, phần tử là `false` → `filter(Boolean)` loại bỏ → `join(" ")` ra chuỗi sạch không thừa space.
@@ -84,6 +59,9 @@ class StylingDemo extends React.Component {
 - **Vì sao `filter(Boolean)`?**: `s.isActive && "active"` trả `false` khi `isActive` false; `[..., false, ...].join(" ")` sẽ in ra `"false"`! `filter(Boolean)` loại bỏ mọi giá trị falsy trước khi join. Đây là idiom rất phổ biến khi làm class động.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này dịch từng form của `ng-class`/`ng-style` sang JS thuần — từ class tĩnh đến mảng class động.
+
 | AngularJS | React | Ghi chú |
 |---|---|---|
 | `class="box"` tĩnh | `className="box"` | Từ khóa `class` không dùng được trong JSX |
@@ -93,13 +71,22 @@ class StylingDemo extends React.Component {
 | `ng-hide` dùng class/display | tự quản `style.display`/class | React không có directive ẩn |
 | CSS thuần | CSS thuần (className) | React không thay CSS |
 
+> **Cách đọc bảng này:** các dòng xếp từ tĩnh (class="box") đến động (mảng class, object style); cột *Ghi chú* nhắc quy tắc đặt tên (`className`, camelCase) áp dụng cho mọi dòng.
+
+> **Tóm gọn 1 câu:** Không còn `ng-class`/`ng-style` — chỉ còn chuỗi `className` và object `style` mà bạn tự dựng bằng JS mỗi lần render.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Lỗi styling phần nhiều là "viết kiểu HTML trong JSX" — mục này gom các cú "phập" đó.
+
 - **Viết `class=` trong JSX** → React cảnh báo và bỏ qua attribute. → Luôn dùng `className`.
 - **`style="color: red"` (chuỗi)** → không hoạt động. → `style` phải là **object**: `style={{color:"red"}}`.
 - **Key style có gạch ngang** `{'background-color': c}` → React không áp dụng thuộc tính. → Viết camelCase: `backgroundColor`.
 - **`className={["a", cond && "b"]}` không filter** → khi cond false xuất hiện chuỗi `"a  b"`? Không — join ra `"a true"` và `"a false"` khi falsy không phải `false` (vd `""`) → chuỗi xấu hoặc class lạ. → Luôn `filter(Boolean)` hoặc dùng ternary.
 - **Phụ thuộc class vào state nhưng quên setState** (gán thẳng `this.state.isActive = true`) → UI không đổi. → Đổi state qua `setState`.
 - **Style số cho thuộc tính cần đơn vị khác `px`**: `{width: 50}` → React dịch thành `50px`, sai nếu ý là `50%`. → Ghi chuỗi có đơn vị: `{width: "50%"}`.
+
+> **Tóm gọn 1 câu:** Ba quy tắc tránh lỗi style: `className` không phải `class`, `style` là object chứ không phải chuỗi, key CSS viết camelCase — và `filter(Boolean)` luôn đi kèm mảng class động.
 
 ## Best practices / Mẹo
 - Class động ít (1-2 điều kiện) dùng ternary; nhiều điều kiện dùng mảng + `filter(Boolean)` hoặc thư viện `classnames`.
@@ -110,6 +97,9 @@ class StylingDemo extends React.Component {
 - Không đặt tên prop `class` (như HTML) — React dùng `className`; còn `style` phải là object với key camelCase (`fontSize`, `backgroundColor`).
 
 ## Bài tập nhỏ
+
+Bài số 2 đáng làm: viết lại cùng một class động bằng template literal — so sánh hai cách để chọn cách hợp với mình.
+
 1. Thêm state `size` (px) và set `style={{ fontSize: s.size + "px" }}` từ input range — minh họa style động theo giá trị.
 2. Viết lại `cls` bằng template literal: `` `box ${isActive ? "active" : ""} ${isError ? "error" : ""}` `` và so sánh độ đọc hiểu với cách mảng.
 3. Thêm class `large` khi `size > 20` bằng cách ghép vào mảng class — luyện kết hợp style và class.

@@ -15,6 +15,8 @@
 
 ### 1. Bảng "khi nào gì" (1 trang)
 
+Mục này mở đầu bằng bảng quyết định: đọc cột "Dấu hiệu" để tìm tình huống của bạn, cột "Dùng gì" là đáp án — dừng ở dòng đầu tiên khớp.
+
 | Dấu hiệu | Dùng gì | Ví dụ |
 |---|---|---|
 | 1–3 field, rule đơn giản (required, email) | **`useState` + validate tay** | Form đăng nhập, form đặt lại mật khẩu |
@@ -24,30 +26,11 @@
 | **Form xuất hiện N nơi** (login nhiều trang) | **RHF + Zod** (schema chia sẻ 1 lần) | 1 schema dùng ở 3 page — đổi rule chỉ 1 chỗ |
 | **Nhiều field + mỗi phím gõ gây lag** (form dài) | **RHF** (uncontrolled — không re-render mỗi phím) | Form 30 field input nặng |
 
+> **Cách đọc bảng này:** bảng xếp từ form nhỏ lên form nặng — hai dòng đầu là vùng `useState`, ba dòng sau là vùng RHF; dòng ranh giới thực tế thường nằm ở cỡ ~5 field.
+
 ### 2. Dấu hiệu "vượt tải" của `useState` (check-list thực chiến)
 
-```tsx
-// ❌ Tín hiệu nên dừng lại và chuyển RHF khi thấy code đi về phía này:
-const [email, setEmail] = useState("");
-const [name, setName] = useState("");
-const [phone, setPhone] = useState("");
-const [pass, setPass] = useState("");
-const [confirm, setConfirm] = useState("");
-const [emailErr, setEmailErr] = useState("");
-const [passErr, setPassErr] = useState("");
-const [confirmErr, setConfirmErr] = useState("");
-const [submitting, setSubmitting] = useState(false);
-
-const submit = (e) => {
-  e.preventDefault();
-  // if lồng nhau, fail-fast tay — phình theo mỗi rule:
-  if (!name) { setNameErr("Tên bắt buộc"); return; }
-  if (!email.includes("@")) { setEmailErr("Email sai"); return; }
-  if (pass.length < 6) { setPassErr("Tối thiểu 6 ký tự"); return; }
-  if (pass !== confirm) { setConfirmErr("Không khớp"); return; }
-  // ...
-};
-```
+> 📄 **Code ví dụ:** [`examples/01-2-dau-hieu-vuot-tai-cua-usestate-check.tsx`](examples/01-2-dau-hieu-vuot-tai-cua-usestate-check.tsx)
 
 **Bốn mốc chuyển RHF** (ghi nhớ):
 
@@ -58,28 +41,7 @@ const submit = (e) => {
 
 **RHF + Zod biến toàn bộ nói trên thành:**
 
-```tsx
-const Schema = z.object({
-  name: z.string().min(1, "Tên bắt buộc"),
-  email: z.string().email("Email không hợp lệ"),
-  pass: z.string().min(6, "Tối thiểu 6 ký tự"),
-  confirm: z.string(),
-}).refine((d) => d.pass === d.confirm, { message: "Mật khẩu không khớp", path: ["confirm"] });
-
-function Register() {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } =
-    useForm<z.infer<typeof Schema>>({ resolver: zodResolver(Schema), mode: "onTouched" });
-
-  return (
-    <form onSubmit={handleSubmit((d) => /* d: type đã inference */)}>
-      <input {...register("name")} />
-      {errors.name && <small>{errors.name.message}</small>}
-      {/* ... các field còn lại — KHÔNG có N state, N setter, N if lồng nhau */}
-      <button disabled={isSubmitting}>Đăng ký</button>
-    </form>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-2-dau-hieu-vuot-tai-cua-usestate-check.tsx`](examples/02-2-dau-hieu-vuot-tai-cua-usestate-check.tsx)
 
 **Đổi từ 10 state + 5 if còn 1 schema + 1 `useForm`** — rule ở 1 chỗ, type đồng bộ (z.infer), lỗi theo field tự (không phân rã thủ công).
 
@@ -102,6 +64,8 @@ function Register() {
 | `ReactiveForms` (`FormGroup`, `FormControl`) | **RHF + Zod** | Cùng mức phức tạp (nhiều field + validate) — RHF gọn hơn (không class) |
 
 > **Nói đúng câu chốt**: Angular có 2 engine forms sẵn (template-driven + reactive); React không có engine forms trong core (Q1) — nên quyết định là bạn tự chọn: nguyên tắc state (useState ≈ template-driven) hay lib (RHF ≈ reactive). Chuẩn mực 2026 cho form nặng là **RHF + Zod**.
+
+> **Tóm gọn 1 câu:** Form 2–3 ô là xe máy — chở bằng `useState` là vừa; form 10 ô check chéo là chuyến hàng — cần xe tải RHF + Zod, chở hàng bằng xe máy là đổ giữa đường.
 
 ## Bẫy khi phỏng vấn
 

@@ -9,7 +9,10 @@
 - Phân biệt controlled (dữ liệu đi qua state) với thao tác DOM trực tiếp qua ref (imperative).
 
 ## Khái niệm cốt lõi (Core)
-- "Cách React nghĩ": UI = f(state). Bạn **không chạm DOM** để cập nhật giao diện — bạn đổi state, React tự lo DOM. Nhưng có những việc *imperative* bắt buộc chạm DOM thật: focus input, scroll, đo kích thước, tích hợp thư viện DOM (chart, video...).
+
+Mục này nói về "cửa hậu" ra DOM thật: ref dùng khi nào, tại sao phải tiết kiệm, và `current` có giá trị từ lúc nào. Đọc để không lạm dụng ref vào việc của state.
+
+- "Cách React nghĩ": UI = f(state). Bạn **không chạm DOM** để cập nhật giao diện — bạn đổi state, React tự lo DOM. Nhưng có những việc *imperative* bắt buộc chạm DOM thật: focus input, scroll, đo kích thước, tích hợp thư viện DOM (chart, video...). Ví von: React là người quản gia lo toàn bộ việc dọn dẹp (cập nhật UI) theo lời bạn dặn qua state; ref là khi bạn phải đích thân vào bếp làm một việc cụ thể — làm được nhưng đừng biến nó thành thói quen.
 - **Ref** = "vé" tham chiếu đến một DOM node (hoặc instance component). Trong class React 16: `React.createRef()` tạo container trong constructor, gắn `ref={this.inputRef}` vào element; sau khi mount, `this.inputRef.current` chứa node DOM thật.
 - Đối chiếu AngularJS: `angular.element(selector)` truy vấn theo selector; React thì gắn ref trực tiếp vào chính element trong JSX — khai báo rõ hơn, không phụ thuộc id/class.
 - **Nguyên tắc**: ref chỉ cho thao tác DOM *bất khả kháng*; đừng dùng ref để đọc/ghi dữ liệu lẽ ra phải nằm trong state.
@@ -22,10 +25,15 @@
 - Ref tới element DOM nào cũng được: `div`, `input`, `video`, `canvas`...; ref tới **class component** cho `current` là instance (gọi được method của nó), nhưng không ref được vào function component (không có instance).
 - **Tương đương AngularJS**: `angular.element(el)[0]` cho node thô; React `ref.current` cho cùng node nhưng gắn khai báo ngay trong JSX thay vì truy vấn selector.
 
+> **Tóm gọn 1 câu:** Ref là "vé vào DOM thật" — chỉ dùng cho hành động imperative (focus, scroll, đo đạc), và `current` chỉ có giá trị sau khi element đã mount.
+
 ### Keyword chính
 `React.createRef()` · `ref` · `ref.current` · `focus()` · `imperative DOM`.
 
 ## Luồng hoạt động (Flow)
+
+Mục này lần theo một ref từ lúc "sinh ra" (constructor, `current = null`) đến lúc "có giá trị" (sau mount) và lúc "trả vé" (unmount, về `null` lại).
+
 1. Constructor chạy → `this.inputRef = React.createRef()` — container rỗng, `current = null`.
 2. `render()` → JSX có `<input ref={this.inputRef} defaultValue="Geeks" />`.
 3. React mount cây → gán node DOM thật của input vào `this.inputRef.current`.
@@ -36,39 +44,7 @@
 **Chạy:** mở `index.html`, bấm nút để focus/clear input.
 
 ## Ví dụ chi tiết
-```jsx
-// LEGACY createRef — đối chiếu thao tác DOM của AngularJS.
-class RefsDemo extends React.Component {
-  constructor(props) {
-    super(props);
-    this.inputRef = React.createRef(); // tạo "container" ref, ban đầu current=null
-    this.focus = this.focus.bind(this);
-    this.clear = this.clear.bind(this);
-  }
-  focus() {
-    // current trỏ đến input DOM thật (React gán sau khi mount)
-    this.inputRef.current.focus(); // ↔ angular.element(...)[0].focus()
-  }
-  clear() {
-    // Thao tác DOM trực tiếp — đây là GHI DOM, tránh lạm dụng
-    this.inputRef.current.value = "";
-    this.inputRef.current.focus();
-  }
-  render() {
-    return (
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "green" }}>Refs (focus input)</h2>
-        {/* Gắn ref vào element; defaultValue: chỉ khởi tạo lần đầu */}
-        <p><input ref={this.inputRef} placeholder="Nhập tên..." defaultValue="Geeks" /></p>
-        <p>
-          <button onClick={this.focus}>Focus</button>{" "}
-          <button onClick={this.clear}>Xóa + focus</button>
-        </p>
-      </div>
-    );
-  }
-}
-```
+> 📄 **Code ví dụ:** [`examples/01-vi-du-chi-tiet.jsx`](examples/01-vi-du-chi-tiet.jsx)
 
 ## Giải thích từng phần
 - **`React.createRef()`**: tạo object `{ current: null }`. Tạo trong constructor để ref ổn định qua các lần render (đừng tạo trong render).
@@ -80,6 +56,9 @@ class RefsDemo extends React.Component {
 - **`ref` không tạo thêm render**: gắn ref hay đọc `.current` đều không gây re-render (khác `setState`). Đây là lý do ref hợp cho thao tác "âm thầm" như focus; nhưng cũng nghĩa là UI không tự cập nhật theo ref.
 
 ## So sánh AngularJS ↔ React (bảng markdown)
+
+Bảng này đối chiếu cách lấy DOM node của hai framework: AngularJS đi tìm theo selector, React khai báo ref ngay trên element — cùng đích, khác tư duy.
+
 | AngularJS | React legacy | Ghi chú |
 |---|---|---|
 | `angular.element('#id')` truy vấn | `ref={this.inputRef}` gắn trực tiếp | React khai báo trên chính element |
@@ -88,7 +67,14 @@ class RefsDemo extends React.Component {
 | Thao tác DOM trong directive | Ref chỉ dùng khi bất khả kháng | React khuyến khích ít chạm DOM |
 | — | `createRef` (React 16.3+) | Thay string refs đã deprecated |
 
+> **Cách đọc bảng này:** đọc cột *Ghi chú* trước — nó tóm tắt tư duy khác biệt: AngularJS chủ động truy vấn DOM, React "đăng ký trước" rồi nhận node; các dòng còn lại là công thức dịch cụ thể.
+
+> **Tóm gọn 1 câu:** AngularJS đi *tìm* DOM bằng selector; React *nhận* DOM qua ref gắn sẵn trên element — và cả hai đều chỉ nên làm việc này khi bất khả kháng.
+
 ## Lỗi thường gặp (Common pitfalls)
+
+Lỗi với ref đa phần là "đọc quá sớm" — `current` vẫn là null vì element chưa mount.
+
 - **Đọc `this.inputRef.current` ngay trong `render()`** → `null` vì chưa mount. → Chỉ đọc trong sự kiện/lifecycle (`componentDidMount` trở đi).
 - **Tạo ref trong `render()`** (`ref={React.createRef()}`) → ref mới mỗi render, gán/không gán lung tung. → Tạo trong constructor.
 - **Dùng `value` không kèm `onChange` trên input có ref** → input không sửa được ("read-only"). → Hoặc dùng `defaultValue`, hoặc chuyển sang controlled.
@@ -96,6 +82,8 @@ class RefsDemo extends React.Component {
 - **Lạm dụng ref để "tự sửa DOM" mỗi lần state đổi** → phá vỡ Virtual DOM diff. → Cập nhật UI bằng state/props, ref chỉ cho hành động imperative (focus, scroll).
 - **Dùng ref cho hai element / quên gắn `ref`** → `current` là null hoặc trỏ sai node. → Mỗi ref một element; kiểm tra `if (this.inputRef.current)` khi không chắc.
 - **String ref `ref="input"` (kiểu cũ)** → đã bị bỏ ở React 16, cảnh báo/không chạy. → Dùng `createRef` (hoặc callback ref).
+
+> **Tóm gọn 1 câu:** Quy tắc an toàn với ref: tạo trong constructor, đọc sau mount, và tự hỏi trước mỗi lần dùng — "việc này state làm được không?".
 
 ## Best practices / Mẹo
 - Thứ tự ưu tiên: (1) state/props, (2) controlled input, (3) mới nghĩ đến ref.
@@ -110,6 +98,9 @@ class RefsDemo extends React.Component {
 - Khi tích hợp thư viện DOM ngoài (chart, editor), gọi nó trong `componentDidMount` với `ref.current` rồi dọn dẹp trong `componentWillUnmount`.
 
 ## Bài tập nhỏ
+
+Bốn bài này cho bạn làm quen các tình huống ref thật: select, scroll, đo độ dài — đều là việc state không làm được.
+
 1. Thêm nút "Chọn toàn bộ" gọi `this.inputRef.current.select()` khi bấm.
 2. Đổi `defaultValue` thành controlled `value={this.state.text}` + `onChange` setState, rồi so sánh: khi nào nên dùng cách nào.
 3. Thêm một `<textarea ref={this.areaRef}>` và nút "Ghi log độ dài" in `this.areaRef.current.value.length`.

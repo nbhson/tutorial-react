@@ -10,32 +10,16 @@
 ### 1. External store = state global ngoài React, nhiều nơi đọc/ghi
 Với Angular bạn quen `Service` + `BehaviorSubject` + `async` pipe: service singleton giữ `currentValue`, `next()` đổi, component `subscribe`/`async` pipe đọc. React không có service class — dùng store là object/function tạo ở module scope (ngoài component, tồn tại suốt app), React "subscribe" để đọc qua `useSyncExternalStore` hoặc hook của lib.
 
-```ts
-// Angular: Service + BehaviorSubject
-// @Injectable({ providedIn: "root" })
-// cart$ = new BehaviorSubject<CartItem[]>([]);
-// add(item) { this.cart$.next([...this.cart$.value, item]); }
-// Template: {{ (cart$ | async)?.length }}
+> 📄 **Code ví dụ:** [`examples/01-1-external-store-state-global-ngoai-react-nhieu.ts`](examples/01-1-external-store-state-global-ngoai-react-nhieu.ts)
 
-// React: store ngoài component + subscribe (xem example.tsx đầy đủ dưới)
-const cartStore = { items: [] as CartItem[], listeners: new Set<() => void>(), /* ... */ };
-// Component: const count = useCartStore((s) => s.length);
-```
+Vì sao ngoài React? Vì state này sống độc lập với cây component: chưa mount vẫn tồn tại, unmount hết vẫn còn, đọc/ghi được từ event/effect/non-React code (`cartStore.add()` từ nút, từ socket, từ setTimeout). `useState`/Context chết theo component; store sống theo module. Nếu nhét giỏ hàng vào `useState` ở App,Executors reload trang con là mất; store + `persist` middleware thì sống sót. Ví von: `useState` là tiền để trong túi áo (người chết theo là mất), store là tiền để trong két nhà (ai trong nhà cũng lấy được, khỏi theo ai).
 
-Vì sao ngoài React? Vì state này sống độc lập với cây component: chưa mount vẫn tồn tại, unmount hết vẫn còn, đọc/ghi được từ event/effect/non-React code (`cartStore.add()` từ nút, từ socket, từ setTimeout). `useState`/Context chết theo component; store sống theo module. Nếu nhét giỏ hàng vào `useState` ở App,Executors reload trang con là mất; store + `persist` middleware thì sống sót.
+> **Tóm gọn 1 câu:** External store là "két nhà chung" ngoài React: sống theo module, ai cần đọc/ghi đều được — component chỉ thuê mắt (selector) để soi đúng ngăn của mình.
 
 ### 2. `useSyncExternalStore(subscribe, getSnapshot)` — hợp đồng 2 hàm
 Hook nền tảng giúp React đọc an toàn store ngoài. Contract bắt buộc: `subscribe(fn)` đăng ký callback và **trả hàm hủy**; `getSnapshot()` trả giá trị hiện tại. React gọi `subscribe` 1 lần sau mount, gọi `getSnapshot` mỗi lần cần so sánh, gọi hàm hủy khi unmount. Zustand/Redux đều xây trên nguyên lý này — hiểu nó là hiểu mọi store.
 
-```ts
-// Hợp đồng tối giản (trích example.tsx, xem bản đầy đủ ở Ví dụ chi tiết):
-subscribe(fn: () => void) {
-  cartStore.listeners.add(fn); // bạn CẤT fn do React tạo vào Set
-  return () => { cartStore.listeners.delete(fn); }; // bạn TRẢ hàm hủy, React GỌI khi unmount
-},
-getSnapshot() { return cartStore.items; }, // bạn TRẢ giá trị hiện tại, React SO SÁNH
-// add(): bạn tạo mảng mới + forEach báo subscriber kiểm tra lại
-```
+> 📄 **Code ví dụ:** [`examples/02-2-usesyncexternalstore-subscribe-getsnapshot-hop-ong-2-ham.ts`](examples/02-2-usesyncexternalstore-subscribe-getsnapshot-hop-ong-2-ham.ts)
 
 Ai viết ai gọi (rạch ròi để không nhầm):
 
@@ -51,46 +35,32 @@ Ai viết ai gọi (rạch ròi để không nhầm):
 
 Vì sao phải `getSnapshot` trả cùng tham chiếu khi không đổi? Vì React so `Object.is(snapshot cũ, snapshot mới)` — trả object mới mỗi lần (dù nội dung giống) là React tưởng "đổi" → render loop + cảnh báo "getSnapshot should be cached". Zustand đảm bảo điều này; tự viết phải giữ (`items` chỉ gán mảng mới khi thật sự đổi).
 
+> **Tóm gọn 1 câu:** `useSyncExternalStore` = hợp đồng 2 chữ ký: "có gì mới còi một tiếng" (subscribe) và "cho tôi xem hiện trạng" (getSnapshot) — mọi store lib đều đứng trên nó.
+
+> **Cách đọc bảng này:** mỗi dòng là một thành viên trong store, trả lời hai câu hỏi "ai viết, ai gọi" — đọc để rạch ròi ranh giới: bạn quản dữ liệu và listener, React chỉ cầm `fn` và gọi đúng lúc.
+
 ### 3. Zustand — mặc định 2026 cho app vừa
 `create<T>()((set) => ({...}))` (curried 2 ngoặc cho TypeScript), dùng `useCart(s => s.items.length)` subscribe đúng slice. Không boilerplate, không Provider, đọc ngoài React bằng `getState()`.
 
-```tsx
-// Zustand prod (cài npm i zustand) — cùng ý với store tự viết nhưng gọn + tối ưu sẵn:
-import { create } from "zustand";
-type CartState = { items: string[]; add: (item: string) => void; clear: () => void };
-export const useCart = create<CartState>()((set) => ({
-  items: [],
-  add: (item) => set((s) => ({ items: [...s.items, item] })), // bất biến qua set
-  clear: () => set({ items: [] }),
-}));
-function CartCount() {
-  const count = useCart((s) => s.items.length); // selector: chỉ slice này đổi mới render
-  return <p>Giỏ hàng: {count}</p>;
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-3-zustand-mac-inh-2026-cho-app-vua.tsx`](examples/03-3-zustand-mac-inh-2026-cho-app-vua.tsx)
 
 Cơ chế selector: Zustand chạy selector lấy lát, so `Object.is` lát cũ/mới. Thêm item mà `items.length` giữ nguyên (không thể, nhưng ví dụ đổi tên item giữ length) thì `CartCount` **không** re-render. Đây là khác biệt với Context (value đổi là mọi consumer render). Selector trả object mới mỗi lần (`s => ({ a: s.a })`) thì so luôn khác → re-render vô tận — phải trả nguyên thủy hoặc `useShallow`.
+
+> **Tóm gọn 1 câu:** Zustand = store tự viết cộng selector: mỗi component chỉ "soi đúng lát bánh" của mình — lát không đổi thì đứng yên.
 
 ### 4. Redux Toolkit cho app lớn cần audit/time-travel
 `createSlice` (reducer + action một chỗ, Immer cho phép viết `push` mà vẫn bất biến), `configureStore`, DevTools time-travel/undo, `createAsyncThunk`/RTK Query cho fetch. Tương đương NgRx nhưng gọn hơn (không action file rời, không switch dài).
 
-```ts
-// Redux Toolkit (app lớn — DevTools time-travel, audit action):
-import { configureStore, createSlice } from "@reduxjs/toolkit";
-const cartSlice = createSlice({
-  name: "cart",
-  initialState: { items: [] as string[] },
-  reducers: { add: (s, a: { payload: string }) => { s.items.push(a.payload); } }, // Immer: viết mutate, thực chất bất biến
-});
-export const { add } = cartSlice.actions;
-export const store = configureStore({ reducer: { cart: cartSlice.reducer } });
-// Component: const count = useSelector((s: RootState) => s.cart.items.length);
-```
+> 📄 **Code ví dụ:** [`examples/04-4-redux-toolkit-cho-app-lon-can-audit.ts`](examples/04-4-redux-toolkit-cho-app-lon-can-audit.ts)
 
 Vì sao Immer quan trọng? Vì reducer đúng phải bất biến (trả object mới) để subscriber phát hiện đổi. Viết spread tay cho state lồng sâu dễ sót; Immer cho viết `push`/gán trực tiếp mà kết quả vẫn bất biến — giảm 80% bug mutate.
 
+> **Tóm gọn 1 câu:** Redux Toolkit là "văn phòng lưu hồ sơ" cho app lớn: từng action một trang giấy, quay lại xem lại được (time-travel) — Immer là trợ lý viết hộ cho khỏi lỗi bất biến.
+
 ### 5. Quyết định kiến trúc 3 nấc
 `useState` cho form/input cục bộ (chết theo component); Context cho config ít đổi xuyên tầng (theme/auth/locale — value đổi hiếm); **store cho state hay đổi + nhiều subscriber** (giỏ hàng, realtime, bộ lọc) — tránh re-render cả cây. Custom hook (`useLocalStorage`) không phải store — mỗi lần gọi là state riêng, không chia sẻ.
+
+> **Tóm gọn 1 câu:** Ba nấc thang state: túi áo (`useState`), tủ nhà (`Context`), két sảnh chung (store) — hàng càng hay đổi càng để gần két.
 
 ### Keyword chính
 external store, `useSyncExternalStore` (nền tảng), Zustand `create` + selector (mặc định), Redux Toolkit `createSlice` (app lớn), `getSnapshot`/`subscribe` (hợp đồng), `BehaviorSubject` ↔ store, selector slice.
@@ -105,6 +75,8 @@ Trục 1 — đưa dữ liệu qua component (3 nấc theo quy mô):
 | Context | Config ít đổi, xuyên nhiều tầng (theme/auth/locale) | Value đổi là cả cụm consumer re-render |
 | Store | State hay đổi + nhiều nơi đọc/ghi (giỏ hàng, realtime) | Thêm khái niệm + lib (hoặc tự viết như bài này) |
 
+> **Cách đọc bảng này:** mỗi dòng là một nấc thang đưa dữ liệu, xếp từ rẻ đến đắt; đọc cột "Giá phải trả" để hiểu vì sao đừng nhảy nấc — chọn nấc thấp nhất còn chịu được cho việc của bạn.
+
 Trục 2 — trong "store" (3 thứ, không ngang hàng):
 
 ```
@@ -118,6 +90,7 @@ useSyncExternalStore   <- nền tảng (hook React, hợp đồng subscribe/getS
 - Custom hook (`useLocalStorage`...) không thuộc 2 trục — mỗi lần gọi là state riêng, không chia sẻ giữa component.
 
 ## Luồng hoạt động (Flow)
+Mục này đi qua 10 bước theo vòng đời thật của giỏ hàng: store sống trước component, đăng ký selector, bấm thêm hàng, so lát, unmount — đọc theo thứ tự để thấy "ai báo ai, ai render ai".
 1. Module load: file store chạy — Zustand `create` dựng store với `items: []` + action `add`/`clear`; hoặc store tự viết có `listeners: Set` + `items: []`. Store tồn tại trước mọi component.
 2. `CartCount` render: gọi `useCart(s => s.items.length)` (Zustand) hoặc `useCartStore(s => s.length)` (tự viết) → đăng ký selector; React nhớ lát hiện tại.
 3. User bấm "thêm hàng" → `add(item)` → `set(s => ({...}))` (Zustand) hoặc gán mảng mới + `listeners.forEach(l => l())` (tự viết) → thông báo subscriber.
@@ -132,109 +105,13 @@ useSyncExternalStore   <- nền tảng (hook React, hợp đồng subscribe/getS
 ## Ví dụ chi tiết
 Khớp 1-1 với `example.tsx` cùng thư mục (KHÔNG sửa example DAY 8 — đã chuẩn, chỉ mirror vào README):
 
-```tsx
-// example.tsx — DAY 8: external store giỏ hàng (không cần lib)
-// Một ví dụ duy nhất: state nằm NGOÀI React, component subscribe để đọc.
-import { useSyncExternalStore } from "react";
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
-type CartItem = { id: number; name: string };
-
-let nextId = 1; // id tăng dần — không hiển thị nên không cần báo subscriber
-
-// Store ngoài React — giống Service singleton + BehaviorSubject của Angular
-const cartStore = {
-  items: [] as CartItem[], // nguồn dữ liệu thật
-  listeners: new Set<() => void>(), // danh sách subscriber
-  subscribe(fn: () => void) {
-    // contract của useSyncExternalStore: đăng ký + trả hàm hủy
-    cartStore.listeners.add(fn);
-    return () => {
-      cartStore.listeners.delete(fn); // React gọi khi unmount — chống leak
-    };
-  },
-  getSnapshot() {
-    return cartStore.items; // trả giá trị hiện tại để React so sánh
-  },
-  add(name: string) {
-    // bất biến: mảng mới — giữ tham chiếu cũ khi không đổi để selector so được
-    cartStore.items = [...cartStore.items, { id: nextId++, name }];
-    cartStore.listeners.forEach((l) => l()); // báo subscriber kiểm tra lại
-  },
-  clear() {
-    cartStore.items = [];
-    cartStore.listeners.forEach((l) => l());
-  },
-};
-
-// Hook đọc có selector: mỗi component chọn đúng "lát" cần.
-// React so lát đã lọc bằng Object.is — lát không đổi thì bỏ qua re-render.
-function useCartStore<T>(selector: (items: CartItem[]) => T): T {
-  return useSyncExternalStore(cartStore.subscribe, () => selector(cartStore.getSnapshot()));
-}
-
-function CartCount() {
-  const count = useCartStore((s) => s.length); // lát số lượng: thêm hàng mới render lại
-  return <p>Giỏ hàng: {count} món</p>;
-}
-
-function CartList() {
-  const items = useCartStore((s) => s); // lát cả mảng: cùng tham chiếu thì đứng yên
-  if (items.length === 0) return <p>Giỏ trống.</p>;
-  return (
-    <ul>
-      {items.map((i) => (
-        <li key={i.id}>{i.name}</li>
-      ))}
-    </ul>
-  );
-}
-
-export default function App() {
-  return (
-    <>
-      <CartCount />
-      <CartList />
-      <button onClick={() => cartStore.add(`Hàng ${nextId}`)}>Thêm hàng</button>
-      <button onClick={() => cartStore.clear()}>Xóa giỏ</button>
-    </>
-  );
-}
-```
-
-```tsx
-// Zustand (prod): cùng module với trên, cài `npm i zustand`
-import { create } from "zustand";
-
-type CartState = { items: string[]; add: (item: string) => void; clear: () => void };
-export const useCart = create<CartState>()((set) => ({
-  items: [],
-  add: (item) => set((s) => ({ items: [...s.items, item] })), // bất biến: mảng mới
-  clear: () => set({ items: [] }),
-}));
-
-// Component chỉ subscribe đúng slice -> ít re-render (so Object.is lát):
-function CartCount() {
-  const count = useCart((s) => s.items.length); // slice số lượng
-  return <p>Giỏ hàng: {count}</p>;
-}
-// Đọc ngoài React: useCart.getState().add("Hàng A") — tiện nhưng kỷ luật để tránh global ẩn.
-```
+> 📄 **Code ví dụ:** [`examples/06-vi-du-chi-tiet.tsx`](examples/06-vi-du-chi-tiet.tsx)
 
 Redux Toolkit (app lớn — DevTools time-travel, audit từng action):
 
-```ts
-import { configureStore, createSlice } from "@reduxjs/toolkit";
-
-const cartSlice = createSlice({
-  name: "cart",
-  initialState: { items: [] as string[] },
-  reducers: { add: (s, a: { payload: string }) => { s.items.push(a.payload); } }, // Immer: viết mutate, kết quả bất biến
-});
-export const { add } = cartSlice.actions;
-export const store = configureStore({ reducer: { cart: cartSlice.reducer } });
-// Component: const items = useSelector((s: RootState) => s.cart.items);
-// Dispatch: dispatch(add("Hàng A")) — DevTools ghi action để time-travel/undo.
-```
+> 📄 **Code ví dụ:** [`examples/07-vi-du-chi-tiet.ts`](examples/07-vi-du-chi-tiet.ts)
 
 ## Giải thích từng phần
 - Dòng `let nextId = 1`: id tăng dần ở module scope, không trong store snapshot. Vì sao ngoài? Vì id không hiển thị, không cần báo subscriber; để trong `items` thì mỗi lần tăng id dù không thêm hàng cũng làm snapshot đổi.
@@ -252,6 +129,7 @@ export const store = configureStore({ reducer: { cart: cartSlice.reducer } });
 - Selector trả object mới (`s => ({ a: s.a, b: s.b })`) thì `Object.is` luôn khác → re-render mỗi lần store đổi dù `a`/`b` giống. Fix: trả nguyên thủy riêng, hoặc `useShallow` (Zustand v5) so nông.
 
 ## Bảng so sánh Angular ↔ React
+Mục này dịch từng khái niệm state global của Angular (Service + RxJS) sang thế giới store của React — đọc cột Ghi chú để thấy React "bỏ stream" nhưng giữ nguyên mô hình subscribe/so lát.
 | Angular | React | Ghi chú |
 |---|---|---|
 | Service + `BehaviorSubject<CartItem[]>` | Zustand store / `useSyncExternalStore` + `cartStore` | Cùng ý state global + subscribe/unsubscribe |
@@ -265,89 +143,43 @@ export const store = configureStore({ reducer: { cart: cartSlice.reducer } });
 | `inject(Store).select(...)` typed | `useCart` typed + selector generic | Type suy từ store, sai slice báo compile |
 | `HttpTestingController` mock service | `useCart.setState()` / `getState()` trong test | Ghi đè state trực tiếp khi test, không cần TestBed |
 
+> **Cách đọc bảng này:** mỗi dòng là một cặp cũ ↔ mới; dòng 1 và dòng 4 là hai "trụ cột" (BehaviorSubject ↔ store, NgRx ↔ RTK) — các dòng còn lại là công cụ lân cận (pipe, effects, OnPush) đã được React giải quyết bằng cách khác.
+
 ## Lỗi thường gặp (Common pitfalls)
 
+Mục này gom 8 cái bẫy của external store — rễ chung là một: vi phạm hợp đồng "bất biến + tham chiếu ổn định" mà React dựa vào để so sánh.
+
 ### 1. `getSnapshot` trả object mới mỗi lần → render loop
-```tsx
-// ❌ SAI: copy mới mỗi lần — Object.is luôn khác, React tưởng đổi liên tục
-getSnapshot() { return [...cartStore.items]; } // cảnh báo "getSnapshot should be cached"
-```
-```tsx
-// ✅ ĐÚNG: trả tham chiếu hiện tại; chỉ tạo mới khi thật sự đổi (trong add/clear)
-getSnapshot() { return cartStore.items; }
-```
+> 📄 **Code ví dụ:** [`examples/08-1-getsnapshot-tra-object-moi-moi-lan-render.tsx`](examples/08-1-getsnapshot-tra-object-moi-moi-lan-render.tsx)
+> 📄 **Code ví dụ:** [`examples/09-1-getsnapshot-tra-object-moi-moi-lan-render.tsx`](examples/09-1-getsnapshot-tra-object-moi-moi-lan-render.tsx)
 Vì sao sai? Vì React so snapshot để quyết định render; snapshot mới mỗi lần là "đổi giả" → loop. Zustand lo điều này sẵn.
 
 ### 2. Quên trả unsubscribe trong `subscribe` → leak
-```tsx
-// ❌ SAI: không trả hàm hủy — Set phình mỗi mount/unmount
-subscribe(fn: () => void) { cartStore.listeners.add(fn); }
-```
-```tsx
-// ✅ ĐÚNG: trả hàm xóa, React gọi khi unmount (như example)
-subscribe(fn: () => void) {
-  cartStore.listeners.add(fn);
-  return () => { cartStore.listeners.delete(fn); };
-}
-```
+> 📄 **Code ví dụ:** [`examples/10-2-quen-tra-unsubscribe-trong-subscribe-leak.tsx`](examples/10-2-quen-tra-unsubscribe-trong-subscribe-leak.tsx)
+> 📄 **Code ví dụ:** [`examples/11-2-quen-tra-unsubscribe-trong-subscribe-leak.tsx`](examples/11-2-quen-tra-unsubscribe-trong-subscribe-leak.tsx)
 
 ### 3. Subscribe cả store thay vì slice → re-render thừa
-```tsx
-// ❌ SAI: không selector — đổi field nào cũng render
-const state = useCart(); // mọi set() đều render lại component này
-```
-```tsx
-// ✅ ĐÚNG: selector nhỏ — chỉ lát đổi mới render
-const count = useCart((s) => s.items.length);
-const items = useCart((s) => s.items);
-```
+> 📄 **Code ví dụ:** [`examples/12-3-subscribe-ca-store-thay-vi-slice-re.tsx`](examples/12-3-subscribe-ca-store-thay-vi-slice-re.tsx)
+> 📄 **Code ví dụ:** [`examples/13-3-subscribe-ca-store-thay-vi-slice-re.tsx`](examples/13-3-subscribe-ca-store-thay-vi-slice-re.tsx)
 
 ### 4. Mutate trong `set` → UI đơ
-```tsx
-// ❌ SAI: push giữ tham chiếu — subscriber tưởng không đổi
-add: (item) => set((s) => { s.items.push(item); return s; })
-```
-```tsx
-// ✅ ĐÚNG: mảng mới (Zustand thường) hoặc Immer (RTK cho phép push nhưng kết quả bất biến)
-add: (item) => set((s) => ({ items: [...s.items, item] }))
-// RTK: add: (s, a) => { s.items.push(a.payload); } // Immer biến thành bất biến giúp bạn
-```
+> 📄 **Code ví dụ:** [`examples/14-4-mutate-trong-set-ui-o.tsx`](examples/14-4-mutate-trong-set-ui-o.tsx)
+> 📄 **Code ví dụ:** [`examples/15-4-mutate-trong-set-ui-o.tsx`](examples/15-4-mutate-trong-set-ui-o.tsx)
 
 ### 5. Nhét toàn bộ app vào store
 Mô tả: form input, toggle UI cục bộ cũng vào store → mất lợi ích state cục bộ, DevTools nhiễu, debug khó. Fix: `useState` cho form/input (chết theo component); store chỉ cho state thật sự global + hay đổi (cart, filter dùng chung, realtime).
 
 ### 6. Dùng store cho dữ liệu server → tự lo cache/loading/retry
-```tsx
-// ❌ SAI: fetch users về set vào Zustand — phải tự viết loading/error/retry/dedupe/stale
-const users = useStore((s) => s.users); useEffect(() => { fetch(...).then(set) }, []);
-```
-```tsx
-// ✅ ĐÚNG: server state để TanStack Query (DAY 12); store chỉ client state
-const { data } = useQuery({ queryKey: ["users"], queryFn: fetchUsers });
-```
+> 📄 **Code ví dụ:** [`examples/16-6-dung-store-cho-du-lieu-server-tu.tsx`](examples/16-6-dung-store-cho-du-lieu-server-tu.tsx)
+> 📄 **Code ví dụ:** [`examples/17-6-dung-store-cho-du-lieu-server-tu.tsx`](examples/17-6-dung-store-cho-du-lieu-server-tu.tsx)
 
 ### 7. Selector trả object/array mới mỗi lần → re-render vô tận
-```tsx
-// ❌ SAI: object literal mới mỗi lần — Object.is luôn khác
-const { a, b } = useCart((s) => ({ a: s.a, b: s.b }));
-```
-```tsx
-// ✅ ĐÚNG: selector nguyên thủy riêng, hoặc useShallow so nông (Zustand v5)
-const a = useCart((s) => s.a); const b = useCart((s) => s.b);
-import { useShallow } from "zustand/react/shallow";
-const { a, b } = useCart(useShallow((s) => ({ a: s.a, b: s.b })));
-```
+> 📄 **Code ví dụ:** [`examples/18-7-selector-tra-object-array-moi-moi-lan.tsx`](examples/18-7-selector-tra-object-array-moi-moi-lan.tsx)
+> 📄 **Code ví dụ:** [`examples/19-7-selector-tra-object-array-moi-moi-lan.tsx`](examples/19-7-selector-tra-object-array-moi-moi-lan.tsx)
 
 ### 8. Đọc store trong render rồi gán vào state → loop
-```tsx
-// ❌ SAI: render -> setState -> render ...
-const items = useCartStore((s) => s);
-const [copy, setCopy] = useState(items); setCopy(items); // loop
-```
-```tsx
-// ✅ ĐÚNG: đọc trực tiếp qua hook; state chỉ cho giá trị cục bộ (filter text, input)
-const items = useCartStore((s) => s); // dùng thẳng, không copy vào state
-```
+> 📄 **Code ví dụ:** [`examples/20-8-oc-store-trong-render-roi-gan-vao.tsx`](examples/20-8-oc-store-trong-render-roi-gan-vao.tsx)
+> 📄 **Code ví dụ:** [`examples/21-8-oc-store-trong-render-roi-gan-vao.tsx`](examples/21-8-oc-store-trong-render-roi-gan-vao.tsx)
 
 ## Best practices / Mẹo
 - **Chọn theo quy mô:** input/form → `useState`; config ít đổi → Context; hay đổi + nhiều nơi → Zustand (mặc định 2026)/Redux Toolkit (lớn cần DevTools). Vì sao? Vì mỗi cơ chế tối ưu cho một tần suất đổi khác nhau.
@@ -356,6 +188,8 @@ const items = useCartStore((s) => s); // dùng thẳng, không copy vào state
 - Thêm middleware `persist` (localStorage) + `devtools` (Redux DevTools) khi store quan trọng. Vì sao? Vì persist giữ giỏ hàng qua reload, devtools cho time-travel khi debug.
 - **Đặt tên action rõ** (`addItem`, `removeItem`) — DevTools log dễ đọc. Vì sao? Vì action `"set"` chung chung trong trace 100 dòng không biết ai gọi.
 - Tránh lưu derived trong store — tính bằng selector (`total = items.reduce`) thay vì lưu `total` riêng. Vì sao? Vì hai nguồn (items + total) dễ lệch khi quên cập nhật một bên.
+
+> **Tóm gọn 1 câu:** Store là két nhà chung: chia theo domain, đặt tên action rõ, luôn bất biến, selector trả lát ổn định — làm đúng thì chỉ người liên quan mới "rung" khi két mở.
 
 ## Bài tập nhỏ
 1. Viết store tự viết (không lib) cho cart: `items`, `add`, `remove`, và 2 component: một đọc `items.length`, một đọc `items` — thêm `console.log` chứng minh bấm thêm hàng thì cả hai render, còn action chỉ đổi tên (giữ length) thì chỉ list render.

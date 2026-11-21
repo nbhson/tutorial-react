@@ -2,7 +2,7 @@
 
 > Nguồn: https://micro-frontends.org/ — https://module-federation.io/
 
-Micro-frontend chia một ứng dụng lớn thành nhiều app nhỏ do các team khác nhau sở hữu và **deploy độc lập**. Nhóm này đi từ cơ chế (Module Federation, single-spa) tới "điều kiện sống khỏe" (share dependency, routing, version deploy).
+Micro-frontend chia một ứng dụng lớn thành nhiều app nhỏ do các team khác nhau sở hữu và **deploy độc lập**. Nhóm này đi từ cơ chế (Module Federation, single-spa) tới "điều kiện sống khỏe" (share dependency, routing, version deploy). Ví von: micro-frontend là phân khu một khu đô thị thành nhiều tòa nhà riêng — mỗi tòa tự xây tự sửa mà không rầm rộ cả khu.
 
 ## Nhóm này giải quyết gì
 
@@ -27,6 +27,8 @@ Khi một frontend phình tới mức nhiều team cùng code, các vấn đề 
 | 1 | [1-module-federation/](1-module-federation/README.md) | Module Federation với **Vite/Rspack**: host tải remote lúc runtime, share singleton dependency, type-safe remote. So sánh `@module-federation/vite` (dev nhanh) vs Rspack (production ổn định). | Chia sẻ code |
 | 2 | [2-single-spa/](2-single-spa/README.md) | **single-spa**: orchestration nhiều app khác framework trên một trang, lifecycle `mount/unmount`, layout engine. Điều phối theo route prefix, truyền dữ liệu qua custom props/event bus. | Điều phối |
 | 3 | [3-shared-deps-deploy/](3-shared-deps-deploy/README.md) | Share deps, routing liên app (**basename/memory router**) + deploy độc lập theo version, contract test. Chỉ host giữ `BrowserRouter`, remote dùng memory router. | Vận hành |
+
+> **Cách đọc bảng này:** mỗi dòng là một bài con, cột Trọng tâm cho biết "trục" chính của bài (chia sẻ code, điều phối, vận hành) — chọn bài theo trục đang cần giải quyết, không cần đọc tuần tự cả 3.
 
 ## Mô tả chi tiết từng bài
 
@@ -80,6 +82,8 @@ Nếu chỉ chọn một hướng: cùng framework → đi thẳng 1 → 3; tr�
 - **Module Federation**: các team cùng framework, chia sẻ module/component; nhẹ, tích hợp sâu.
 - **single-spa**: trộn nhiều framework, cần incremental migration; mạnh về orchestration nhưng "xuyên" hơn.
 - Có thể kết hợp: single-spa orchestrate các app, mỗi app dùng MF để share design-system.
+
+> **Tóm gọn 1 câu:** Micro-frontend là bài toán tổ chức nhiều hơn là kỹ thuật — dùng khi nhiều team cần deploy độc lập, tránh khi app nhỏ một team.
 
 ## Tham khảo
 

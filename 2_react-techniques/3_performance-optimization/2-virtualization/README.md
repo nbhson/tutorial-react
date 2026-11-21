@@ -10,21 +10,19 @@
 
 **Cơ chế:** container ngoài `overflow:auto` + chiều cao hữu hạn; bên trong là "canvas" cao bằng tổng chiều cao ảo (`getTotalSize()`), mỗi row `position:absolute; transform: translateY(start)`. Scroll đổi → virtualizer tính lại "cửa sổ" nào cần vẽ → React chỉ render đúng cửa sổ đó. Browser không layout toàn bộ vì row định vị tuyệt đối theo offset.
 
-```tsx
-// ✅ ĐÚNG: 10.000 item nhưng DOM chỉ ~15 node — scroll mượt
-const v = useVirtualizer({ count: 10_000, getScrollElement: () => parentRef.current, estimateSize: () => 32, overscan: 5 });
-// Chỉ map v.getVirtualItems() — không map toàn bộ items
-```
+> 📄 **Code ví dụ:** [`examples/01-1-render-chi-cac-dong-trong-viewport-thay.tsx`](examples/01-1-render-chi-cac-dong-trong-viewport-thay.tsx)
 
 **Usecase thực tế:** log hệ thống 50k dòng, feed vô hạn, table 10k đơn hàng, dropdown 5k option, chat history dài. Quy tắc nhận diện "khi nào dùng": list > vài trăm dòng có scroll, hoặc row chứa ảnh/iframe nặng, hoặc table cột dính. List < 200 dòng → render thường + pagination, virtualization chỉ thêm chi phí đo đạc.
 
 ### 2. Giảm node DOM và bộ nhớ hàng trăm lần → scroll mượt với dữ liệu khổng lồ
 
-10.000 dòng × ~5 node/dòng = 50.000 node. Virtualize còn ~15 dòng × 5 = 75 node — giảm ~600 lần. RAM, layout, paint đều giảm tương ứng. Bằng chứng: DevTools Performance → DOM Nodes ổn định khi cuộn qua hàng nghìn dòng (không virtualize thì tăng vọt).
+10.000 dòng × ~5 node/dòng = 50.000 node. Virtualize còn ~15 dòng × 5 = 75 node — giảm ~600 lần. RAM, layout, paint đều giảm tương ứng. Ví von: thay vì mời cả hội trường 10.000 người vào để ai đó chỉ xem 15 hàng đầu, bạn chỉ cho 15 người vào cửa và thay người theo lượt. Bằng chứng: DevTools Performance → DOM Nodes ổn định khi cuộn qua hàng nghìn dòng (không virtualize thì tăng vọt).
 
 ### 3. Nắm API `useVirtualizer`: `count`, `getScrollElement`, `estimateSize`, `overscan`, `measureElement`
 
 `count` là tổng item; `getScrollElement` trả scroll container (ref); `estimateSize` ước cao mỗi row trước khi đo; `overscan` là đệm 2 đầu viewport (tránh trắng khi scroll nhanh); `measureElement` tự đo row cao động sau render. Nắm 5 cái này là dùng được 90% case; còn lại (`scrollToIndex`, `getItemKey`, grid/horizontal) là mở rộng.
+
+> **Tóm gọn 1 câu:** Virtualization là "chỉ mời đúng khán giả đang ngồi ở hàng ghế nhìn thấy vào sân khấu" — DOM nhỏ cố định dù data có to cỡ nào.
 
 ## Tổng quan
 
@@ -34,28 +32,17 @@ Render 50.000 dòng `<li>` đồng nghĩa 50.000 node DOM — trình duyệt tí
 
 ## Khái niệm cốt lõi
 
+Mục này giải nghĩa từng mảnh ghép của `useVirtualizer`: 4 option sống còn, cách tính "cửa sổ" cần vẽ, vì sao dùng `translateY` thay `top`, và xử lý row cao không đều. Đọc xong bạn sẽ tự đọc được mọi config virtualization.
+
 ### 1. `useVirtualizer(options)` — 4 option sống còn
 
-**Vì sao từng option:** `count` cho biết tổng để tính scroll range; `getScrollElement` cho biết đọc `scrollTop`/`clientHeight` ở đâu; `estimateSize` cho chiều cao khởi đầu khi chưa đo (sai nhiều thì scroll lệch tạm rồi hiệu chỉnh); `overscan` cho đệm để scroll nhanh không trắng (quá lớn thì mất lợi ích, quá nhỏ thì chớp).
+**Vì sao từng option:** `count` cho biết tổng để tính scroll range; `getScrollElement` cho biết đọc `scrollTop`/`clientHeight` ở đâu; `estimateSize` cho chiều cao khởi đầu khi chưa đo (sai nhiều thì scroll lệch tạm rồi hiệu chỉnh); `overscan` cho đệm để scroll nhanh không trắng (quá lớn thì mất lợi ích, quá nhỏ thì chớp). Ví von: `estimateSize` như sơ đồ chỗ ngồi in trước khi khách vào — chưa chuẩn nhưng đủ để sắp hàng, khách thật vào rồi mới đo lại chỗ ngồi chính xác.
 
-```tsx
-// ✅ ĐÚNG: 4 option tối thiểu — đủ để virtualizer tính cửa sổ
-const v = useVirtualizer({
-  count: items.length, // tổng dòng — đổi khi filter/append
-  getScrollElement: () => parentRef.current, // ref ổn định, không tạo mới mỗi render
-  estimateSize: () => 32, // mọi row 32px — chính xác thì không cần measureElement
-  overscan: 5, // thêm 5 dòng mỗi đầu — scroll nhanh đã có sẵn trong DOM
-});
-```
+> 📄 **Code ví dụ:** [`examples/02-1-usevirtualizer-options-4-option-song-con.tsx`](examples/02-1-usevirtualizer-options-4-option-song-con.tsx)
 
 **Sai thì sao:**
 
-```tsx
-// ❌ SAI: getScrollElement tạo element mới mỗi lần — virtualizer mất mốc đo
-getScrollElement: () => document.createElement('div'),
-// ✅ ĐÚNG: trả ref ổn định
-getScrollElement: () => parentRef.current,
-```
+> 📄 **Code ví dụ:** [`examples/03-1-usevirtualizer-options-4-option-song-con.tsx`](examples/03-1-usevirtualizer-options-4-option-song-con.tsx)
 
 ### 2. `getVirtualItems()` + `getTotalSize()` — cửa sổ đang vẽ + thước toàn list
 
@@ -69,21 +56,17 @@ Container ngoài cuộn; canvas trong cao `getTotalSize()` + `position:relative`
 
 `estimateSize` chỉ là ước khởi đầu. Row cao động (text 1–3 dòng) phải đo thật: gắn `ref={v.measureElement}` + `data-index` lên row, đặt `getItemKey={(i) => items[i].id}` ổn định. TanStack đo sau render và hiệu chỉnh offset — scroll không lệch dần. Chỉ `estimateSize` cho row động → tổng cao sai tích lũy, càng cuộn càng lệch.
 
-```tsx
-// ✅ ĐÚNG: row cao động — đo thật + key ổn định
-const v = useVirtualizer({ count: items.length, getScrollElement: () => parentRef.current, estimateSize: () => 40, getItemKey: (i) => items[i].id });
-{v.getVirtualItems().map((vi) => (
-  <div key={vi.key} data-index={vi.index} ref={v.measureElement} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}>
-    {items[vi.index].noiDungDai}
-  </div>
-))}
-```
+> 📄 **Code ví dụ:** [`examples/04-4-dynamic-size-measureelement-getitemkey-cho-row-cao.tsx`](examples/04-4-dynamic-size-measureelement-getitemkey-cho-row-cao.tsx)
 
 ### 5. `scrollToIndex` — nhảy tới dòng bất kỳ không cần render cả list
 
-Tìm kiếm "nhảy tới #8000", anchor, chat "về tin mới nhất" — virtualizer tính offset từ estimate/đo và cuộn tới, chỉ render cửa sổ đích. Không cần giữ toàn bộ DOM để cuộn được.
+Tìm kiếm "nhảy tới #8000", anchor, chat "về tin mới nhất" — virtualizer tính offset từ estimate/đo và cuộn tới, chỉ render cửa sổ đích. Không cần giữ toàn bộ DOM để cuộn được. Giống như thư viện lên danh mục cuốn sách ở kệ số mấy — muốn mượn cuốn #8000 thì đi thẳng tới kệ đó, không cần lội qua cả 7.999 cuốn.
+
+> **Tóm gọn 1 câu:** Virtualizer = thước đo (`getTotalSize`) + cửa sổ vẽ (`getVirtualItems`) + đệm chống trắng (`overscan`) — cả trăm nghìn dòng chỉ tồn tại vài chục node DOM.
 
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là 5 bước dựng một list ảo hoàn chỉnh: chuẩn bị container cuộn được, gọi hook, dựng canvas, map item ảo ra row, và xử lý khi data đổi.
 
 ### Bước 1. Xác định scroll container: `useRef` + `height` + `overflow:auto`
 
@@ -105,53 +88,13 @@ Luôn `key={vi.key}` (hoặc id thật), không `key={index` render} — sort/fi
 
 Filter mới thì `scrollToOffset(0)` về đầu (không giữ scrollTop cũ của dataset cũ). Virtualizer tự tính lại cửa sổ.
 
+> **Tóm gọn 1 câu:** Công thức 4 nhịp: container cao hữu hạn → gọi `useVirtualizer` → canvas cao bằng `getTotalSize()` → map item ảo ra row với key ổn định.
+
 ## Ví dụ chi tiết
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn):
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-import { useRef } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
-
-export function VirtualDemo() {
-  // 10.000 phần tử — đủ thấy khác biệt so với render tất cả (50.000 node vs ~75 node)
-  const items = Array.from({ length: 10_000 }, (_, i) => `Dòng #${i + 1}`);
-  const parentRef = useRef<HTMLDivElement>(null); // scroll container — virtualizer đọc scrollTop ở đây
-
-  // useVirtualizer: tính "cửa sổ hiển thị" dựa trên scroll position
-  // Vì sao 4 option này: count để biết tổng, getScrollElement để biết đọc ở đâu,
-  // estimateSize để có cao khởi đầu, overscan để scroll nhanh không trắng
-  const v = useVirtualizer({
-    count: items.length, // tổng số dòng — filter/append thì số này đổi, virtualizer tính lại
-    getScrollElement: () => parentRef.current, // lấy container cuộn (ref ổn định)
-    estimateSize: () => 32, // ước 32px/row — đúng vì demo mọi row cùng cao
-    overscan: 5, // render thêm 5 dòng 2 đầu cho mượt khi scroll nhanh
-  });
-
-  return (
-    // Container BẮT BUỘC có height hữu hạn + overflow auto — không có là không cuộn, list trắng
-    <div ref={parentRef} style={{ height: 300, overflow: 'auto', border: '1px solid #ccc' }}>
-      {/* "canvas" ảo: cao đúng tổng (getTotalSize) để thanh cuộn dài như list thật, position relative làm mốc */}
-      <div style={{ height: v.getTotalSize(), position: 'relative' }}>
-        {/* chỉ render đúng số dòng trong viewport + overscan — không map toàn bộ items */}
-        {v.getVirtualItems().map((vi) => (
-          <div
-            key={vi.key} // key ổn định từ virtualizer — KHÔNG dùng index render, sort/filter là lệch
-            style={{
-              position: 'absolute', top: 0, left: 0, width: '100%',
-              height: 32, // khớp estimateSize (row động thì dùng vi.size + measureElement)
-              transform: `translateY(${vi.start}px)`, // định vị theo offset — dùng transform để chỉ composite, nhanh hơn top
-            }}
-          >
-            {items[vi.index]} {/* lấy nội dung theo index ảo — vi.index là vị trí data thật */}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.tsx`](examples/05-vi-du-chi-tiet.tsx)
 
 ## Giải thích từng phần
 
@@ -169,7 +112,7 @@ Không chiều cao hữu hạn thì container cao bằng nội dung, không có 
 
 ### `estimateSize: () => 32` — đủ cho row đều, thiếu cho row động
 
-Demo mọi row 32px nên ước chính xác là đủ. Row cao động (text dài ngắn khác nhau) phải thêm `measureElement` + `getItemKey`, nếu không tổng cao sai dần, scroll lệch, dòng đè nhau.
+Demo mọi row 32px nên ước chính xác là đủ. Row cao động (text dài ngắn khác nhau) phải thêm `measureElement` + `getItemKey`, nếu không tổng cao sai dần, scroll lệch, dòng đè nhau — giống như ghi sơ đồ ghế bằng ước lượng rồi khách cao thấp vào ngồi, càng về sau càng lệch chỗ.
 
 ### `overscan: 5` — đệm chống trắng
 
@@ -179,7 +122,7 @@ Scroll nhanh vài trăm px/frame, dòng mới chưa kịp render → trắng. Đ
 
 ### Virtualization vs Pagination
 
-Pagination chia API (nhiều click, mất UX "scroll one"), nhưng server nhẹ. Virtualization giữ list liên tục mượt, nhưng cần toàn bộ data ở client memory. Chuẩn mới: server paginate + client virtualize trang đang mở (infinite + virtual).
+Pagination chia API (nhiều click, mất UX "scroll one"), nhưng server nhẹ. Virtualization giữ list liên tục mượt, nhưng cần toàn bộ data ở client memory. Ví von: pagination như đọc sách theo từng chương mượn từ thư viện, virtualization như có cả cuốn sách trên tay nhưng chỉ mở đúng trang đang đọc. Chuẩn mới: server paginate + client virtualize trang đang mở (infinite + virtual).
 
 ### Virtualization vs Infinite Scroll (không virtualize)
 
@@ -193,21 +136,11 @@ react-window đơn giản nhưng row cùng size, grid thủ công, API thập ni
 
 ### 1. Container không height → trắng
 
-```tsx
-// ❌ SAI: không height — không scroll, virtualizer không tính
-<div ref={parentRef} style={{ overflow: 'auto' }}>
-// ✅ ĐÚNG: height hữu hạn
-<div ref={parentRef} style={{ height: 300, overflow: 'auto' }}>
-```
+> 📄 **Code ví dụ:** [`examples/06-1-container-khong-height-trang.tsx`](examples/06-1-container-khong-height-trang.tsx)
 
 ### 2. Key dùng index render → sort/filter lệch
 
-```tsx
-// ❌ SAI: key theo thứ tự render — reorder là React nhầm node
-{v.getVirtualItems().map((vi, idx) => <div key={idx}>)}
-// ✅ ĐÚNG: key ổn định từ virtualizer (hoặc id thật qua getItemKey)
-{v.getVirtualItems().map((vi) => <div key={vi.key}>)}
-```
+> 📄 **Code ví dụ:** [`examples/07-2-key-dung-index-render-sort-filter-lech.tsx`](examples/07-2-key-dung-index-render-sort-filter-lech.tsx)
 
 ### 3. `top: start` thay `translateY` → layout mỗi scroll
 
@@ -220,6 +153,8 @@ Thêm `measureElement` + `getItemKey` như mục Khái niệm 4. Với ảnh tro
 ### 5. Chống chỉ định: list < 200 dòng, table dính phức tạp chưa tính kỹ
 
 Chi phí đo + absolute không lợi cho list ngắn — render thường/pagination đủ. Table hàng cao bất định + nhiều cột sticky thì dùng TanStack Table + Virtual kết hợp, không tự bịa.
+
+> **Tóm gọn 1 câu:** 5 lỗi kinh điển: container thiếu height (trắng), key sai (lệch), `top` thay `translateY` (chậm), row động thiếu measure (lệch tích lũy), và virtualize list ngắn (phí công).
 
 ## Câu hỏi thường gặp
 
@@ -262,6 +197,8 @@ Key id thật khi reorder được. Overscan quá lớn mất lợi ích. Lazy-l
 ### `contain: strict`/`content-visibility` + reset scroll + test DOM nodes
 
 Tăng tốc paint từng row. Đổi dataset thì `scrollToOffset(0)`. Test Performance: DOM nodes phải ổn định khi cuộn nghìn dòng — tăng vọt là virtualize chưa đúng.
+
+> **Tóm gọn 1 câu:** Combo chuẩn 2026: Query nạp data, Virtual vẽ cửa sổ, Compiler bớt render thừa — nhớ chìa khóa: key thật + `measureElement` cho row động, overscan 3–10.
 
 ## Bài tập nhỏ
 

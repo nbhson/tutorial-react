@@ -10,12 +10,7 @@
 
 **Cơ chế React:** `<div>{userInput}</div>` → `document.createTextNode(userInput)` — trình duyệt không parse, không thực thi. `dangerouslySetInnerHTML={{ __html }}` → `innerHTML = ...` — trình duyệt parse + thực thi `script/onerror/onclick`. Tên "dangerously" là cảnh báo thật, không phải trang trí.
 
-```tsx
-// ✅ ĐÚNG: React escape — payload chỉ hiện thành chữ, không chạy
-<div>{'<img src=x onerror=alert(1)>'}</div> // hiện đúng chuỗi đó, không popup
-// ❌ SAI: dangerously với HTML thô — payload chạy ngay khi render
-<div dangerouslySetInnerHTML={{ __html: '<img src=x onerror=alert(1)>' }} /> // alert bật
-```
+> 📄 **Code ví dụ:** [`examples/01-1-hieu-vi-sao-react-escape-mac-inh.tsx`](examples/01-1-hieu-vi-sao-react-escape-mac-inh.tsx)
 
 **Usecase thực tế:** mọi nơi render nội dung user tạo — comment, bio, markdown, chat, tên file, query param phản chiếu. Quy tắc nhận diện: data từ user/API/localStorage/query mà đi vào HTML/URL thì luôn qua escape/sanitize/allowlist — không tin bất kỳ nguồn nào.
 
@@ -36,9 +31,11 @@ Dù sanitize lọt (bypass mới), CSP `script-src 'self'` chặn script lạ ch
 
 ## Khái niệm cốt lõi
 
+Mục này phân biệt rõ hai "ông chú" escape và sanitize, giải thích cơ chế lá chắn của React, rồi lần lượt soi từng cửa hậu: `dangerouslySetInnerHTML`, URL scheme, DOMPurify, Trusted Types. Đọc để biết kẻ tấn công chui vào từ đâu.
+
 ### 1. Escaping vs Sanitizing — biến thành chữ vs loại thẻ độc giữ thẻ lành
 
-Escape (React tự làm): `<` → `&lt;` — mọi thứ thành text vô hại, mất hết định dạng. Sanitize (DOMPurify): `<b>ok</b><script>x</script>` → `<b>ok</b>` — giữ định dạng hợp lệ, bỏ thứ độc. Không cần thẻ → để React text là xong; cần rich text → sanitize rồi mới vào DOM.
+Escape (React tự làm): `<` → `&lt;` — mọi thứ thành text vô hại, mất hết định dạng. Sanitize (DOMPurify): `<b>ok</b><script>x</script>` → `<b>ok</b>` — giữ định dạng hợp lệ, bỏ thứ độc. Ví von: escape là bọc toàn bộ quà trong hộp kính (nhìn được, không sờ được), còn sanitize là nhân viên hải quan soi từng món — bút màu được qua, dao găm bị giữ lại. Không cần thẻ → để React text là xong; cần rich text → sanitize rồi mới vào DOM.
 
 ### 2. Cơ chế React — text node, không parse
 
@@ -52,13 +49,7 @@ Gán thẳng `innerHTML` → parse + chạy `script`, `onerror`, `onclick`, `src
 
 `href="javascript:alert(1)"` chạy khi click; `data:text/html,<script>` tương tự. React 16.9+ chặn `javascript:` trong href (thay bằng throw) nhưng còn `data:`, `vbscript:`, redirect mở, khoảng trắng/encoding lách (`\u0000javascript:`). Fix duy nhất bền: allowlist protocol (`https/http/mailto`), không blacklist.
 
-```tsx
-// ❌ SAI: blacklist javascript: — sót data:, vbscript:, encoding lách
-const ok = !href.includes('javascript:');
-// ✅ ĐÚNG: allowlist — chỉ 3 protocol này được làm link, còn lại thành chữ
-const u = new URL(href, window.location.origin);
-const ok = ['https:', 'http:', 'mailto:'].includes(u.protocol);
-```
+> 📄 **Code ví dụ:** [`examples/02-4-url-scheme-injection-javascript-data-vbscript-trong.tsx`](examples/02-4-url-scheme-injection-javascript-data-vbscript-trong.tsx)
 
 ### 5. DOMPurify — allowlist parser, chạy 2 phía, bản 3.x hiện hành
 
@@ -68,7 +59,11 @@ Parse bằng `DOMParser`, strip ngoài `ALLOWED_TAGS/ATTR`, chặn `on*`/`srcdoc
 
 CSP `require-trusted-types-for 'script'` cấm gán `innerHTML` bằng string thường — phải là `TrustedHTML`. DOMPurify `RETURN_TRUSTED_TYPE: true` trả đúng kiểu này. Chỉ bật khi CSP có directive đó, nếu không mismatch kiểu.
 
+> **Tóm gọn 1 câu:** Escape biến mọi thứ thành chữ vô hại, sanitize lọc giữ thẻ lành — và 4 cửa hậu (`dangerouslySetInnerHTML`, URL, `eval`, lib raw) là chỗ bạn phải tự khóa.
+
 ## Luồng hoạt động / Cách áp dụng
+
+Mục này là quy trình 5 bước rà chống XSS từ "quét toàn repo tìm cửa hậu" tới "thêm CSP làm lớp cuối" — đi theo thứ tự thì không bỏ sót lỗ hổng.
 
 ### Bước 1. Rà soát mọi `dangerouslySetInnerHTML`/`innerHTML`/renderer tự viết
 
@@ -90,62 +85,17 @@ Chuẩn hóa (`//evil.com`, percent-encoding, khoảng trắng) trước khi so 
 
 Header HTTP ở Nginx/CDN, không phải meta. Report-only trước để thu thập vi phạm, chặn thật sau.
 
+> **Tóm gọn 1 câu:** Thứ tự ưu tiên: không cần thẻ thì để React text, cần thẻ thì sanitize allowlist, URL thì `new URL()` + allowlist protocol, và CSP là chốt chặn cuối.
+
 ## Ví dụ chi tiết
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn):
 
-```tsx
-// example.tsx — mirror đầy đủ, khớp từng dòng với file thật
-import DOMPurify from 'dompurify';
-
-// Render HTML người dùng nhập — luôn sanitize trước khi đưa vào DOM
-// Vì sao phải sanitize: dangerouslySetInnerHTML gán innerHTML thật — không sanitize là script chạy ngay
-export function RichText({ html }: { html: string }) {
-  // Allowlist tối thiểu: chỉ giữ định dạng cơ bản, bỏ script/iframe/style/on*/srcdoc
-  // Vì sao tường minh: mặc định DOMPurify đổi theo version; allowlist riêng giúp review ổn định
-  const clean = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'i', 'u', 'a', 'p', 'br'],
-    ALLOWED_ATTR: ['href'], // chỉ href — bỏ on*, style, srcdoc ngay từ config
-  });
-  // eslint-disable-next-line react/no-danger — chỉ tắt SAU khi đã sanitize, kèm lý do
-  return <div dangerouslySetInnerHTML={{ __html: clean }} />;
-}
-
-// Link an toàn: chặn javascript:/data: bằng allowlist protocol (không blacklist)
-// Vì sao allowlist: blacklist sót data:/vbscript:/encoding lách; allowlist chỉ cho 3 cái lành
-export function SafeLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  let ok = false;
-  try {
-    // Phân giải URL tương đối theo origin hiện tại để chuẩn hoá (xử lý //evil.com, encoding, khoảng trắng)
-    const u = new URL(href, window.location.origin);
-    ok = u.protocol === 'https:' || u.protocol === 'http:' || u.protocol === 'mailto:';
-  } catch {
-    ok = false; // URL hỏng → coi như không an toàn, không làm link
-  }
-  if (!ok) return <span>{children}</span>; // fallback: chỉ còn chữ, không phải link — an toàn hơn link độc
-  return (
-    // noopener + noreferrer: trang đích không chạm window.opener (reverse tabnabbing) + không nhận referrer
-    <a href={href} rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-}
-```
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.tsx`](examples/03-vi-du-chi-tiet.tsx)
 
 Trusted Types cho CSP nghiêm (khối bổ sung trong README gốc):
 
-```ts
-// Bật khi CSP có require-trusted-types-for 'script' — trả TrustedHTML thay vì string
-import DOMPurify from 'dompurify';
-DOMPurify.setConfig({ RETURN_TRUSTED_TYPE: true });
-export const cleanHtml = (raw: string) => DOMPurify.sanitize(raw);
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.ts`](examples/04-vi-du-chi-tiet.ts)
 
 ## Giải thích từng phần
 
@@ -173,22 +123,11 @@ Disable chỉ sau sanitize, kèm comment để reviewer biết đã nghĩ. `ALLO
 
 ### 1. dangerously với HTML thô → script chạy ngay
 
-```tsx
-// ❌ SAI: HTML user thẳng vào DOM — <img onerror> chạy lúc render
-<div dangerouslySetInnerHTML={{ __html: userHtml }} />
-// ✅ ĐÚNG: sanitize trước, allowlist hẹp
-const clean = DOMPurify.sanitize(userHtml, { ALLOWED_TAGS: ['b', 'i', 'p', 'br'], ALLOWED_ATTR: [] });
-<div dangerouslySetInnerHTML={{ __html: clean }} />
-```
+> 📄 **Code ví dụ:** [`examples/05-1-dangerously-voi-html-tho-script-chay-ngay.tsx`](examples/05-1-dangerously-voi-html-tho-script-chay-ngay.tsx)
 
 ### 2. Sanitize rồi nối thêm chuỗi → bypass
 
-```tsx
-// ❌ SAI: phần nối thêm chưa sanitize — attacker nhét payload vào phần nối
-<div dangerouslySetInnerHTML={{ __html: clean + userSuffix }} />
-// ✅ ĐÚNG: nối trước, sanitize sau cùng ngay trước render
-<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(raw + suffix, config) }} />
-```
+> 📄 **Code ví dụ:** [`examples/06-2-sanitize-roi-noi-them-chuoi-bypass.tsx`](examples/06-2-sanitize-roi-noi-them-chuoi-bypass.tsx)
 
 ### 3. Blacklist `javascript:` → sót họ protocol + encoding
 
@@ -202,6 +141,8 @@ Mỗi ngữ cảnh config riêng, cập nhật DOMPurify thường xuyên (bypas
 
 Markdown qua `rehype-sanitize` hoặc bọc DOMPurify. Link blank luôn `noopener noreferrer`. SSR sanitize ở server (jsdom) — client sanitize không bảo vệ lần render đầu từ server.
 
+> **Tóm gọn 1 câu:** Quy tắc sống còn: allowlist chứ không blacklist, sanitize là điểm cuối cùng trước khi vào DOM, và server phải tự sanitize — không tin client.
+
 ## Best practices / Mẹo
 
 ### Allowlist không blacklist; server cũng sanitize; Trusted Types đóng vector innerHTML
@@ -211,6 +152,8 @@ Mặc định React text. Server SSR sanitize độc lập — không tin client
 ### Test payload XSS mẫu + eslint no-unsanitized + CSP report-only
 
 Lưu `<img src=x onerror=alert(1)>` vào suite — nâng DOMPurify mà regression là test đỏ ngay. `eslint-plugin-no-unsanitized` bắt gán `innerHTML` chưa sanitize lúc review. CSP report-only thu thập payload lọt trước khi chặn thật. Coi API/localStorage/query là không tin cậy như input. Giữ lib render HTML bản mới nhất.
+
+> **Tóm gọn 1 câu:** Phòng thủ nhiều lớp: React text mặc định → DOMPurify khi cần thẻ → Trusted Types khóa `innerHTML` → CSP chặn thực thi — thủng lớp nào còn lớp sau.
 
 ## Bài tập nhỏ
 

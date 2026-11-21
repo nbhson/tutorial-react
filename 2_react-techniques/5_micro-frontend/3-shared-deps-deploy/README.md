@@ -20,18 +20,21 @@ Host là chủ URL thật (deep-link, Back, refresh). Remote là khách (lịch 
 
 ## Tổng quan
 
-- Micro-frontend thất bại khi: 2 bản React crash, hai app fighting về URL, hoặc deploy chung dính lẫn nhau. Mỗi lỗi đều "đêm mới thấy" (production) vì dev/preview thường chỉ một remote.
+Mục này phác 3 trụ cột để micro-frontend không sụp trước khi đi chi tiết từng trụ.
+
+- Micro-frontend thất bại khi: 2 bản React crash, hai app fighting về URL, hoặc deploy chung dính lẫn nhau. Ví von: như ba người cùng cầm tay lái một chiếc xe — mỗi người một ý, xe chỉ lắc lư rồi đổ. Mỗi lỗi đều "đêm mới thấy" (production) vì dev/preview thường chỉ một remote.
 - Bài này là "điều kiện để MF sống khỏe" sau khi đã làm `1-module-federation` (cơ chế) — tập trung vào version/dependency, routing, contract (kiểu dữ liệu trao đổi).
 - Áp dụng từ khi ≥ 2 remotes thật dùng chung design-system/router; không cần nếu chỉ 1 app (thêm Federation vô ích).
 
+> **Tóm gọn 1 câu:** Bài này chốt 3 trụ sống còn: dependency một bản, routing một chủ, deploy độc lập theo version.
+
 ## Khái niệm cốt lõi
+
+Mục này đi sâu từng trụ: singleton + requiredVersion, lệch major có chủ đích, phối hợp routing host/remote, versioned deploy, và contract test. Đọc để hiểu "hợp đồng" giữa host và remote.
 
 ### 1. Singleton + requiredVersion — một bản React duy nhất
 
-```ts
-// ✅ ĐÚNG: ép một bản, ép version tương thích — lệch là báo ngay lúc runtime/build
-shared: { react: { singleton: true, requiredVersion: '^19.0.0' } }
-```
+> 📄 **Code ví dụ:** [`examples/01-1-singleton-requiredversion-mot-ban-react-duy-nhat.ts`](examples/01-1-singleton-requiredversion-mot-ban-react-duy-nhat.ts)
 
 **Vì sao:** 2 bản React = 2 reconciler + 2 hook state → `Invalid hook call` dù code đúng. Design-system 2 bản → theme lệch. Store 2 bản (zustand) → giỏ ở remote A, checkout ở remote B không thấy nhau. `singleton: true` + chung file `sharedDeps` là cách duy nhất giữ một bản.
 
@@ -45,13 +48,7 @@ Migration zustand v4→v5 không thể một đêm. Cho phép 2 bản tạm bằ
 
 Host giữ URL thật (Back/refresh/deep-link). Remote `createMemoryRouter({ initialEntries: [basePath] })` — lịch sử ảo trong JS, không đụng URL. `basePath` do host truyền (`/shop` đang ở đâu). Remote nav nội bộ → bắn `remote:nav:app` event → host `navigate(path)` để URL thật theo kịp (giữ Back/refresh được). Remote tự `BrowserRouter` là đè URL host — cấm.
 
-```tsx
-// ❌ SAI (remote): BrowserRouter riêng — đè URL host, refresh mất route
-<BrowserRouter><Routes>...</Routes></BrowserRouter>
-// ✅ ĐÚNG (remote): memory + basePath từ host — URL thật do host giữ
-const router = createMemoryRouter(routes, { initialEntries: [basePath] });
-<RouterProvider router={router} />
-```
+> 📄 **Code ví dụ:** [`examples/02-3-routing-host-browserrouter-duy-nhat-remote-memory.tsx`](examples/02-3-routing-host-browserrouter-duy-nhat-remote-memory.tsx)
 
 ### 4. Versioned deploy — pin production, `latest` chỉ preview + fallback
 
@@ -59,7 +56,7 @@ Mỗi remote publish `/shop/1.2.0/remoteEntry.js` (version trong URL). Host prod
 
 ### 5. Contract test — props trao đổi có hợp đồng kiểu, CI hai bên cùng check
 
-Host-remote trao đổi qua props (`{ basePath, userId }`) — remote đổi type mà host không biết là crash runtime mới thấy. Publish TS types chung (package) hoặc Pact contract, CI mỗi bên chạy check: lệch là đỏ trước khi merge, không đợi production.
+Host-remote trao đổi qua props (`{ basePath, userId }`) — remote đổi type mà host không biết là crash runtime mới thấy. Ví von: hợp đồng kiểu dữ liệu như bảng quy cách đóng gói hai bên cùng ký — bên giao đổi quy cách mà không báo là bên nhận lập tức "nhận nhầm hàng". Publish TS types chung (package) hoặc Pact contract, CI mỗi bên chạy check: lệch là đỏ trước khi merge, không đợi production.
 
 ## Luồng hoạt động / Cách áp dụng
 
@@ -91,60 +88,11 @@ Lệch props là đỏ trước merge. Dependency map ("ai dùng version nào") 
 
 Mirror 1-1 với `example.tsx` cùng thư mục (không rút gọn), cộng remote + sync:
 
-```ts
-// shared-deps.ts — mirror đầy đủ, khớp từng dòng với example.tsx
-// Import vào vite/rspack config của CẢ host + remotes — nguồn sự thật duy nhất, tránh lệch
-export const sharedDeps = {
-  // Một bản React duy nhất toàn hệ thống — 2 bản là Invalid hook call
-  react: { singleton: true, requiredVersion: '^19.0.0' },
-  'react-dom': { singleton: true, requiredVersion: '^19.0.0' },
-  zustand: { singleton: true }, // state dùng chung phải 1 bản — 2 bản là store đôi
-} as const;
+> 📄 **Code ví dụ:** [`examples/03-vi-du-chi-tiet.ts`](examples/03-vi-du-chi-tiet.ts)
 
-// Version pinning: production host trỏ URL versioned (chủ động nâng),
-// preview trỏ 'latest' để test tích hợp sớm (gãy ở preview, không gãy prod).
-export const remoteUrls = {
-  production: 'https://cdn.example.com/shop/1.2.0/remoteEntry.js',
-  preview: 'https://cdn.example.com/shop/latest/remoteEntry.js',
-} as const;
-```
+> 📄 **Code ví dụ:** [`examples/04-vi-du-chi-tiet.tsx`](examples/04-vi-du-chi-tiet.tsx)
 
-```tsx
-// remote/CartApp.tsx — nhận basePath từ host, dùng memory router (không tranh URL)
-import { RouterProvider, createMemoryRouter } from 'react-router-dom';
-
-// Vì sao memory: lịch sử ảo trong JS — Back/refresh/URL thật do host giữ, remote không đụng
-const routes = [
-  { path: '/', element: <CartList /> },
-  { path: '/checkout', element: <Checkout /> },
-];
-
-export function RemoteApp({ basePath }: { basePath: string }) {
-  // initialEntries: remote biết mình đang ở "thư mục" nào trong URL host (ví dụ /shop/checkout)
-  const router = createMemoryRouter(routes, { initialEntries: [basePath] });
-  return <RouterProvider router={router} />;
-}
-```
-
-```ts
-// host/RouteSync.tsx — lắng nghe remote đổi path để đồng bộ URL (custom event)
-// Vì sao event: remote nav nội bộ (memory) host không biết — bắn event để URL thật theo kịp, giữ deep-link
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-
-export function useRemotePathSync(appName: string) {
-  const navigate = useNavigate();
-  useEffect(() => {
-    // Remote bắn 'remote:nav:shop' khi tự điều hướng nội bộ (ví dụ / → /checkout)
-    const onNav = (e: Event) => {
-      const { path } = (e as CustomEvent).detail; // path mới trong remote
-      navigate(path); // host cập nhật URL thật + có thể deep-link/Back được
-    };
-    window.addEventListener(`remote:nav:${appName}`, onNav);
-    return () => window.removeEventListener(`remote:nav:${appName}`, onNav); // dọn để không leak chéo app
-  }, [navigate, appName]);
-}
-```
+> 📄 **Code ví dụ:** [`examples/05-vi-du-chi-tiet.ts`](examples/05-vi-du-chi-tiet.ts)
 
 ## Giải thích từng phần
 
@@ -178,6 +126,8 @@ Không event: user bấm checkout trong remote, URL vẫn `/shop` — Back/refre
 | Lib đang migration major | `false` tạm | 2 bản có chủ đích + kế hoạch gộp, không ngầm |
 | Lib nặng một app dùng | `false` | Không share — remote tự mang, đỡ ràng buộc |
 
+> **Cách đọc bảng này:** mỗi dòng là một loại dependency, cột `singleton` là quyết định share hay không, cột "Vì sao" giải thích hệ lụy — khi thêm lib mới vào `shared`, tra bảng này để chọn đúng giá trị thay vì đoán.
+
 ## Lỗi thường gặp / Chống chỉ định
 
 ### 1. Remote `BrowserRouter` → đè URL host
@@ -200,11 +150,15 @@ Bắn `remote:nav` mỗi nav nội bộ; host `navigate` theo. Test Back/refresh
 
 Publish types chung + CI check hai bên. Composition contract (name, version, exposes, shared JSON) để host tự kiểm tra remote khả dụng.
 
+> **Tóm gọn 1 câu:** Ba trụ sống còn: một bản React (singleton), một chủ URL (host), một phiên bản pinned (versioned deploy) — vi phạm trụ nào là đêm đó dậy xử sự cố.
+
 ## Best practices / Mẹo
 
 ### Không import react riêng; contract JSON; semver + 2 bản CDN; log version; nâng major có kế hoạch
 
 Remote không bao giờ `import('react')` bản riêng — luôn shared. Composition contract để CI host check. Semver + giữ 2 bản để rollback tức thì. Log version đang chạy để debug. Nâng major chung dùng `eager: false` + runtime check, không ép singleton mù. Dependency map trong repo. Tích hợp preview trước khi pin prod.
+
+> **Tóm gọn 1 câu:** Nâng version là quyết định có chủ đích (preview → contract test → canary → pin), rollback là đổi URL về bản cũ — mọi thứ đều có đường lui.
 
 ## Bài tập nhỏ
 

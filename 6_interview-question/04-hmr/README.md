@@ -6,9 +6,14 @@
 > So với F5 (full reload) thì khác chỗ nào? React + Vite so với Next.js thì có khác nhau không?
 
 ## Trả lời ngắn (elevator pitch, 30 giây)
-- **HMR (Hot Module Replacement)**: lưu file thì dev server chỉ thay đúng module vừa sửa, app đang chạy giữ nguyên state. Form nhập dở thì nhập tiếp luôn, không mất chữ.
+
+Mục này là câu trả lời 30 giây cho cả ba vế: HMR là gì, khác F5 chỗ nào, và giới hạn của nó.
+
+- **HMR (Hot Module Replacement)**: lưu file thì dev server chỉ thay đúng module vừa sửa, app đang chạy giữ nguyên state. Ví von: thay đúng "trang sách bị lỗi" trong cuốn sách đang mở, thay vì in lại cả cuốn. Form nhập dở thì nhập tiếp luôn, không mất chữ.
 - **F5**: chạy lại từ đầu — mất hết state, tải lại cả bundle nên chậm.
 - **Không phải lúc nào cũng HMR (Hot Module Replacement) được**: sửa config hoặc phá quy tắc hook thì dev server tự reload cả trang (fallback). Thấy mất state sau khi lưu thì hiểu là rơi vào trường hợp này.
+
+> **Tóm gọn 1 câu:** HMR = "thay module, giữ app" — nhanh và giữ state, nhưng thay đổi không an toàn thì tự escalate thành reload.
 
 ## Trả lời chi tiết
 
@@ -20,6 +25,8 @@
 
 ### 2. HMR (Hot Module Replacement): thay module "giữ" state
 
+Mục này là trái tim của câu trả lời: 5 bước HMR xử lý một lần lưu file. Đọc theo thứ tự để kể lại được như một câu chuyện.
+
 Cơ chế (Vite/Webpack):
 
 1. Bạn sửa file, dev server **compile lại chỉ module đó** (Vite: esbuild transform 1 file; Webpack: incremental build).
@@ -28,15 +35,11 @@ Cơ chế (Vite/Webpack):
 4. Nếu module X là **React component** (HMR (Hot Module Replacement)-aware, nhờ `vite-plugin-react` / React Refresh): React **giữ state** của component đó và các con, chỉ re-render phần giao diện; router/Context không mất.
 5. Nếu module X **không HMR (Hot Module Replacement)-aware** (ví dụ `utils/date.ts`, hoặc sửa hook sai quy tắc) → HMR (Hot Module Replacement) **không** biết cách "gộp" → **escalate lên full reload** (hoặc reload subtree).
 
-```tsx
-// vite.config.ts (vite-plugin-react)
-// Vite + React HMR (Hot Module Replacement) = "Fast Refresh": React component được thay
-// mà không mất state (giữ state qua component boundary).
-// Nếu component bị sửa "vượt boundary" (số hook đổi, export đổi) →
-// Fast Refresh "không an toàn" → escalate full reload.
-```
+> 📄 **Code ví dụ:** [`examples/01-2-hmr-hot-module-replacement-thay-module-giu.tsx`](examples/01-2-hmr-hot-module-replacement-thay-module-giu.tsx)
 
 ### 3. So sánh bảng (góc nhìn phỏng vấn)
+
+Mục này bày HMR và F5 cạnh nhau theo 6 tiêu chí — bảng này dùng để trả lời vế "khác gì F5" của đề bài.
 
 | Tiêu chí | Full reload (F5) | HMR (Hot Module Replacement) (Vite + React) |
 |---|---|---|
@@ -46,6 +49,8 @@ Cơ chế (Vite/Webpack):
 | **Khi nào dùng** | Bug "không reproduce" ở HMR (Hot Module Replacement), sau đổi `vite.config`, sau đổi dependency | **Dev loop thường nhật** |
 | **Limitation** | Không có — luôn "sạch" | "Boundary" giới hạn; có thể silent bug nếu không escalate đúng |
 | **React cụ thể** | — | `vite-plugin-react` dùng **React Refresh** (runtime + compiler) |
+
+> **Cách đọc bảng này:** đọc ngang từng hàng là một phép so sánh trực tiếp; hàng "Khi nào dùng" và "Limitation" là hai hàng ăn điểm vì cho thấy bạn hiểu cả hai công cụ đều có chỗ đứng riêng.
 
 ### 4. Tại sao HMR (Hot Module Replacement) quan trọng (đây là phần "ăn điểm")
 
@@ -65,6 +70,8 @@ Không chỉ "nhanh hơn" — HMR (Hot Module Replacement) cho phép **dev loop 
 
 ### 7. Checklist debug "HMR mất state / không cập nhật"
 
+Mục này là "kẹp tài liệu" khi HMR hành xử lạ — 5 bước soi theo thứ tự sẽ tìm ra thủ phạm trong phút mốt.
+
 1. File vừa sửa là gì? `*.config.*`, `.env`, file trong `node_modules` → **server restart**, không phải HMR.
 2. Đổi số hook / đổi export? → React Refresh escalate — **đúng hành vi**, không phải bug. Lưu trước khi đổi cấu trúc hook.
 3. Module có top-level side effect (mở WebSocket, `setInterval` không cleanup) → state cũ "ma" sau HMR — thêm `import.meta.hot.dispose` hoặc chuyển side-effect vào effect.
@@ -75,24 +82,15 @@ Không chỉ "nhanh hơn" — HMR (Hot Module Replacement) cho phép **dev loop 
 
 React component có React Refresh lo; nhưng file thường (store, plugin, CSS-in-JS runtime) muốn tự quản HMR thì dùng Vite HMR API:
 
-```ts
-// utils/state.ts — tự khai báo cách "thay" module khi HMR
-if (import.meta.hot) {
-  import.meta.hot.accept((newModule) => {
-    // module mới về: áp dụng thủ công, không để escalate full reload
-    store.replaceReducer(newModule.reducer);
-  });
-  import.meta.hot.dispose(() => {
-    clearInterval(timer); // dọn side-effect của phiên bản cũ — không để "state ma"
-  });
-}
-```
+> 📄 **Code ví dụ:** [`examples/02-8-hmr-api-cua-vite-khong-phai-react.ts`](examples/02-8-hmr-api-cua-vite-khong-phai-react.ts)
 
 - `import.meta.hot.accept(cb)` — khai báo "module này tự biết cách cập nhật". Không khai báo thì fallback lên cha → lan tới entry → full reload.
 - `import.meta.hot.dispose(cb)` — dọn side-effect (timer, listener, cache) **trước** khi module cũ bị thay; bỏ qua đây là nguồn bug "dữ liệu cũ còn sống sau khi sửa code".
 - Redux Toolkit / Zustand v5 có sẵn HMR-aware `import.meta.hot.accept` trong docs — store thay reducer mới mà giữ state, không cần tự viết.
 
 ### 9. Từ vựng phỏng vấn cần dùng đúng
+
+Mục này trang bị "bộ từ điển" — 5 thuật ngữ dùng đúng là interviewer lập tức nhận ra bạn hiểu bản chất.
 
 | Thuật ngữ | Nghĩa chính xác |
 |---|---|
@@ -101,6 +99,8 @@ if (import.meta.hot) {
 | **React Refresh boundary** | Component được bọc bởi React Refresh runtime — đơn vị giữ state |
 | **Escalate** | Update không an toàn → ném lên trên / full reload |
 | **HMR invalidate** | Server chủ động báo "module này đã stale" → reload ngay cả khi không sửa file đó |
+
+> **Cách đọc bảng này:** mỗi hàng một thuật ngữ — học thuộc cột trái và diễn đạt lại cột phải bằng lời của mình; dùng đúng 2–3 thuật ngữ trong câu trả lời là điểm cộng lớn.
 
 Nói đúng thuật ngữ giúp trả lời "HMR hoạt động thế nào" không bị rơi vào kiểu trả lời "nó nóng reload, nhanh" — kiểu đó không qua được vòng senior.
 
@@ -128,6 +128,8 @@ Nguyên nhân thường gặp (đặt vào phần "Lỗi thường gặp"):
 
 ## Bẫy khi phỏng vấn
 
+Mục này là 4 "phát ngôn sai" kinh điển về HMR — mỗi bẫy kèm cách nói đúng ngay sau mũi tên.
+
 1. **"HMR (Hot Module Replacement) = giữ state"** (suông) → **không chính xác**: giữ state **ở component boundary** (React Fast Refresh), không giữ state **global** (ví dụ Context ở "trên" boundary bị sửa có thể reset). Nên nói: "keep **component** state, re-run phần không được bảo vệ".
 2. **Nhầm HMR (Hot Module Replacement) với "HMR (Hot Module Replacement) = không bao giờ reload"** → sai: HMR (Hot Module Replacement) có **escalation rule** (không an toàn → full reload; dev server thay đổi config → server restart).
 3. **"HMR (Hot Module Replacement) là của Vite"** → Vite *cung cấp* HMR (Hot Module Replacement) (module graph + WebSocket), nhưng **React-specific** HMR (Hot Module Replacement) = **React Refresh** (runtime). Webpack cũng HMR (Hot Module Replacement) (đơn vị là "module chunk"), Next.js cũng HMR (Hot Module Replacement) (unit-level + router-aware).
@@ -136,6 +138,8 @@ Nguyên nhân thường gặp (đặt vào phần "Lỗi thường gặp"):
 ## Gợi ý câu chốt
 
 > "HMR (Hot Module Replacement) là 'thay module, không thay app': sửa file → dev server gửi diff → React Fast Refresh giữ state **tại boundary component**, chỉ re-render phần đổi. Full reload thì `createRoot` chạy lại từ đầu, state mất. HMR (Hot Module Replacement) không phải 'miễn phí' — nó có rule: nếu thay đổi không an toàn (thiếu cleanup, đổi hook, sửa config) thì **escalate full reload** (hoặc server restart). Hiểu rõ boundary này là cách debug 'HMR (Hot Module Replacement) không hoạt động' nhanh nhất."
+
+> **Tóm gọn 1 câu:** HMR là "thay trang lỗi trong sách đang mở" — giữ state tại component boundary, nhưng đổi không an toàn thì tự in lại cả cuốn (full reload).
 
 ## Reference
 
